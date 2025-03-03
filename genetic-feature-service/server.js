@@ -1,33 +1,23 @@
-import express from "express";
-import mongoose from "mongoose";
-import dotenv from "dotenv";
-import cors from "cors";
+import express from "express" ;
+import dotenv from "dotenv" ;
+import cors from "cors" ;
+import connectDB from "./config/db.js" ;
+import featureRoutes from "./routes/featureRoutes.js" ;
 
-dotenv.config();
-const app = express();
-app.use(express.json());
-app.use(cors());
+dotenv.config() ;
+connectDB() ;
 
-mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
-    .then(() => console.log("Genetic Feature Service Connected to DB"))
-    .catch(err => console.log(err));
+const app = express() ;
 
-const FeatureSchema = new mongoose.Schema({
-    genomeId: String,
-    name: String,
-    type: String
-});
-const Feature = mongoose.model("Feature", FeatureSchema);
+app.use(cors()) ;
+app.use(express.json()) ;
+app.use(express.urlencoded({ extended: true })) ;
 
-app.post("/features", async (req, res) => {
-    const feature = new Feature(req.body);
-    await feature.save();
-    res.status(201).json(feature);
-});
+app.use("/features", featureRoutes) ;
 
-app.get("/features/:id", async (req, res) => {
-    const feature = await Feature.findById(req.params.id);
-    res.json(feature);
-});
+app.get("/", (req, res) => {
+    res.send("Genetic Feature Service is Running...") ;
+    });
 
-app.listen(5002, () => console.log("Genetic Feature Service running on port 5002"));
+const PORT = process.env.PORT || 5002;
+app.listen(PORT, () => console.log(`✅ Genetic Feature Service running on port ${PORT}`)) ;
