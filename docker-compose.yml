@@ -1,0 +1,95 @@
+version: "3.8"
+
+services:
+  # ============================
+  # AUTH SERVICE
+  # ============================
+  auth-service:
+    build: ./auth-service
+    container_name: auth-service
+    ports:
+      - "4000:4000"
+    environment:
+      - MONGO_URI=${MONGO_URI}
+      - JWT_SECRET=${JWT_SECRET}
+    networks:
+      - mern-network
+
+  # ============================
+  # GENOMIC SERVICE
+  # ============================
+  genomic-service:
+    build: ./genomic-service
+    container_name: genomic-service
+    ports:
+      - "5001:5001"
+    environment:
+      - MONGO_URI=${MONGO_URI}
+    networks:
+      - mern-network
+
+  # ============================
+  # GENETIC FEATURE SERVICE
+  # ============================
+  genetic-feature-service:
+    build: ./genetic-feature-service
+    container_name: genetic-feature-service
+    ports:
+      - "5002:5002"
+    environment:
+      - MONGO_URI=${MONGO_URI}
+    networks:
+      - mern-network
+
+  # ============================
+  # TABLE SERVICE
+  # ============================
+  table-service:
+    build: ./table-service
+    container_name: table-service
+    ports:
+      - "5003:5003"
+    environment:
+      - MONGO_URI=${MONGO_URI}
+    networks:
+      - mern-network
+
+  # ============================
+  # VARIETY SERVICE
+  # ============================
+  variety-service:
+    build: ./variety-service
+    container_name: variety-service
+    ports:
+      - "5004:5004"
+    environment:
+      - MONGO_URI=${MONGO_URI}
+    networks:
+      - mern-network
+
+  # ============================
+  # PHENOTYPE SERVICE
+  # ============================
+  phenotype-service:
+    build: ./phenotype-service
+    container_name: phenotype-service
+    ports:
+      - "5005:5005"
+    environment:
+      - MONGO_URI=${MONGO_URI}
+    networks:
+      - mern-network
+
+  # ============================
+  # API GATEWAY
+  # ============================
+  api-gateway:
+    build: ./api-gateway
+    container_name: api-gateway
+    ports:
+      - "8000:8000"
+    networks:
+      - mern-network
+
+networks:
+  mern-network:
