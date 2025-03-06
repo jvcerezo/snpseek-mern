@@ -2,8 +2,9 @@
 /* Full-Width Hero Section with Parallax Effect */
 .hero {
     position: relative;
+    padding-top: 200px;
     width: 100vw;
-    height: 90vh; /* Full screen height */
+    height: 100vh; /* Full screen height */
     background-image: url('../assets/irri_background.webp');
     background-size: cover;
     background-position: center;
