@@ -1,9 +1,9 @@
 import express from "express";
-import { getFeatureByGeneNameAndGenome } from "../controllers/featureController.js";
+import { getFeatureByGeneNameAndReferenceGenome } from "../controllers/featureController.js";
 
 const router = express.Router();
 
 // ✅ Define the GET route to fetch by geneName and referenceGenome
-router.get("/search", getFeatureByGeneNameAndGenome);
+router.get("/search", getFeatureByGeneNameAndReferenceGenome);
 
 export default router;
