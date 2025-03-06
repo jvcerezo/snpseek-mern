@@ -1,65 +1,98 @@
-/* General Styles */
-body {
-    margin: 0;
-    font-family: Arial, sans-serif;
-    background: #121212;
-    color: #e0e0e0;
+
+/* Full-Width Hero Section with Parallax Effect */
+.hero {
+    position: relative;
+    width: 100vw;
+    height: 90vh; /* Full screen height */
+    background-image: url('../assets/irri_background.webp');
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed; /* Enables parallax effect */
     display: flex;
     justify-content: center;
     align-items: center;
-    height: 100vh;
-  }
-  
-  /* Landing Page Container */
-  .landing-container {
     text-align: center;
-    max-width: 600px;
-    padding: 2rem;
-    background: #1e1e1e;
+}
+
+/* Dark Overlay for Readability */
+.hero-content {
+    background: rgba(0, 0, 0, 0.6);
+    padding: 40px;
     border-radius: 10px;
-    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.3);
-  }
-  
-  /* Title */
-  .landing-title {
-    font-size: 32px;
-    font-weight: bold;
-    color: #2b8a3e;
-  }
-  
-  /* Subtitle */
-  .landing-subtitle {
+}
+
+/* Call-To-Action Button */
+.cta-button {
+    padding: 12px 24px;
     font-size: 18px;
-    margin: 10px 0 20px;
-    color: #b0b0b0;
-  }
-  
-  /* Buttons */
-  .landing-buttons {
-    display: flex;
-    justify-content: center;
-    gap: 10px;
-  }
-  
-  .landing-button {
-    padding: 10px 20px;
-    border-radius: 5px;
-    background: #2b8a3e;
     color: white;
-    text-decoration: none;
-    font-size: 16px;
+    background-color: #4caf50;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
     transition: background 0.3s;
-  }
-  
-  .landing-button:hover {
-    background: #1f6c2b;
-  }
-  
-  .register-btn {
-    background: #236c9e;
-  }
-  
-  .register-btn:hover {
-    background: #1a547c;
-  }
-  
+}
+
+.cta-button:hover {
+    background-color: #388e3c;
+}
+
+/* Information Section */
+.info-section {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 30px;
+    padding: 50px 20px;
+    background: #121212;
+}
+
+/* Cards */
+.card {
+    background: #252525;
+    padding: 20px;
+    border-radius: 10px;
+    width: 300px;
+    text-align: center;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    transition: transform 0.3s;
+}
+
+.card img{
+    width: 100px; /* Adjust the size to fit well */
+    height: auto; /* Maintain aspect ratio */
+    display: block; /* Ensure proper spacing */
+    margin: 0 auto 10px; /* Center image and add spacing below */
+    filter: brightness(0.8); /* Slight dimming effect to blend in */
+}
+
+.card:hover {
+    transform: scale(1.05);
+}
+
+.card h2 {
+    color: #4caf50;
+}
+
+.card p {
+    font-size: 16px;
+}
+
+/* Technology Section to be displayed in the middle of the page */
+.technology-section {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    background: #121212;
+}
+/* Responsive Fix */
+@media (max-width: 768px) {
+    .hero {
+        background-attachment: scroll; /* Disable parallax on mobile */
+    }
+
+    .info-section {
+        flex-direction: column;
+        align-items: center;
+    }
+}
