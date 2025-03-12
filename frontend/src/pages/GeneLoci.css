@@ -1,0 +1,159 @@
+/* Dark Theme */
+.gene-loci-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 40px;
+    background-color: #1e1e1e;
+    color: #f4f4f4;
+    height: 100vh;
+  }
+  
+  .title {
+    font-size: 28px;
+    font-weight: bold;
+    color: #4caf50;
+    padding-top: 170px;
+    margin-bottom: 20px;
+  }
+  
+  .content {
+    display: flex;
+    justify-content: center;
+    gap: 40px;
+    width: 100%;
+    max-width: 1000px;
+  }
+  
+  /* Search Form */
+  .search-form {
+    background: #2b2b2b;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+    width: 400px;
+    text-align: left;
+  }
+  
+  .form-group {
+    margin-bottom: 15px;
+  }
+  
+  .form-group label {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 5px;
+  }
+  
+  .form-group select,
+  .form-group input {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #444;
+    border-radius: 5px;
+    background: #1e1e1e;
+    color: #f4f4f4;
+  }
+  
+  /* Search Button */
+  .search-btn {
+    width: 100%;
+    background-color: #4caf50;
+    color: white;
+    border: none;
+    padding: 10px;
+    border-radius: 5px;
+    cursor: pointer;
+  }
+  
+  .search-btn:hover {
+    background-color: #4caf50;
+  }
+  
+  /* Visual Guide */
+  .visual-guide {
+    background: #2b2b2b;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+    width: 400px;
+  }
+  
+  .visual-guide h2 {
+    font-size: 20px;
+    margin-bottom: 10px;
+    color: #4caf50;
+  }
+  
+  .steps {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+  }
+  
+  .step {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  
+  .step-number {
+    background-color: #4caf50;
+    color: white;
+    font-weight: bold;
+    padding: 5px 10px;
+    border-radius: 50%;
+  }
+  
+  /* Styled Checkbox */
+.optional-section {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+    cursor: pointer;
+  }
+  
+  .checkbox-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: bold;
+  }
+  
+  .checkbox-container input {
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    border: 2px solid #4caf50;
+    border-radius: 4px;
+    background-color: transparent;
+    cursor: pointer;
+    position: relative;
+    transition: all 0.3s ease;
+  }
+  
+  .checkbox-container input:checked {
+    background-color: #4caf50;
+    border: 2px solid #4caf50;
+  }
+  
+  .checkbox-container input:checked::after {
+    content: "✔";
+    color: #fff;
+    font-size: 14px;
+    position: absolute;
+    left: 3px;
+    top: -2px;
+  }
+  
+  .checkbox-container input:hover {
+    border-color: #66bb6a;
+  }
+  
+  .checkbox-container input:focus {
+    outline: none;
+    box-shadow: 0 0 5px rgba(76, 175, 80, 0.6);
+  }
+  
