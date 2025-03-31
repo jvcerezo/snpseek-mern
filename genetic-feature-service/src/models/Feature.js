@@ -13,5 +13,5 @@ const featureSchema = new mongoose.Schema({
     timestamps: true
 });
 
-const Feature = mongoose.model("geneLoci", featureSchema);
+const Feature = mongoose.model("geneLoci", featureSchema, "geneLoci");
 export default Feature;
