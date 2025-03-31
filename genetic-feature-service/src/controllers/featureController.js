@@ -3,13 +3,20 @@ import Trait from "../models/Traits.js";
 
 export const getFeatureByGeneNameAndReferenceGenome = async (req, res) => {
     try {
-        const { geneName, referenceGenome = "Japonica Nipponbare", searchType = "substring" } = req.query;
+        const { geneName, referenceGenome, searchType } = req.query;
 
+        // Validate required inputs
         if (!geneName) {
-            return res.status(400).json({ error: "geneName is required" });
+            return res.status(400).json({ error: "Gene name is required" });
         }
 
+        if (!referenceGenome) {
+            return res.status(400).json({ error: "Reference genome is required" });
+        }
+
+        // Build the query based on search type
         let query = { referenceGenome };
+        
         if (searchType === "whole-word") {
             query.geneName = geneName;
         } else if (searchType === "substring") {
@@ -19,10 +26,11 @@ export const getFeatureByGeneNameAndReferenceGenome = async (req, res) => {
         } else if (searchType === "regex") {
             query.geneName = { $regex: new RegExp(geneName) };
         } else {
-            // Default fallback
+            // Default fallback to substring search
             query.geneName = { $regex: geneName, $options: "i" };
         }
 
+        // Query the database
         const features = await Feature.find(query);
 
         if (!features.length) {
@@ -56,15 +64,20 @@ export const getAvailableTraits = async (req, res) => {
 };
 
 /**
- * @desc Get features associated with a selected trait
+ * @desc Get features associated with a selected trait and reference genome
  * @route GET /features/by-trait
  */
 export const getFeaturesByTrait = async (req, res) => {
     try {
-        const { traitName } = req.query;
+        const { traitName, referenceGenome } = req.query;
 
+        // Validate required inputs
         if (!traitName) {
             return res.status(400).json({ error: "Trait name is required" });
+        }
+
+        if (!referenceGenome) {
+            return res.status(400).json({ error: "Reference genome is required" });
         }
 
         // Find the trait by name
@@ -74,10 +87,37 @@ export const getFeaturesByTrait = async (req, res) => {
             return res.status(404).json({ error: "Trait not found" });
         }
 
-        // Fetch gene features linked to this trait
-        const features = await Feature.find({ id: { $in: trait.geneIds } });
+        // Ensure geneIds exist in the trait
+        if (!trait.geneIds || trait.geneIds.length === 0) {
+            return res.status(404).json({ error: "No associated genes found for this trait" });
+        }
+
+        console.log("🔍 Trait:", trait);
+        console.log("🔍 Gene IDs to search for:", trait.geneIds);
+        console.log("🔍 Reference Genome:", referenceGenome);
+
+        // Build the query with both trait gene IDs and reference genome
+        const query = {
+            $and: [
+                { referenceGenome },
+                { $or: [
+                    { _id: { $in: trait.geneIds } },
+                    { id: { $in: trait.geneIds } }
+                ]}
+            ]
+        };
+
+        // Fetch gene features linked to this trait and reference genome
+        const features = await Feature.find(query);
+
+        if (features.length === 0) {
+            return res.status(404).json({ 
+                error: "No gene features found for the provided trait and reference genome" 
+            });
+        }
 
         res.status(200).json(features);
+
     } catch (error) {
         console.error("❌ Error fetching features by trait:", error);
         res.status(500).json({ error: "Internal Server Error" });

@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const API = axios.create({
-  baseURL: process.env.REACT_APP_API_URL // ✅ Uses API Gateway
+  baseURL: process.env.REACT_APP_API_URL 
 });
 
 // ✅ Register User
@@ -45,3 +45,28 @@ export const fetchReferenceGenomes = async () => {
     return [];
   }
 };
+
+// ✅ Fetch Features by Gene Name
+export const fetchFeaturesByGeneName = async (geneName, referenceGenome, searchType) => {
+  try {
+    const response = await API.get("/genetic-features/by-gene-name", {
+      params: { geneName, referenceGenome, searchType }
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching features:", error);
+    return [];
+  }
+};
+
+// ✅ Fetch Genes by Trait
+export const fetchGenesByTrait = async (traitName, referenceGenome) => {
+  try {
+    const response = await API.get("/genetic-features/by-trait", { params: { traitName, referenceGenome } });
+    return response.data; 
+  } catch (error) {
+    console.error("❌ Error fetching genes by trait:", error);
+    return [];
+  }
+};
+
