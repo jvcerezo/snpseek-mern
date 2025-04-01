@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { loginUser } from "../api";
-import { Lock, Mail } from "lucide-react";
+import { Lock, Mail, Eye, EyeOff } from "lucide-react";
 import "./Login.css";
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const navigate = useNavigate();
@@ -28,14 +29,20 @@ export default function Login() {
 
   return (
     <div className="login-page">
+      <div className="background-pattern"></div>
       <div className="login-container">
         <div className="login-card">
+          <div className="card-decoration"></div>
+          
           <div className="login-header">
             <div className="logo-container">
-              <i className="fas fa-dna logo-icon"></i>
+              <div className="logo-circle">
+                <i className="fas fa-dna logo-icon"></i>
+              </div>
               <h1 className="logo-text">SNP-MERN</h1>
             </div>
             <h2 className="login-title">Login to Your Account</h2>
+            <p className="login-subtitle">Access your genomic research dashboard</p>
           </div>
           
           <form onSubmit={handleLogin} className="login-form">
@@ -45,33 +52,40 @@ export default function Login() {
               </div>
             )}
             
-            <div className="input-field">
-              <label htmlFor="email">Email</label>
+            <div className="floating-input">
               <div className="input-container">
                 <Mail className="input-icon" size={18} />
                 <input
                   id="email"
                   type="email"
-                  placeholder="Enter your email"
+                  placeholder=" "
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
                 />
+                <label htmlFor="email">Email</label>
               </div>
             </div>
             
-            <div className="input-field">
-              <label htmlFor="password">Password</label>
+            <div className="floating-input">
               <div className="input-container">
                 <Lock className="input-icon" size={18} />
                 <input
                   id="password"
-                  type="password"
-                  placeholder="Enter your password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder=" "
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
                 />
+                <label htmlFor="password">Password</label>
+                <button 
+                  type="button" 
+                  className="password-toggle"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
               </div>
             </div>
             
@@ -88,11 +102,24 @@ export default function Login() {
             </button>
           </form>
           
+          <div className="divider">
+            <span>or</span>
+          </div>
+          
+          <div className="social-login">
+            <button className="social-button google">
+              <i className="fab fa-google"></i> Continue with Google
+            </button>
+            <button className="social-button github">
+              <i className="fab fa-github"></i> Continue with GitHub
+            </button>
+          </div>
+          
           <div className="login-footer">
             <p className="signup-text">
               Don't have an account?{' '}
               <a href="/register" className="signup-link">
-                Sign Up
+                <i className="fas fa-user-plus"></i> Sign Up
               </a>
             </p>
           </div>
