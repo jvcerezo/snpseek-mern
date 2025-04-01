@@ -233,6 +233,27 @@
   display: block;
 }
 
+/* Add to Dashboard.css */
+.pipeline-btn {
+  border-left: 4px solid #9c27b0;
+}
+
+.pipeline-btn:hover {
+  background-color: rgba(156, 39, 176, 0.1);
+}
+
+/* Adjust quick actions grid */
+.quick-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.action-btn {
+  margin: 0; /* Remove default margins */
+}
+
 /* Responsive Design */
 @media (max-width: 1024px) {
   .quick-actions {

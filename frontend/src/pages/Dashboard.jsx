@@ -1,5 +1,5 @@
 import React from "react";
-import { FaDna, FaClipboardList, FaSeedling, FaChartLine, FaSearch, FaFlask } from "react-icons/fa";
+import { FaDna, FaClipboardList, FaSeedling, FaChartLine, FaSearch, FaFlask, FaProjectDiagram } from "react-icons/fa";
 import Sidebar from "../components/Sidebar";
 import "./Dashboard.css";
 
@@ -13,7 +13,7 @@ const Dashboard = () => {
         <header className="dashboard-header">
           <h1>
             <FaDna className="header-icon" />
-            Dashboard
+            SNP-MERN Dashboard
           </h1>
           <p className="welcome-message">Welcome back to your genomic research portal</p>
         </header>
@@ -40,6 +40,13 @@ const Dashboard = () => {
           >
             <FaFlask className="btn-icon" />
             Search by Gene Loci
+          </button>
+          <button 
+            className="action-btn pipeline-btn"
+            onClick={() => window.location.href = "/pipeline"}
+          >
+            <FaProjectDiagram className="btn-icon" />
+            Analysis Pipeline
           </button>
         </div>
 
