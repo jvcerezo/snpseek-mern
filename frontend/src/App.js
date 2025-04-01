@@ -6,6 +6,7 @@ import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Landing from "./pages/Landing";
 import GeneLoci from "./pages/GeneLoci";
+import Pipeline from "./pages/Pipeline";
 
 function App() {
   return (
@@ -17,6 +18,7 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/search-gene-loci" element={<GeneLoci />} />
+        <Route path="/pipeline" element={<Pipeline />} />
       </Routes>
     </Router>
   );

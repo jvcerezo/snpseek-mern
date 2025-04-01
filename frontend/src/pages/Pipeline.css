@@ -1,0 +1,271 @@
+/* Pipeline.css */
+.pipeline-container {
+    background-color: #0a192f;
+    color: #e6f1ff;
+    min-height: 100vh;
+    padding: 2rem;
+  }
+  
+  .pipeline-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid #1f2d4a;
+    padding-top: 2rem;
+  }
+  
+  .pipeline-header h1 {
+    color: #64ffda;
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    font-size: 1.8rem;
+  }
+  
+  .project-controls {
+    display: flex;
+    gap: 1rem;
+  }
+  
+  .project-select {
+    background-color: #112240;
+    color: #e6f1ff;
+    border: 1px solid #233554;
+    padding: 0.6rem 1rem;
+    border-radius: 6px;
+    min-width: 250px;
+  }
+  
+  .create-project-btn {
+    background-color: #0a7c72;
+    color: white;
+    border: none;
+    padding: 0.6rem 1.2rem;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    transition: all 0.3s;
+  }
+  
+  .create-project-btn:hover {
+    background-color: #64ffda;
+    color: #0a192f;
+  }
+  
+  .pipeline-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 3rem;
+  }
+  
+  .pipeline-card {
+    background-color: #112240;
+    border-radius: 10px;
+    border: 1px solid #1f2d4a;
+    box-shadow: 0 5px 15px rgba(2, 12, 27, 0.5);
+    overflow: hidden;
+  }
+  
+  .card-header {
+    background-color: rgba(16, 41, 83, 0.5);
+    padding: 1.2rem 1.5rem;
+    border-bottom: 1px solid #1f2d4a;
+  }
+  
+  .card-header h2 {
+    margin: 0;
+    font-size: 1.2rem;
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    color: #ccd6f6;
+  }
+  
+  .card-content {
+    padding: 1.5rem;
+  }
+  
+  .input-group {
+    margin-bottom: 1.2rem;
+  }
+  
+  .input-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: #8892b0;
+    font-size: 0.9rem;
+  }
+  
+  .input-group input,
+  .input-group select {
+    width: 100%;
+    padding: 0.8rem 1rem;
+    background-color: #0a192f;
+    color: #e6f1ff;
+    border: 1px solid #233554;
+    border-radius: 6px;
+  }
+  
+  .multi-select {
+    min-height: 100px;
+  }
+  
+  .toggle-group {
+    margin-bottom: 1.2rem;
+  }
+  
+  .toggle-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: #8892b0;
+    font-size: 0.9rem;
+  }
+  
+  .toggle-container {
+    display: flex;
+    border: 1px solid #233554;
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  
+  .toggle-btn {
+    flex: 1;
+    padding: 0.6rem;
+    background-color: #0a192f;
+    color: #8892b0;
+    border: none;
+    cursor: pointer;
+  }
+  
+  .toggle-btn.active {
+    background-color: #112240;
+    color: #64ffda;
+  }
+  
+  .process-btn {
+    width: 100%;
+    padding: 0.8rem;
+    background-color: #0a7c72;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    margin-top: 1rem;
+    cursor: pointer;
+    transition: all 0.3s;
+  }
+  
+  .process-btn:hover {
+    background-color: #64ffda;
+    color: #0a192f;
+  }
+  
+  .output-success {
+    margin-top: 1rem;
+    padding: 0.8rem;
+    background-color: rgba(100, 255, 218, 0.1);
+    border-left: 3px solid #64ffda;
+    border-radius: 4px;
+  }
+  
+  .download-link {
+    color: #64ffda;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  
+  .output-error {
+    margin-top: 1rem;
+    padding: 0.8rem;
+    background-color: rgba(255, 85, 85, 0.1);
+    border-left: 3px solid #ff5555;
+    border-radius: 4px;
+    color: #ff5555;
+  }
+  
+  /* QC Metrics Section */
+  .qc-section {
+    margin-top: 3rem;
+    padding-top: 2rem;
+    border-top: 1px solid #1f2d4a;
+  }
+  
+  .qc-section h2 {
+    color: #64ffda;
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    font-size: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+  
+  .qc-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1.5rem;
+  }
+  
+  .qc-card {
+    background-color: #112240;
+    border-radius: 10px;
+    border: 1px solid #1f2d4a;
+    padding: 1.5rem;
+  }
+  
+  .qc-card h3 {
+    color: #ccd6f6;
+    margin-top: 0;
+    margin-bottom: 1.2rem;
+  }
+  
+  .metrics p {
+    margin: 0.5rem 0;
+    color: #a8b2d1;
+  }
+  
+  .generate-btn {
+    background-color: #0a7c72;
+    color: white;
+    border: none;
+    padding: 0.6rem 1rem;
+    border-radius: 6px;
+    margin-bottom: 1rem;
+    cursor: pointer;
+  }
+  
+  .plot-output,
+  .metrics-output {
+    background-color: #0a192f;
+    border: 1px dashed #233554;
+    border-radius: 6px;
+    padding: 1.5rem;
+    text-align: center;
+    color: #495a7c;
+  }
+  
+  /* Responsive Design */
+  @media (max-width: 1024px) {
+    .pipeline-container {
+      margin-left: 0;
+      padding: 1.5rem;
+    }
+    
+    .pipeline-header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 1rem;
+    }
+  }
+  
+  @media (max-width: 768px) {
+    .pipeline-cards,
+    .qc-cards {
+      grid-template-columns: 1fr;
+    }
+  }
