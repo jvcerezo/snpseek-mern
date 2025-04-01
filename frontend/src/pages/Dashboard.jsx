@@ -13,7 +13,7 @@ const Dashboard = () => {
         <header className="dashboard-header">
           <h1>
             <FaDna className="header-icon" />
-            SNP-MERN Dashboard
+            Dashboard
           </h1>
           <p className="welcome-message">Welcome back to your genomic research portal</p>
         </header>
