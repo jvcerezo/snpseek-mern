@@ -43,7 +43,6 @@ body.modal-open {
 /* --- Layout --- */
 .gene-loci-container {
   min-height: 100vh;
-  padding: 2rem;
   transition: filter 0.3s ease; /* For potential blur effect when modal is open */
 }
 /* Optional: Add blur/dim effect to background when modal is open */

@@ -231,7 +231,7 @@ const GeneLoci = () => {
       <div className="content-wrapper">
         <h1 className="page-title">
           <i className="fas fa-search-location title-icon"></i>
-          Search Gene Loci
+          Search by Gene Loci
         </h1>
 
         <div className="main-content-area">
