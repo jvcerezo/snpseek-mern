@@ -141,7 +141,49 @@ export const getReferenceGenomes = async (req, res) => {
       res.status(500).json({ error: "Internal Server Error" });
     }
   };
-  
+
+/**
+ * @desc Get detailed information for a specific gene by its name and reference genome
+ * @route GET /features/details
+ */
+export const getGeneDetails = async (req, res) => {
+    try {
+        const { geneName, referenceGenome } = req.query;
+
+        // 1. Validate required inputs
+        if (!geneName) {
+            return res.status(400).json({ message: "Gene name query parameter is required" });
+        }
+        if (!referenceGenome) {
+            return res.status(400).json({ message: "Reference genome query parameter is required" });
+        }
+
+        console.log(`🔍 Fetching details for gene: ${geneName}, genome: ${referenceGenome}`);
+
+        // 2. Query the database for an exact match on both fields
+        // Use findOne as we expect a single unique result for details
+        const feature = await Feature.findOne({
+            geneName: geneName, // Exact match for geneName
+            referenceGenome: referenceGenome // Exact match for referenceGenome
+        });
+
+        // 3. Handle response
+        if (!feature) {
+            // If no feature is found, return 404
+            console.log(`❌ Gene details not found for: ${geneName} (${referenceGenome})`);
+            return res.status(404).json({ message: "Gene details not found for the specified name and reference genome." });
+        }
+
+        // If feature is found, return it
+        console.log(`✅ Found gene details for: ${geneName} (${referenceGenome})`);
+        res.status(200).json(feature); // Send the full feature object
+
+    } catch (error) {
+        // 4. Handle potential errors
+        console.error("❌ Error fetching gene details:", error);
+        res.status(500).json({ message: "Internal Server Error while fetching gene details." });
+    }
+};
   
 
 
