@@ -7,6 +7,7 @@ import Dashboard from "./pages/Dashboard";
 import Landing from "./pages/Landing";
 import GeneLoci from "./pages/GeneLoci";
 import Pipeline from "./pages/Pipeline";
+import GenotypeSearch from "./pages/GenotypeSearch";
 
 function App() {
   return (
@@ -19,6 +20,7 @@ function App() {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/search-gene-loci" element={<GeneLoci />} />
         <Route path="/pipeline" element={<Pipeline />} />
+        <Route path="/search-genotype" element={<GenotypeSearch />} />
       </Routes>
     </Router>
   );

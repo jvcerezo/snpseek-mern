@@ -1,0 +1,117 @@
+.genotype-search-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+    font-family: Arial, sans-serif;
+  }
+  
+  .search-card, .results-card {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  
+  .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+  }
+  
+  .toggle-switch {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+  }
+  
+  .toggle-switch input {
+    margin-right: 8px;
+  }
+  
+  .form-group {
+    margin-bottom: 15px;
+  }
+  
+  .form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+  }
+  
+  .form-group select, 
+  .form-group input {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+  }
+  
+  .region-inputs {
+    display: flex;
+    gap: 10px;
+  }
+  
+  .region-inputs select {
+    flex: 2;
+  }
+  
+  .region-inputs input {
+    flex: 1;
+  }
+  
+  .advanced-options {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid #eee;
+  }
+  
+  .form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 20px;
+  }
+  
+  .primary-btn, .secondary-btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  
+  .primary-btn {
+    background: #4CAF50;
+    color: white;
+  }
+  
+  .secondary-btn {
+    background: #f0f0f0;
+    color: #333;
+  }
+  
+  .results-table {
+    margin-top: 20px;
+    overflow-x: auto;
+  }
+  
+  .results-table table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  
+  .results-table th, 
+  .results-table td {
+    padding: 10px;
+    border: 1px solid #ddd;
+    text-align: left;
+  }
+  
+  .results-table th {
+    background: #f5f5f5;
+  }
+  
+  .results-table tr:nth-child(even) {
+    background: #f9f9f9;
+  }
