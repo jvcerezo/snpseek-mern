@@ -150,7 +150,7 @@ export default function RegisterPage() {
             <p className="login-text">
               Already have an account?{' '}
               <a href="/login" className="login-link">
-                <i className="fas fa-sign-in-alt"></i> Log In
+                <i className="fas fa-sign-in-alt">Log In</i>
               </a>
             </p>
           </div>

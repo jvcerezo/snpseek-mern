@@ -119,7 +119,7 @@ export default function Login() {
             <p className="signup-text">
               Don't have an account?{' '}
               <a href="/register" className="signup-link">
-                <i className="fas fa-user-plus"></i> Sign Up
+                <i className="fas fa-user-plus">Sign Up</i>
               </a>
             </p>
           </div>
