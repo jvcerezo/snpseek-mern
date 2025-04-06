@@ -2,7 +2,7 @@
 .dashboard-layout {
   display: flex;
   min-height: 100vh;
-  padding-top: 1.5rem;
+  padding-top: 2rem;
   background-color: #0a192f;
   color: #e6f1ff;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
