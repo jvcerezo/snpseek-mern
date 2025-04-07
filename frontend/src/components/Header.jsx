@@ -1,88 +1,122 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "react-router-dom";
-import "./Header.css";
+// Assuming Font Awesome icons are set up, or use react-icons
+import { FaDna, FaHome, FaInfoCircle, FaSearch, FaSignInAlt, FaUserPlus, FaBars, FaTimes, FaProjectDiagram, FaChartLine } from 'react-icons/fa';
+import "./Header.css"; // Adjust path if necessary
 
 const Header = () => {
-  const [isScrolled, setIsScrolled] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const location = useLocation();
+    const [isScrolled, setIsScrolled] = useState(false);
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const location = useLocation();
+    const headerRef = useRef(null); // Ref for the header element
 
-  useEffect(() => {
-    const handleScroll = () => {
-      if (window.scrollY > 10) {
-        setIsScrolled(true);
-      } else {
-        setIsScrolled(false);
-      }
+    // Scroll detection effect
+    useEffect(() => {
+        const handleScroll = () => {
+            // Check if scrolled more than a small threshold (e.g., 10px)
+            setIsScrolled(window.scrollY > 10);
+        };
+
+        window.addEventListener("scroll", handleScroll, { passive: true }); // Use passive listener
+        // Initial check in case page loads scrolled
+        handleScroll();
+
+        // Cleanup listener
+        return () => window.removeEventListener("scroll", handleScroll);
+    }, []);
+
+    // Close mobile menu on route change effect
+    useEffect(() => {
+        setMobileMenuOpen(false);
+    }, [location]);
+
+    // Toggle mobile menu and body class for scroll lock
+    const toggleMobileMenu = () => {
+        setMobileMenuOpen(prev => {
+            const isOpen = !prev;
+            if (isOpen) {
+                document.body.classList.add('no-scroll'); // Prevent body scroll when menu is open
+            } else {
+                document.body.classList.remove('no-scroll');
+            }
+            return isOpen;
+        });
     };
 
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
+    return (
+        // Use ref for potential height calculations if needed later
+        <header ref={headerRef} className={`header ${isScrolled ? "scrolled" : ""} ${mobileMenuOpen ? "mobile-menu-active" : ""}`}>
+            <div className="header-container">
+                {/* Logo */}
+                <div className="logo-container">
+                    <Link to="/" className="logo" aria-label="Homepage">
+                        {/* Use react-icons component */}
+                        <FaDna className="logo-icon" />
+                        <span className="logo-text">SNP-MERN</span> {/* Example Name */}
+                    </Link>
+                </div>
 
-  useEffect(() => {
-    setMobileMenuOpen(false); // Close mobile menu when route changes
-  }, [location]);
+                {/* Navigation */}
+                <nav className={`nav-menu ${mobileMenuOpen ? "mobile-open" : ""}`} id="navigation-menu" aria-label="Main navigation">
+                    {/* Main Links */}
+                    <ul className="nav-links">
+                        <li> {/* Added class directly to li for simpler CSS */}
+                            <Link to="/" className={location.pathname === "/" ? "active" : ""}>
+                                <FaHome /><span>Home</span>
+                            </Link>
+                        </li>
+                        <li>
+                            <Link to="/about" className={location.pathname === "/about" ? "active" : ""}>
+                                <FaInfoCircle /><span>About</span>
+                            </Link>
+                        </li>
+                        <li>
+                             {/* Link to the Gene Loci search page */}
+                            <Link to="/gene-loci-search" className={location.pathname === "/gene-loci-search" ? "active" : ""}>
+                                <FaSearch /><span>Gene Search</span>
+                            </Link>
+                        </li>
+                        <li>
+                             {/* Link to the Pipeline page */}
+                            <Link to="/pipeline" className={location.pathname === "/pipeline" ? "active" : ""}>
+                                <FaProjectDiagram /><span>Pipeline</span>
+                            </Link>
+                        </li>
+                         <li>
+                             {/* Link to the QC Metrics page */}
+                             <Link to="/qc-metrics" className={location.pathname === "/qc-metrics" ? "active" : ""}>
+                                <FaChartLine /><span>QC Metrics</span>
+                            </Link>
+                        </li>
+                        {/* Add other main navigation links here */}
+                    </ul>
 
-  return (
-    <header className={`header ${isScrolled ? "scrolled" : ""}`}>
-      <div className="header-container">
-        <div className="logo-container">
-          <Link to="/" className="logo">
-            <i className="fas fa-dna logo-icon"></i>
-            <span>SNP-MERN</span>
-          </Link>
-        </div>
+                    {/* Authentication Links/Buttons (Separated for distinct styling) */}
+                    <div className="nav-auth-links">
+                         {/* Example: Conditionally show Login/Register or User Profile/Logout */}
+                         {/* For now, showing both based on original code */}
+                        <Link to="/login" className={`nav-button login-btn ${location.pathname === "/login" ? "active" : ""}`}>
+                            <FaSignInAlt /><span>Login</span>
+                        </Link>
+                        <Link to="/register" className={`nav-button register-btn ${location.pathname === "/register" ? "active" : ""}`}>
+                            <FaUserPlus /><span>Register</span>
+                        </Link>
+                    </div>
+                </nav>
 
-        <nav className={`nav-links-container ${mobileMenuOpen ? "mobile-open" : ""}`}>
-          <ul className="nav-links">
-            <li className={location.pathname === "/" ? "active" : ""}>
-              <Link to="/">
-                <i className="fas fa-home"></i>
-                <span>Home</span>
-              </Link>
-            </li>
-            <li className={location.pathname === "/about" ? "active" : ""}>
-              <Link to="/about">
-                <i className="fas fa-info-circle"></i>
-                <span>About</span>
-              </Link>
-            </li>
-            <li className={location.pathname === "/genes" ? "active" : ""}>
-              <Link to="/genes">
-                <i className="fas fa-search"></i>
-                <span>Gene Search</span>
-              </Link>
-            </li>
-            <li className={location.pathname === "/login" ? "active" : ""}>
-              <Link to="/login" className="login-btn">
-                <i className="fas fa-sign-in-alt"></i>
-                <span>Login</span>
-              </Link>
-            </li>
-            <li className={location.pathname === "/register" ? "active" : ""}>
-              <Link to="/register" className="register-btn">
-                <i className="fas fa-user-plus"></i>
-                <span>Register</span>
-              </Link>
-            </li>
-          </ul>
-        </nav>
-
-        <button 
-          className="mobile-menu-toggle"
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          aria-label="Toggle navigation menu"
-        >
-          {mobileMenuOpen ? (
-            <i className="fas fa-times"></i>
-          ) : (
-            <i className="fas fa-bars"></i>
-          )}
-        </button>
-      </div>
-    </header>
-  );
+                {/* Mobile Menu Toggle Button */}
+                <button
+                    className="mobile-menu-toggle"
+                    onClick={toggleMobileMenu}
+                    aria-label={mobileMenuOpen ? "Close navigation menu" : "Open navigation menu"}
+                    aria-expanded={mobileMenuOpen}
+                    aria-controls="navigation-menu" // Controls the nav element
+                >
+                    {mobileMenuOpen ? <FaTimes /> : <FaBars />}
+                </button>
+            </div>
+        </header>
+    );
 };
 
 export default Header;
