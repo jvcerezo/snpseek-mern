@@ -1,135 +1,163 @@
-import React from "react";
-import { FaDna, FaClipboardList, FaSeedling, FaChartLine, FaSearch, FaFlask, FaProjectDiagram } from "react-icons/fa";
-import Sidebar from "../components/Sidebar";
-import "./Dashboard.css";
+import React from "react"; // Removed useState as sidebar toggle state is gone
+import { useNavigate } from "react-router-dom"; // Use hook for navigation
+import { FaTachometerAlt, FaClipboardList, FaSeedling, FaChartLine, FaSearch, FaFlask, FaProjectDiagram, FaDna } from "react-icons/fa";
+// Removed Sidebar import
+import "./Dashboard.css"; // Adjust path if necessary
 
 const Dashboard = () => {
-  return (
-    <div className="dashboard-layout">
-      <Sidebar />
+  const navigate = useNavigate(); // Hook for navigation
 
-      <div className="main-content">
-        {/* Header */}
+  // Removed sidebar state and toggle function
+
+  // Placeholder data (replace with actual data fetching)
+  const stats = {
+    datasets: 1,
+    varieties: 3024,
+    snps: "20M+",
+    visits: 18,
+  };
+
+  const recentActivities = [
+    { id: 1, icon: <FaSearch />, text: "Genotype search performed for 'OsGene1'", time: "2 hours ago" },
+    { id: 2, icon: <FaProjectDiagram />, text: "Pipeline step 'Align Assemblies' completed", time: "5 hours ago" },
+    { id: 3, icon: <FaClipboardList />, text: "New dataset 'Maize HapMap V3' added", time: "1 day ago" },
+    { id: 4, icon: <FaChartLine />, text: "QC Metrics generated for 'Wheat Project'", time: "3 days ago" },
+  ];
+
+  // Navigate handler for buttons
+  const handleNavigate = (path) => {
+    navigate(path);
+  };
+
+
+  return (
+    // Simplified layout container class
+    <div className="dashboard-container">
+      {/* Main content area */}
+      <div className="main-content-full">
+        {/* Header within main content */}
         <header className="dashboard-header">
-          <h1>
-            <FaDna className="header-icon" />
-            SNP-MERN Dashboard
-          </h1>
-          <p className="welcome-message">Welcome back to your genomic research portal</p>
+          <div className="header-title-group">
+            <h1>
+              <FaTachometerAlt className="header-icon" />
+              Dashboard
+            </h1>
+            <p className="welcome-message">Welcome back! Overview of your genomic data portal.</p>
+          </div>
+           {/* Mobile Sidebar Toggle Button Removed */}
         </header>
 
         {/* Quick Actions */}
-        <div className="quick-actions">
-          <button 
-            className="action-btn search-genotype"
-            onClick={() => window.location.href = "/search-genotype"}
-          >
-            <FaSearch className="btn-icon" />
-            Search by Genotype
-          </button>
-          <button 
-            className="action-btn search-variety"
-            onClick={() => window.location.href = "/search-variety"}
-          >
-            <FaSeedling className="btn-icon" />
-            Search by Variety
-          </button>
-          <button 
-            className="action-btn search-gene-loci"
-            onClick={() => window.location.href = "/search-gene-loci"}
-          >
-            <FaFlask className="btn-icon" />
-            Search by Gene Loci
-          </button>
-          <button 
-            className="action-btn pipeline-btn"
-            onClick={() => window.location.href = "/pipeline"}
-          >
-            <FaProjectDiagram className="btn-icon" />
-            Analysis Pipeline
-          </button>
-        </div>
+        <section className="dashboard-section quick-actions">
+             <h2 className="section-title visually-hidden">Quick Actions</h2> {/* Added hidden title for semantics */}
+              <div className="actions-grid">
+                  <button className="action-btn" onClick={() => handleNavigate("/search-genotype")}>
+                    <FaSearch className="btn-icon" /><span>Search Genotype</span>
+                  </button>
+                  <button className="action-btn" onClick={() => handleNavigate("/search-variety")}>
+                    <FaSeedling className="btn-icon" /><span>Search Variety</span>
+                  </button>
+                  <button className="action-btn" onClick={() => handleNavigate("/search-gene-loci")}>
+                    <FaFlask className="btn-icon" /><span>Search Gene Loci</span>
+                  </button>
+                  <button className="action-btn" onClick={() => handleNavigate("/pipeline")}>
+                    <FaProjectDiagram className="btn-icon" /><span>Analysis Pipeline</span>
+                  </button>
+                  {/* Add QC Metrics button if desired */}
+                   <button className="action-btn" onClick={() => handleNavigate("/qc-metrics")}>
+                    <FaChartLine className="btn-icon" /><span>View QC Metrics</span>
+                  </button>
+              </div>
+        </section>
 
         {/* Statistics Cards */}
-        <div className="stats-container">
-          <div className="stat-card dataset-card">
-            <div className="stat-content">
-              <span className="stat-label">DATASETS AVAILABLE</span>
-              <h3 className="stat-value">1</h3>
-              <p className="stat-description">Rice genome datasets</p>
-            </div>
-            <div className="stat-icon">
-              <FaClipboardList />
-            </div>
-          </div>
+        <section className="dashboard-section stats-section">
+             <h2 className="section-title visually-hidden">Statistics</h2> {/* Added hidden title */}
+              <div className="stats-container">
+                  <div className="stat-card">
+                    <div className="stat-content">
+                      <span className="stat-label">DATASETS</span>
+                      <h3 className="stat-value">{stats.datasets}</h3>
+                      <p className="stat-description">Available genome datasets</p>
+                    </div>
+                    <div className="stat-icon"><FaClipboardList /></div>
+                  </div>
 
-          <div className="stat-card variety-card">
-            <div className="stat-content">
-              <span className="stat-label">VARIETY NAMES</span>
-              <h3 className="stat-value">3,024</h3>
-              <p className="stat-description">Rice varieties cataloged</p>
-            </div>
-            <div className="stat-icon">
-              <FaSeedling />
-            </div>
-          </div>
+                  <div className="stat-card">
+                    <div className="stat-content">
+                      <span className="stat-label">VARIETIES</span>
+                      <h3 className="stat-value">{stats.varieties.toLocaleString()}</h3>
+                      <p className="stat-description">Cataloged rice varieties</p>
+                    </div>
+                     <div className="stat-icon"><FaSeedling /></div>
+                  </div>
 
-          <div className="stat-card snp-card">
-            <div className="stat-content">
-              <span className="stat-label">NUMBER OF SNPS</span>
-              <h3 className="stat-value">20M+</h3>
-              <p className="stat-description">Identified SNPs</p>
-            </div>
-            <div className="stat-icon">
-              <FaDna />
-            </div>
-          </div>
+                  <div className="stat-card">
+                    <div className="stat-content">
+                      <span className="stat-label">IDENTIFIED SNPS</span>
+                      <h3 className="stat-value">{stats.snps}</h3>
+                      <p className="stat-description">Across all datasets</p>
+                    </div>
+                     <div className="stat-icon"><FaDna /></div>
+                  </div>
 
-          <div className="stat-card visits-card">
-            <div className="stat-content">
-              <span className="stat-label">TOTAL VISITS</span>
-              <h3 className="stat-value">18</h3>
-              <p className="stat-description">Research sessions</p>
-            </div>
-            <div className="stat-icon">
-              <FaChartLine />
-            </div>
-          </div>
-        </div>
+                  <div className="stat-card">
+                    <div className="stat-content">
+                      <span className="stat-label">TOTAL VISITS</span>
+                      <h3 className="stat-value">{stats.visits}</h3>
+                      <p className="stat-description">Unique research sessions</p>
+                    </div>
+                    <div className="stat-icon"><FaChartLine /></div>
+                  </div>
+              </div>
+        </section>
 
         {/* Recent Activity Section */}
-        <div className="recent-activity">
-          <h2 className="section-title">
+        <section className="dashboard-section recent-activity">
+          <h2 className="section-title"> {/* Keep this title visible */}
             <FaChartLine className="section-icon" />
             Recent Activity
           </h2>
           <div className="activity-list">
-            <div className="activity-item">
-              <div className="activity-icon">🔍</div>
-              <div className="activity-details">
-                <p>Genotype search performed</p>
-                <span className="activity-time">2 hours ago</span>
-              </div>
-            </div>
-            <div className="activity-item">
-              <div className="activity-icon">🧬</div>
-              <div className="activity-details">
-                <p>New dataset uploaded</p>
-                <span className="activity-time">1 day ago</span>
-              </div>
-            </div>
-            <div className="activity-item">
-              <div className="activity-icon">📊</div>
-              <div className="activity-details">
-                <p>Analysis completed</p>
-                <span className="activity-time">3 days ago</span>
-              </div>
-            </div>
+            {recentActivities.length > 0 ? (
+                recentActivities.map(activity => (
+                  <div className="activity-item" key={activity.id}>
+                    <div className="activity-icon">{activity.icon}</div>
+                    <div className="activity-details">
+                      <p>{activity.text}</p>
+                      <span className="activity-time">{activity.time}</span>
+                    </div>
+                  </div>
+                ))
+            ) : (
+                <p style={{color: 'var(--text-muted)'}}>No recent activity recorded.</p>
+            )}
           </div>
-        </div>
-      </div>
-    </div>
+        </section>
+      </div> {/* End main-content-full */}
+    </div> // End dashboard-container
   );
 };
 
 export default Dashboard;
+
+// CSS utility class if needed
+/*
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+*/
+
+// Remove body scroll lock CSS rule if added previously
+/*
+body.no-scroll-dashboard {
+  overflow: visible !important; // Ensure overflow is reset
+}
+*/
