@@ -72,8 +72,8 @@ const Header = () => {
                         </li>
                         <li>
                              {/* Link to the Gene Loci search page */}
-                            <Link to="/gene-loci-search" className={location.pathname === "/gene-loci-search" ? "active" : ""}>
-                                <FaSearch /><span>Gene Search</span>
+                            <Link to="/dashboard" className={location.pathname === "/dashboard" ? "active" : ""}>
+                                <FaSearch /><span>Dashboard</span>
                             </Link>
                         </li>
                         <li>
