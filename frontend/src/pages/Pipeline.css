@@ -1,271 +1,485 @@
-/* Pipeline.css */
+/* src/styles/Pipeline.css */
+
+/* --- Base & Variables (Copied from GeneLoci for consistency) --- */
+:root {
+  --background-primary: #0a192f;
+  --background-secondary: #112240;
+  --background-tertiary: #1f2d4a;
+  --text-primary: #e6f1ff;
+  --text-secondary: #ccd6f6;
+  --text-muted: #8892b0;
+  --accent-primary: #64ffda;
+  --accent-primary-dark: #0a7c72;
+  --accent-primary-hover: #52d8c3;
+  --border-color: #233554;
+  --border-color-light: #304a7c;
+  --error-color: #ff7b7b;
+  --error-background: rgba(255, 123, 123, 0.1);
+  --success-color: var(--accent-primary);
+  --success-background: rgba(100, 255, 218, 0.1);
+  --info-color: #77a5ff;
+  --info-background: rgba(119, 165, 255, 0.1);
+
+
+  --border-radius: 6px;
+  --card-shadow: 0 8px 25px -8px rgba(2, 12, 27, 0.6);
+  --transition-speed: 0.25s;
+}
+
+/* --- General Styles --- */
 .pipeline-container {
-    background-color: #0a192f;
-    color: #e6f1ff;
-    min-height: 100vh;
-    padding: 2rem;
-  }
-  
-  .pipeline-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 2rem;
-    padding-bottom: 1.5rem;
-    border-bottom: 1px solid #1f2d4a;
-    padding-top: 2rem;
-  }
-  
+  background-color: var(--background-primary);
+  color: var(--text-primary);
+  min-height: 100vh;
+  padding: 2rem;
+  margin-top: 2.5rem;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* --- Header --- */
+.pipeline-header {
+  display: flex;
+  flex-wrap: wrap; /* Allow wrapping on smaller screens */
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2.5rem; /* Increased margin */
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border-color-light); /* Lighter border */
+}
+
+.pipeline-header h1 {
+  color: var(--accent-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  font-size: 2rem; /* Slightly larger title */
+  margin: 0 0 1rem 0; /* Add bottom margin when wrapped */
+  flex-basis: 100%; /* Take full width initially */
+}
+@media (min-width: 768px) {
   .pipeline-header h1 {
-    color: #64ffda;
-    display: flex;
-    align-items: center;
-    gap: 0.8rem;
+      flex-basis: auto; /* Allow controls beside title */
+      margin-bottom: 0;
+  }
+}
+
+
+.pipeline-header h1 .header-icon { /* Style icon in header */
     font-size: 1.8rem;
-  }
-  
-  .project-controls {
-    display: flex;
-    gap: 1rem;
-  }
-  
-  .project-select {
-    background-color: #112240;
-    color: #e6f1ff;
-    border: 1px solid #233554;
-    padding: 0.6rem 1rem;
-    border-radius: 6px;
-    min-width: 250px;
-  }
-  
-  .create-project-btn {
-    background-color: #0a7c72;
+}
+
+.project-controls {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  flex-wrap: wrap; /* Allow wrapping */
+}
+
+/* Use themed select styles */
+.project-select {
+  background-color: var(--background-secondary); /* Match card bg */
+  color: var(--text-primary);
+  border: 1px solid var(--border-color-light);
+  padding: 0.7rem 1rem;
+  border-radius: var(--border-radius);
+  font-size: 0.95rem;
+  min-width: 220px; /* Adjust width */
+  transition: border-color var(--transition-speed) ease;
+}
+.project-select:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 2px rgba(100, 255, 218, 0.3);
+}
+
+/* Use themed button styles */
+.create-project-btn {
+  /* Reuse primary button styles */
+  padding: 0.7rem 1.25rem;
+  border-radius: var(--border-radius);
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-speed) ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  border: 1px solid var(--accent-primary-dark);
+  background-color: var(--accent-primary-dark);
+  color: white;
+}
+.create-project-btn:hover:not(:disabled) {
+  background-color: var(--accent-primary);
+  color: var(--background-primary);
+  border-color: var(--accent-primary);
+  transform: translateY(-2px);
+}
+
+/* --- Pipeline Cards Grid --- */
+.pipeline-cards {
+  display: grid;
+  /* More flexible grid */
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: 2rem; /* Increased gap */
+  margin-bottom: 3rem;
+}
+
+/* Themed card styles */
+.pipeline-card {
+  background-color: var(--background-secondary);
+  border-radius: var(--border-radius);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--card-shadow);
+  overflow: hidden; /* Ensure content stays within rounded corners */
+  display: flex; /* Use flex for better structure */
+  flex-direction: column;
+  transition: transform var(--transition-speed) ease, box-shadow var(--transition-speed) ease;
+}
+.pipeline-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 25px -5px rgba(2, 12, 27, 0.7);
+}
+
+
+.card-header {
+  background-color: var(--background-tertiary); /* Header background */
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.card-header h2 {
+  margin: 0;
+  font-size: 1.15rem; /* Adjusted size */
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+.card-header h2 .card-icon { /* Style icon in card header */
+    color: var(--accent-primary);
+    font-size: 1.2em;
+}
+
+.card-content {
+  padding: 1.5rem;
+  flex-grow: 1; /* Allow content to take available space */
+  display: flex;
+  flex-direction: column;
+}
+
+/* Input Group Styling */
+.input-group {
+  margin-bottom: 1.25rem; /* Consistent spacing */
+}
+
+.input-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+.input-group label .label-icon { /* Optional icon in label */
+    margin-right: 0.4rem;
+    color: var(--accent-primary);
+    font-size: 0.9em;
+}
+
+/* Themed Inputs & Selects */
+.input-group input[type="text"],
+.input-group input[type="number"],
+.input-group select {
+  width: 100%;
+  padding: 0.75rem 1rem; /* Consistent padding */
+  background-color: var(--background-primary); /* Darker input */
+  color: var(--text-primary);
+  border: 1px solid var(--border-color-light);
+  border-radius: calc(var(--border-radius) - 2px);
+  font-size: 0.95rem;
+  transition: border-color var(--transition-speed) ease, box-shadow var(--transition-speed) ease;
+}
+
+.input-group input[type="text"]:focus,
+.input-group input[type="number"]:focus,
+.input-group select:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 2px rgba(100, 255, 218, 0.3);
+}
+
+/* Basic styling for multi-select */
+.multi-select {
+  min-height: 80px; /* Adjust height */
+  padding: 0.5rem; /* Inner padding */
+}
+.multi-select option {
+    padding: 0.4rem 0.8rem; /* Padding for options */
+    margin-bottom: 2px; /* Spacing between options */
+}
+.multi-select option:checked {
+    background-color: var(--accent-primary-dark); /* Highlight selected */
     color: white;
-    border: none;
-    padding: 0.6rem 1.2rem;
-    border-radius: 6px;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    cursor: pointer;
-    transition: all 0.3s;
-  }
-  
-  .create-project-btn:hover {
-    background-color: #64ffda;
-    color: #0a192f;
-  }
-  
-  .pipeline-cards {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
-    gap: 1.5rem;
-    margin-bottom: 3rem;
-  }
-  
-  .pipeline-card {
-    background-color: #112240;
-    border-radius: 10px;
-    border: 1px solid #1f2d4a;
-    box-shadow: 0 5px 15px rgba(2, 12, 27, 0.5);
-    overflow: hidden;
-  }
-  
-  .card-header {
-    background-color: rgba(16, 41, 83, 0.5);
-    padding: 1.2rem 1.5rem;
-    border-bottom: 1px solid #1f2d4a;
-  }
-  
-  .card-header h2 {
-    margin: 0;
-    font-size: 1.2rem;
-    display: flex;
-    align-items: center;
-    gap: 0.8rem;
-    color: #ccd6f6;
-  }
-  
-  .card-content {
-    padding: 1.5rem;
-  }
-  
-  .input-group {
-    margin-bottom: 1.2rem;
-  }
-  
-  .input-group label {
-    display: block;
-    margin-bottom: 0.5rem;
-    color: #8892b0;
+    border-radius: 3px;
+}
+/* Note: Standard multi-select styling is limited. Recommend a library for better UX. */
+
+/* Themed Toggle Buttons */
+.toggle-group {
+  margin-bottom: 1.25rem;
+}
+/* Label for toggle */
+.toggle-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.toggle-container {
+  display: flex;
+  border: 1px solid var(--border-color-light);
+  border-radius: var(--border-radius);
+  overflow: hidden; /* Ensure buttons fit nicely */
+}
+
+.toggle-btn {
+  flex: 1; /* Distribute space evenly */
+  padding: 0.6rem 0.8rem; /* Adjust padding */
+  background-color: var(--background-primary); /* Darker background */
+  color: var(--text-muted);
+  border: none;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: background-color var(--transition-speed) ease, color var(--transition-speed) ease;
+  text-align: center;
+}
+.toggle-btn:not(:last-child) {
+    border-right: 1px solid var(--border-color-light); /* Separator */
+}
+
+.toggle-btn.active {
+  background-color: var(--accent-primary-dark); /* Active state */
+  color: white;
+  font-weight: 600;
+}
+.toggle-btn:hover:not(.active) {
+    background-color: var(--background-tertiary);
+    color: var(--text-secondary);
+}
+
+/* Themed Process Button */
+.process-btn {
+  /* Reuse primary button styles */
+  width: 100%;
+  margin-top: auto; /* Push button to bottom of card content */
+  padding: 0.8rem 1.25rem;
+  border-radius: var(--border-radius);
+  font-size: 1rem; /* Slightly larger */
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-speed) ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  border: 1px solid var(--accent-primary-dark);
+  background-color: var(--accent-primary-dark);
+  color: white;
+}
+.process-btn:hover:not(:disabled) {
+  background-color: var(--accent-primary);
+  color: var(--background-primary);
+  border-color: var(--accent-primary);
+  transform: translateY(-2px);
+}
+.process-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+.process-btn .btn-icon { /* Icon within button */
+    margin-right: 0.5rem;
+}
+
+/* Output/Status Styling */
+.output-area {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px dashed var(--border-color); /* Separator */
     font-size: 0.9rem;
-  }
-  
-  .input-group input,
-  .input-group select {
-    width: 100%;
-    padding: 0.8rem 1rem;
-    background-color: #0a192f;
-    color: #e6f1ff;
-    border: 1px solid #233554;
-    border-radius: 6px;
-  }
-  
-  .multi-select {
-    min-height: 100px;
-  }
-  
-  .toggle-group {
-    margin-bottom: 1.2rem;
-  }
-  
-  .toggle-group label {
-    display: block;
-    margin-bottom: 0.5rem;
-    color: #8892b0;
-    font-size: 0.9rem;
-  }
-  
-  .toggle-container {
-    display: flex;
-    border: 1px solid #233554;
-    border-radius: 6px;
-    overflow: hidden;
-  }
-  
-  .toggle-btn {
-    flex: 1;
-    padding: 0.6rem;
-    background-color: #0a192f;
-    color: #8892b0;
-    border: none;
-    cursor: pointer;
-  }
-  
-  .toggle-btn.active {
-    background-color: #112240;
-    color: #64ffda;
-  }
-  
-  .process-btn {
-    width: 100%;
-    padding: 0.8rem;
-    background-color: #0a7c72;
-    color: white;
-    border: none;
-    border-radius: 6px;
-    margin-top: 1rem;
-    cursor: pointer;
-    transition: all 0.3s;
-  }
-  
-  .process-btn:hover {
-    background-color: #64ffda;
-    color: #0a192f;
-  }
-  
-  .output-success {
-    margin-top: 1rem;
-    padding: 0.8rem;
-    background-color: rgba(100, 255, 218, 0.1);
-    border-left: 3px solid #64ffda;
-    border-radius: 4px;
-  }
-  
-  .download-link {
-    color: #64ffda;
-    text-decoration: none;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-  
-  .output-error {
-    margin-top: 1rem;
-    padding: 0.8rem;
-    background-color: rgba(255, 85, 85, 0.1);
-    border-left: 3px solid #ff5555;
-    border-radius: 4px;
-    color: #ff5555;
-  }
-  
-  /* QC Metrics Section */
-  .qc-section {
-    margin-top: 3rem;
-    padding-top: 2rem;
-    border-top: 1px solid #1f2d4a;
-  }
-  
-  .qc-section h2 {
-    color: #64ffda;
-    display: flex;
-    align-items: center;
-    gap: 0.8rem;
-    font-size: 1.5rem;
-    margin-bottom: 1.5rem;
-  }
-  
-  .qc-cards {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 1.5rem;
-  }
-  
-  .qc-card {
-    background-color: #112240;
-    border-radius: 10px;
-    border: 1px solid #1f2d4a;
-    padding: 1.5rem;
-  }
-  
-  .qc-card h3 {
-    color: #ccd6f6;
-    margin-top: 0;
-    margin-bottom: 1.2rem;
-  }
-  
-  .metrics p {
-    margin: 0.5rem 0;
-    color: #a8b2d1;
-  }
-  
-  .generate-btn {
-    background-color: #0a7c72;
-    color: white;
-    border: none;
-    padding: 0.6rem 1rem;
-    border-radius: 6px;
-    margin-bottom: 1rem;
-    cursor: pointer;
-  }
-  
-  .plot-output,
-  .metrics-output {
-    background-color: #0a192f;
-    border: 1px dashed #233554;
-    border-radius: 6px;
-    padding: 1.5rem;
-    text-align: center;
-    color: #495a7c;
-  }
-  
-  /* Responsive Design */
-  @media (max-width: 1024px) {
-    .pipeline-container {
-      margin-left: 0;
-      padding: 1.5rem;
-    }
-    
-    .pipeline-header {
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 1rem;
-    }
-  }
-  
-  @media (max-width: 768px) {
-    .pipeline-cards,
-    .qc-cards {
-      grid-template-columns: 1fr;
-    }
-  }
+}
+
+.output-success,
+.output-error,
+.output-info {
+  padding: 0.8rem 1rem;
+  border-left-width: 4px;
+  border-left-style: solid;
+  border-radius: calc(var(--border-radius) - 2px);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.output-success {
+  background-color: var(--success-background);
+  border-left-color: var(--success-color);
+  color: var(--text-secondary);
+}
+.output-error {
+  background-color: var(--error-background);
+  border-left-color: var(--error-color);
+  color: var(--error-color);
+}
+.output-info {
+  background-color: var(--info-background);
+  border-left-color: var(--info-color);
+  color: var(--info-color);
+}
+
+.output-area .status-icon { /* Icon in status messages */
+    font-size: 1.1em;
+}
+
+.download-link {
+  color: var(--accent-primary);
+  text-decoration: none;
+  display: inline-flex; /* Align icon and text */
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 500;
+}
+.download-link:hover {
+  text-decoration: underline;
+  color: var(--accent-primary-hover);
+}
+
+/* --- QC Metrics Section --- */
+.qc-section {
+  margin-top: 3rem;
+  padding-top: 2rem;
+  border-top: 1px solid var(--border-color-light); /* Lighter border */
+}
+
+.qc-section > h2 { /* Direct H2 child of qc-section */
+  color: var(--accent-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  font-size: 1.8rem; /* Match pipeline header */
+  margin-bottom: 2rem;
+}
+.qc-section > h2 .header-icon { /* Icon in QC header */
+    font-size: 1.6rem;
+}
+
+
+.qc-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+
+/* Reuse pipeline card style for QC cards */
+.qc-card {
+  background-color: var(--background-secondary);
+  border-radius: var(--border-radius);
+  border: 1px solid var(--border-color);
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.qc-card h3 {
+  color: var(--text-secondary);
+  font-size: 1.1rem;
+  margin-top: 0;
+  margin-bottom: 1.2rem;
+  padding-bottom: 0.8rem;
+  border-bottom: 1px solid var(--border-color);
+  font-weight: 600;
+}
+
+.metrics p {
+  margin: 0.5rem 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  display: flex;
+  justify-content: space-between; /* Align label and value */
+}
+.metrics p strong { /* Label part */
+    color: var(--text-secondary);
+    margin-right: 0.5rem;
+}
+
+/* Use themed button */
+.generate-btn {
+  /* Reuse primary button styles */
+  padding: 0.6rem 1rem;
+  border-radius: var(--border-radius);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-speed) ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  border: 1px solid var(--accent-primary-dark);
+  background-color: var(--accent-primary-dark);
+  color: white;
+  margin-bottom: 1rem; /* Space below button */
+}
+.generate-btn:hover:not(:disabled) {
+  background-color: var(--accent-primary);
+  color: var(--background-primary);
+  border-color: var(--accent-primary);
+}
+
+.plot-output,
+.metrics-output {
+  background-color: var(--background-primary); /* Darker placeholder */
+  border: 1px dashed var(--border-color-light);
+  border-radius: var(--border-radius);
+  padding: 2rem 1.5rem; /* More padding */
+  text-align: center;
+  color: var(--text-muted);
+  min-height: 150px; /* Ensure minimum height */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-grow: 1; /* Take remaining space in card */
+  margin-top: 1rem; /* Space above output area */
+}
+.plot-output img { /* Style if image is loaded */
+    max-width: 100%;
+    height: auto;
+    border-radius: var(--border-radius);
+}
+
+
+/* --- Responsive Design --- */
+@media (max-width: 1024px) {
+  .pipeline-container { padding: 1.5rem; }
+  .pipeline-header { align-items: center; } /* Center items when wrapped */
+}
+
+@media (max-width: 768px) {
+  .pipeline-cards,
+  .qc-cards { grid-template-columns: 1fr; /* Force single column */ }
+  .pipeline-header h1 { font-size: 1.8rem; }
+  .project-controls { width: 100%; justify-content: space-between; } /* Space out controls */
+  .project-select { min-width: 180px; flex-grow: 1;} /* Allow select to grow */
+}
+
+@media (max-width: 480px) {
+   .pipeline-container { padding: 1rem; }
+   .pipeline-header h1 { font-size: 1.6rem; }
+   .project-controls { flex-direction: column; align-items: stretch; } /* Stack controls */
+   .create-project-btn { width: 100%; justify-content: center;}
+   .card-content { padding: 1rem; }
+}
