@@ -9,6 +9,7 @@ import GeneLoci from "./pages/GeneLoci";
 import Pipeline from "./pages/Pipeline";
 import GenotypeSearch from "./pages/GenotypeSearch";
 import AboutPage from "./pages/AboutPage";
+import QCMetricsPage from "./pages/QCMetricsPage";
 
 function App() {
   return (
@@ -23,6 +24,7 @@ function App() {
         <Route path="/pipeline" element={<Pipeline />} />
         <Route path="/search-genotype" element={<GenotypeSearch />} />
         <Route path="/about" element={<AboutPage />} />
+        <Route path="/qc-metrics" element={<QCMetricsPage />} />
         {/* Add other routes as needed */}
       </Routes>
     </Router>

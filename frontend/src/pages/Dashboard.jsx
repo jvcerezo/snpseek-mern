@@ -52,13 +52,13 @@ const Dashboard = () => {
              <h2 className="section-title visually-hidden">Quick Actions</h2> {/* Added hidden title for semantics */}
               <div className="actions-grid">
                   <button className="action-btn" onClick={() => handleNavigate("/search-genotype")}>
-                    <FaSearch className="btn-icon" /><span>Search Genotype</span>
+                    <FaSearch className="btn-icon" /><span>Search by Genotype</span>
                   </button>
                   <button className="action-btn" onClick={() => handleNavigate("/search-variety")}>
-                    <FaSeedling className="btn-icon" /><span>Search Variety</span>
+                    <FaSeedling className="btn-icon" /><span>Search by Variety</span>
                   </button>
                   <button className="action-btn" onClick={() => handleNavigate("/search-gene-loci")}>
-                    <FaFlask className="btn-icon" /><span>Search Gene Loci</span>
+                    <FaFlask className="btn-icon" /><span>Search by Gene Loci</span>
                   </button>
                   <button className="action-btn" onClick={() => handleNavigate("/pipeline")}>
                     <FaProjectDiagram className="btn-icon" /><span>Analysis Pipeline</span>
