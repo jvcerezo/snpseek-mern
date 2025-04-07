@@ -60,14 +60,9 @@ export default function Login() {
 
                     <div className="login-header">
                         <div className="logo-container">
-                             {/* Consistent logo style */}
-                            <Link to="/" className="logo-link" aria-label="Homepage">
-                                <FaDna className="logo-icon" />
-                                <span className="logo-text">SNP-App</span>
-                            </Link>
-                        </div>
-                        <h2 className="login-title">Welcome Back</h2>
+                        <h2 className="logo-text">Welcome!</h2>
                         <p className="login-subtitle">Login to access your dashboard</p>
+                        </div>
                     </div>
 
                     <form onSubmit={handleLogin} className="login-form">
