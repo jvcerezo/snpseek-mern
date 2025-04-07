@@ -29,7 +29,22 @@ app.use(
 );
 
 // ✅ Proxy other microservices
-app.use("/genomic", proxy(process.env.GENOMIC_SERVICE_URL));
+app.use(
+  "/genomic",
+  proxy(process.env.GENETIC_FEATURE_SERVICE_URL, {
+    proxyReqPathResolver: (req) => {
+      return `/genotype${req.url}`;
+    },
+    proxyReqOptDecorator: (proxyReqOpts, srcReq) => {
+      proxyReqOpts.headers["Content-Type"] = "application/json";
+      return proxyReqOpts;
+    },
+    proxyReqBodyDecorator: (bodyContent, srcReq) => {
+      return bodyContent ? JSON.stringify(bodyContent) : '{}';
+    },
+  })
+);
+
 app.use(
   "/genetic-features",
   proxy(process.env.GENETIC_FEATURE_SERVICE_URL, {
