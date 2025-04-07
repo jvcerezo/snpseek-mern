@@ -8,6 +8,7 @@ import Landing from "./pages/Landing";
 import GeneLoci from "./pages/GeneLoci";
 import Pipeline from "./pages/Pipeline";
 import GenotypeSearch from "./pages/GenotypeSearch";
+import AboutPage from "./pages/AboutPage";
 
 function App() {
   return (
@@ -21,6 +22,8 @@ function App() {
         <Route path="/search-gene-loci" element={<GeneLoci />} />
         <Route path="/pipeline" element={<Pipeline />} />
         <Route path="/search-genotype" element={<GenotypeSearch />} />
+        <Route path="/about" element={<AboutPage />} />
+        {/* Add other routes as needed */}
       </Routes>
     </Router>
   );
