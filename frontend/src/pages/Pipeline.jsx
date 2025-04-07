@@ -1,17 +1,16 @@
 import React, { useState } from 'react';
-// Import specific icons (Corrected FaFileCode)
 import {
     FaProjectDiagram, FaPlus, FaCog, FaCompressArrowsAlt, FaFileAlt, FaListOl, FaPencilAlt,
-    FaRulerCombined, FaLink, FaVial, FaDatabase, FaFileCode, // Corrected: Removed alias
+    FaRulerCombined, FaLink, FaVial, FaDatabase, FaFileCode, 
     FaTags, FaExpandArrowsAlt, FaArrowsAltH, FaToggleOn, FaToggleOff, FaArrowRight,
     FaCheckCircle, FaExclamationTriangle, FaInfoCircle, FaFileDownload
 } from 'react-icons/fa';
-import './Pipeline.css'; // Adjust path if necessary
+import './Pipeline.css'; 
 
 // Placeholder function to simulate API calls/processing
 const simulateProcessing = (duration = 1500) => {
     return new Promise((resolve, reject) => {
-        const success = Math.random() > 0.15; // 85% success rate
+        const success = Math.random() > 0.15; 
         setTimeout(() => {
             if (success) {
                 resolve({ message: "Processing complete." });
