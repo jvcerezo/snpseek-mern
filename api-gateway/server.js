@@ -6,6 +6,8 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const app = express();
+const PORT = process.env.PORT || 8000;
+const API_BASE_URL = '/api';
 
 // ✅ Enable CORS and JSON parsing
 app.use(cors());
@@ -13,7 +15,7 @@ app.use(express.json());
 
 // ✅ Proxy authentication routes to Auth Service (4000)
 app.use(
-  "/auth",
+  `${API_BASE_URL}/auth`,
   proxy(process.env.AUTH_SERVICE_URL, {
     proxyReqPathResolver: (req) => {
       return `/auth${req.url}`; 
@@ -30,7 +32,7 @@ app.use(
 
 // ✅ Proxy other microservices
 app.use(
-  "/genomic",
+  `${API_BASE_URL}/genomic`,
   proxy(process.env.GENETIC_FEATURE_SERVICE_URL, {
     proxyReqPathResolver: (req) => {
       return `/genotype${req.url}`;
@@ -46,7 +48,7 @@ app.use(
 );
 
 app.use(
-  "/genetic-features",
+  `${API_BASE_URL}/genetic-features`,
   proxy(process.env.GENETIC_FEATURE_SERVICE_URL, {
     proxyReqPathResolver: (req) => {
       return `/features${req.url}`;
@@ -70,5 +72,4 @@ app.get("/", (req, res) => {
   res.send("API Gateway is Running...");
 });
 
-const PORT = process.env.PORT || 8000;
 app.listen(PORT, () => console.log(`✅ API Gateway running on port ${PORT}`));
