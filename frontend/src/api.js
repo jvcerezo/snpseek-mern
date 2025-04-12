@@ -1,104 +1,195 @@
+// frontend/api.js
 import axios from "axios";
 
+// Ensure your .env has REACT_APP_API_URL=http://localhost:8000 (or your gateway address)
 const API = axios.create({
-  baseURL: process.env.REACT_APP_API_URL 
+    baseURL: process.env.REACT_APP_API_URL
 });
+
+// --- Axios Interceptors ---
+
+// Request Interceptor: Add Authorization header
+API.interceptors.request.use(
+    (config) => {
+        const token = localStorage.getItem('authToken');
+        if (token) {
+            config.headers['Authorization'] = `Bearer ${token}`;
+        }
+        return config;
+    },
+    (error) => {
+        console.error("Axios request interceptor error:", error);
+        return Promise.reject(error);
+    }
+);
+
+// Response Interceptor: Basic 401 check
+API.interceptors.response.use(
+    (response) => response, // Pass through successful responses
+    (error) => {
+        console.error("Axios response interceptor error:", error.response || error.message);
+        if (error.response && error.response.status === 401) {
+            console.warn("Received 401 Unauthorized. Clearing token.");
+            localStorage.removeItem('authToken');
+            // Optional: Redirect to login or trigger logout state in your app
+            // window.location.href = '/login';
+        }
+        // Important: Reject the promise so calling code's .catch() still runs
+        return Promise.reject(error);
+    }
+);
+
+
+// --- Helper to format errors consistently before throwing ---
+const formatErrorForThrowing = (error) => {
+    if (error.response) {
+        // Server responded with a status code outside 2xx range
+        return error.response.data || { message: `Request failed with status ${error.response.status}` };
+    } else if (error.request) {
+        // Request was made but no response received
+        return { message: 'No response from server. Check API Gateway connection.' };
+    } else {
+        // Error setting up the request
+        return { message: error.message || 'Error setting up API request.' };
+    }
+};
+
+
+// --- API Functions (Paths updated to match gateway routes) ---
 
 // ✅ Register User
 export const registerUser = async (userData) => {
-  try {
-    const response = await API.post("/auth/register", userData);
-    return response.data;
-  } catch (error) {
-    throw error.response ? error.response.data : error.message;
-  }
+    try {
+        // Gateway path: /api/auth/register
+        const response = await API.post("/auth/register", userData);
+        return response.data;
+    } catch (error) {
+        throw formatErrorForThrowing(error);
+    }
 };
 
 // ✅ Login User
 export const loginUser = async (userData) => {
-  try {
-    const response = await API.post("/auth/login", userData);
-    return response.data;
-  } catch (error) {
-    throw error.response ? error.response.data : error.message;
-  }
+    try {
+        // Gateway path: /api/auth/login
+        const response = await API.post("/auth/login", userData);
+        // Store token on successful login
+        if (response.data && response.data.token) {
+            localStorage.setItem('authToken', response.data.token);
+            console.log("Token stored successfully.");
+        } else {
+            console.warn("Login successful, but no token found in response.");
+        }
+        return response.data;
+    } catch (error) {
+        localStorage.removeItem('authToken'); // Clear token on login failure
+        throw formatErrorForThrowing(error);
+    }
+};
+
+// ✅ Logout Helper
+export const logoutUser = () => {
+    localStorage.removeItem('authToken');
+    console.log("Auth token removed.");
+    // Add any other logout logic (redirect, state clear) here
 };
 
 // ✅ Fetch Traits
 export const fetchTraits = async () => {
-  try {
-    const response = await API.get("/genetic-features/traits");
-    return response.data;
-  } catch (error) {
-    console.error("Error fetching traits:", error);
-    return [];
-  }
+    try {
+        // Gateway path: /api/genetic-features/traits
+        const response = await API.get("/genetic-features/traits");
+        return response.data;
+    } catch (error) {
+         throw formatErrorForThrowing(error);
+    }
 };
 
 // ✅ Fetch Reference Genomes
 export const fetchReferenceGenomes = async () => {
-  try {
-    const response = await API.get("/genetic-features/reference-genomes");
-    return response.data;
-  } catch (error) {
-    console.error("Error fetching reference genomes:", error);
-    return [];
-  }
+    try {
+        // Gateway path: /api/genetic-features/reference-genomes
+        const response = await API.get("/genetic-features/reference-genomes");
+        return response.data;
+    } catch (error) {
+        throw formatErrorForThrowing(error);
+    }
 };
 
 // ✅ Fetch Features by Gene Name
 export const fetchFeaturesByGeneName = async (geneName, referenceGenome, searchType) => {
-  try {
-    const response = await API.get("/genetic-features/by-gene-name", {
-      params: { geneName, referenceGenome, searchType }
-    });
-    return response.data;
-  } catch (error) {
-    console.error("Error fetching features:", error);
-    return [];
-  }
+    try {
+        // Gateway path: /api/genetic-features/by-gene-name
+        const response = await API.get("/genetic-features/by-gene-name", {
+            params: { geneName, referenceGenome, searchType }
+        });
+        return response.data;
+    } catch (error) {
+        throw formatErrorForThrowing(error);
+    }
 };
 
 // ✅ Fetch Genes by Trait
 export const fetchGenesByTrait = async (traitName, referenceGenome) => {
-  try {
-    const response = await API.get("/genetic-features/by-trait", { params: { traitName, referenceGenome } });
-    return response.data; 
-  } catch (error) {
-    console.error("❌ Error fetching genes by trait:", error);
-    return [];
-  }
+    try {
+        // Gateway path: /api/genetic-features/by-trait
+        const response = await API.get("/genetic-features/by-trait", {
+             params: { traitName, referenceGenome }
+        });
+        return response.data;
+    } catch (error) {
+        throw formatErrorForThrowing(error);
+    }
 };
 
+// ✅ Fetch Gene Details by Name and Genome
 export const fetchGeneDetailsByNameAndGenome = async (geneName, referenceGenome) => {
-  try {
-      // Ensure parameters are provided
-      if (!geneName || !referenceGenome) {
-          throw new Error("Gene name and reference genome are required to fetch details.");
-      }
-      console.log(`Workspaceing details for gene: ${geneName}, genome: ${referenceGenome}`); // Debug log
-      // Define the endpoint and parameters for fetching specific gene details
-      // Adjust '/genetic-features/details' to your actual backend endpoint
-      const response = await API.get("/genetic-features/details", {
-          params: { geneName, referenceGenome }
-      });
-      // Log the response for debugging
-      console.log("Received gene details:", response.data);
-
-      // Expecting a single gene object with full details, including start/end
-      // If the backend might return an array (e.g., multiple matches?), handle it appropriately.
-      if (Array.isArray(response.data) && response.data.length > 0) {
-           console.warn("Received multiple results for gene details, returning the first one.");
-           return response.data[0]; // Return the first match if array is returned
-      } else if (!Array.isArray(response.data) && response.data) {
-           return response.data; // Return the single object
-      } else {
-           throw new Error("Gene details not found or invalid response format."); // Handle case where no data is returned
-      }
-  } catch (error) {
-      console.error(`Error fetching details for gene ${geneName} (${referenceGenome}):`, error.response || error);
-      // Re-throw the error so the component can handle it (e.g., show error message)
-      throw error.response ? error.response.data : { message: error.message || "Could not fetch gene details." };
-  }
+    if (!geneName || !referenceGenome) {
+        throw { message: "Gene name and reference genome are required." }; // Basic validation
+    }
+    try {
+        // Gateway path: /api/genetic-features/details
+        const response = await API.get("/genetic-features/details", {
+            params: { geneName, referenceGenome }
+        });
+        return response.data;
+    } catch (error) {
+        throw formatErrorForThrowing(error);
+    }
 };
 
+
+// --- API Functions for routes WITHOUT /api prefix ---
+
+// ✅ Fetch Tables Data
+export const fetchTablesData = async (params = {}) => {
+    try {
+        // Gateway path: /tables
+        const response = await API.get("/tables", { params });
+        return response.data;
+    } catch (error) {
+        throw formatErrorForThrowing(error);
+    }
+}
+
+// ✅ Fetch Varieties Data
+export const fetchVarietiesData = async (params = {}) => {
+    try {
+        // Gateway path: /varieties
+        const response = await API.get("/varieties", { params });
+        return response.data;
+    } catch (error) {
+        throw formatErrorForThrowing(error);
+    }
+}
+
+// ✅ Fetch Phenotypes Data
+export const fetchPhenotypesData = async (params = {}) => {
+    try {
+        // Gateway path: /phenotypes
+        const response = await API.get("/phenotypes", { params });
+        return response.data;
+    } catch (error) {
+        throw formatErrorForThrowing(error);
+    }
+}

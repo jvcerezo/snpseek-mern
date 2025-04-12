@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from "react"; // Added React, useEffect
+import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { registerUser } from "../api"; // Adjust path if necessary
 // Import Fa icons from react-icons
-import { FaUser, FaEnvelope, FaLock, FaEye, FaEyeSlash, FaExclamationCircle, FaUserPlus, FaSignInAlt, FaGoogle, FaGithub, FaDna } from 'react-icons/fa';
+import { FaUser, FaEnvelope, FaLock, FaEye, FaEyeSlash, FaExclamationCircle, FaUserPlus, FaSignInAlt, FaGoogle, FaGithub, FaDna, FaAddressCard } from 'react-icons/fa'; // Added FaAddressCard
 import "./Register.css"; // Adjust path if necessary
 
 // Helper function for password strength (basic example)
@@ -28,7 +28,11 @@ const calculateStrength = (password) => {
 
 
 export default function RegisterPage() {
+    // --- State Variables ---
     const [username, setUsername] = useState("");
+    const [firstName, setFirstName] = useState("");   // <-- Added
+    const [lastName, setLastName] = useState("");     // <-- Added
+    const [middleName, setMiddleName] = useState(""); // <-- Added
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
@@ -44,9 +48,9 @@ export default function RegisterPage() {
 
     const handleRegister = async (e) => {
         e.preventDefault();
-        // Basic client-side validation
-        if (!username || !email || !password) {
-            setError("All fields are required.");
+        // Basic client-side validation - include new required fields
+        if (!username || !firstName || !lastName || !email || !password) { // <-- Added firstName, lastName check
+            setError("Username, First Name, Last Name, Email, and Password are required.");
             return;
         }
         if (password.length < 8) {
@@ -58,12 +62,22 @@ export default function RegisterPage() {
         setIsLoading(true);
         setError("");
         try {
-            await registerUser({ username, email, password });
+            // Include all fields required by the schema in the payload
+            await registerUser({
+                username,
+                firstName, // <-- Added
+                lastName,  // <-- Added
+                middleName, // <-- Added (optional, send even if empty)
+                email,
+                password
+            });
             // Optionally show a success message before redirecting
             // alert("Registration successful! Please login.");
             navigate("/login"); // Redirect to login page after successful registration
         } catch (err) {
-            setError(err.message || "Registration failed. Please try again.");
+            // Use the formatted error message from api.js if available
+            const errorMessage = err?.message || "Registration failed. Please check your details and try again.";
+            setError(errorMessage);
             console.error("Registration Error:", err);
         } finally {
             setIsLoading(false);
@@ -71,28 +85,30 @@ export default function RegisterPage() {
     };
 
      // Placeholder handlers for social login
-    const handleSocialLogin = (provider) => {
-        setError(''); // Clear previous errors
-        console.log(`Attempting sign up with ${provider}...`);
-        // TODO: Implement actual social login flow
-        setError(`Social sign up with ${provider} is not yet implemented.`);
-    }
+     const handleSocialLogin = (provider) => {
+         setError(''); // Clear previous errors
+         console.log(`Attempting sign up with ${provider}...`);
+         // TODO: Implement actual social login flow
+         setError(`Social sign up with ${provider} is not yet implemented.`);
+     }
 
     return (
         <div className="register-page">
-            {/* Optional decorative background */}
-             <div className="background-shapes">
-                 <div className="shape shape-1"></div>
-                 <div className="shape shape-2"></div>
-                 <div className="shape shape-3"></div>
-            </div>
+             {/* Optional decorative background */}
+              <div className="background-shapes">
+                  <div className="shape shape-1"></div>
+                  <div className="shape shape-2"></div>
+                  <div className="shape shape-3"></div>
+             </div>
 
             <div className="register-container">
                 <div className="register-card">
-                     {/* <div className="card-decoration"></div> */}
+                    {/* <div className="card-decoration"></div> */}
 
                     <div className="register-header">
                         <div className="logo-container">
+                        {/* Optional: Add a logo icon if desired */}
+                        {/* <FaDna size={30} className="header-icon"/> */}
                         <h2 className="logo-text">Create your Account</h2>
                         <p className="register-subtitle">Join our genomic research platform</p>
                         </div>
@@ -125,6 +141,61 @@ export default function RegisterPage() {
                                 <label htmlFor="register-username">Username</label>
                             </div>
                         </div>
+
+                         {/* First Name Input */} {/* <-- ADDED */}
+                         <div className="input-group floating">
+                            <div className="input-wrapper">
+                                <span className="input-icon-prefix"><FaAddressCard /></span>
+                                <input
+                                    id="register-firstName"
+                                    type="text"
+                                    placeholder=" "
+                                    value={firstName}
+                                    onChange={(e) => setFirstName(e.target.value)}
+                                    disabled={isLoading}
+                                    required
+                                    aria-required="true"
+                                    aria-invalid={!!error && error.toLowerCase().includes('first name')}
+                                />
+                                <label htmlFor="register-firstName">First Name</label>
+                            </div>
+                        </div>
+
+                         {/* Last Name Input */} {/* <-- ADDED */}
+                         <div className="input-group floating">
+                             <div className="input-wrapper">
+                                 <span className="input-icon-prefix"><FaAddressCard /></span> {/* Reuse icon or choose another */}
+                                 <input
+                                     id="register-lastName"
+                                     type="text"
+                                     placeholder=" "
+                                     value={lastName}
+                                     onChange={(e) => setLastName(e.target.value)}
+                                     disabled={isLoading}
+                                     required
+                                     aria-required="true"
+                                     aria-invalid={!!error && error.toLowerCase().includes('last name')}
+                                 />
+                                 <label htmlFor="register-lastName">Last Name</label>
+                             </div>
+                         </div>
+
+                         {/* Middle Name Input (Optional) */} {/* <-- ADDED */}
+                         <div className="input-group floating">
+                             <div className="input-wrapper">
+                                 <span className="input-icon-prefix"><FaAddressCard /></span> {/* Reuse icon */}
+                                 <input
+                                     id="register-middleName"
+                                     type="text"
+                                     placeholder=" "
+                                     value={middleName}
+                                     onChange={(e) => setMiddleName(e.target.value)}
+                                     disabled={isLoading}
+                                     // Not required
+                                 />
+                                 <label htmlFor="register-middleName">Middle Name (Optional)</label>
+                             </div>
+                         </div>
 
                         {/* Email Input */}
                         <div className="input-group floating">
@@ -174,15 +245,15 @@ export default function RegisterPage() {
                             </div>
                              {/* Password Strength Indicator */}
                              <div id="password-strength-indicator" className="password-strength" aria-live="polite">
-                                <div className={`strength-bar ${passwordStrength.className}`}></div>
-                                <span className="strength-text">{passwordStrength.text}</span>
-                            </div>
+                                 <div className={`strength-bar ${passwordStrength.className}`}></div>
+                                 <span className="strength-text">{passwordStrength.text}</span>
+                             </div>
                         </div>
 
-                         {/* TODO: Add Confirm Password Field */}
+                         {/* TODO: Add Confirm Password Field if desired */}
                          {/*
                          <div className="input-group floating">
-                            ... confirm password input ...
+                             ... confirm password input ...
                          </div>
                          */}
 
@@ -220,7 +291,7 @@ export default function RegisterPage() {
                             className="secondary-btn social-button github"
                             onClick={() => handleSocialLogin('GitHub')}
                             disabled={isLoading}
-                        >
+                         >
                             <FaGithub className="btn-icon social-icon" /> Sign Up with GitHub
                         </button>
                     </div>
