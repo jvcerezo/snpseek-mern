@@ -188,6 +188,20 @@
     color: var(--background-primary);
     border-color: var(--accent-primary);
 }
+/* Styles for disabled navigation list items */
+.disabled-nav-item {
+  cursor: not-allowed; /* Indicate non-interactive */
+  /* Optional: Slightly fade the whole list item */
+  /* opacity: 0.7; */
+}
+
+/* Styles for the link *inside* a disabled list item */
+.disabled-nav-item a {
+  opacity: 0.6;          /* Make the link look faded */
+  pointer-events: none;  /* CRITICAL: Disable clicks and hover effects on the link */
+  color: var(--text-muted); /* Optional: Change color to muted */
+}
+
 
 
 /* Mobile Menu Toggle Button */

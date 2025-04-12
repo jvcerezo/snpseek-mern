@@ -85,54 +85,95 @@ export const register = async (req, res) => {
 
 // Login user
 export const login = async (req, res) => {
-    console.log("Login endpoint hit with data:", req.body);
-    const { email, password } = req.body;
+  console.log("Login endpoint hit with data:", req.body);
+  // Accept 'identifier' which can be email or username
+  const { identifier, password } = req.body;
 
-    if (!email || !password) {
-        return res.status(400).json({ message: "Email and password are required" });
-    }
+  if (!identifier || !password) {
+      return res.status(400).json({ message: "Username/Email and password are required" });
+  }
 
+  try {
+      let user = null;
+      let queryField = '';
+      let queryValue = '';
+
+      // Determine if identifier is likely an email or username
+      if (identifier.includes('@')) {
+          queryField = 'email';
+          queryValue = identifier.trim().toLowerCase();
+          console.log(`Attempting login with email: ${queryValue}`);
+      } else {
+          queryField = 'username';
+          queryValue = identifier.trim();
+           console.log(`Attempting login with username: ${queryValue}`);
+      }
+
+      // Find user by email or username
+      user = await User.findOne({ [queryField]: queryValue });
+
+      if (!user) {
+          console.log(`Login attempt failed: No user found for ${queryField} ${queryValue}`);
+          // Return generic message for security
+          return res.status(401).json({ message: "Invalid credentials" });
+      }
+
+      // Validate password
+      const isMatch = await bcrypt.compare(password, user.password);
+      if (!isMatch) {
+          console.log(`Login attempt failed: Incorrect password for ${queryField} ${queryValue}`);
+          // Return generic message
+          return res.status(401).json({ message: "Invalid credentials" });
+      }
+
+      // --- Token Generation (remains the same) ---
+      const payload = {
+          id: user._id,
+          role: user.role
+      };
+      const secret = process.env.JWT_SECRET;
+      const options = { expiresIn: "1h" };
+
+      if (!secret) {
+           console.error("FATAL: JWT_SECRET is not defined during login.");
+           return res.status(500).json({ message: "Server configuration error" });
+      }
+      const token = jwt.sign(payload, secret, options);
+      // --- End Token Generation ---
+
+
+      console.log(`✅ User logged in successfully: ${user.email} (ID: ${user._id})`);
+
+      // Return token and user details (excluding password)
+      res.status(200).json({
+           message: "Login successful",
+           token,
+           user: getUserData(user) // Use helper function
+      });
+
+  } catch (error) {
+      console.error("❌ Server error during login:", error);
+      res.status(500).json({ message: "Server Error", error: error.message });
+  }
+};
+
+export const logout = async (req, res) => {
     try {
-        // Check if user exists
-        const user = await User.findOne({ email: email.trim().toLowerCase() });
-        if (!user) {
-            console.log(`Login attempt failed: No user found for email ${email}`);
-            return res.status(401).json({ message: "Invalid credentials" }); // Use 401 for auth failures
-        }
+        // The authMiddleware already verified the token is valid.
+        // Optional: Log the logout event.
+        const userId = req.user?.id; // Get user ID from token payload (added by middleware)
+        console.log(`✅ User logged out: ${userId}`);
 
-        // Validate password
-        const isMatch = await bcrypt.compare(password, user.password);
-        if (!isMatch) {
-            console.log(`Login attempt failed: Incorrect password for email ${email}`);
-            return res.status(401).json({ message: "Invalid credentials" }); // Use 401
-        }
+        // Optional Advanced: Implement server-side token invalidation here
+        // e.g., add token JTI (jwt id) or signature to a blocklist (Redis, DB)
+        // const jti = req.user?.jti; // If you include 'jti' in your JWT payload
+        // if (jti) { await addToBlocklist(jti); }
 
-        // Generate JWT Token including ID and Role
-        const payload = {
-            id: user._id,
-            role: user.role // Include role in the token payload
-        };
-        const secret = process.env.JWT_SECRET;
-        const options = { expiresIn: "1h" }; // Or use environment variable for expiry
-
-        if (!secret) {
-             console.error("FATAL: JWT_SECRET is not defined during login.");
-             return res.status(500).json({ message: "Server configuration error" });
-        }
-
-        const token = jwt.sign(payload, secret, options);
-
-        console.log(`✅ User logged in successfully: ${user.email}`);
-
-        // Return token and user details (excluding password)
-        res.status(200).json({
-             message: "Login successful",
-             token,
-             user: getUserData(user) // Return user data
-        });
+        // For basic logout, just acknowledging is enough as client removes token.
+        res.status(200).json({ message: "Logout successful" });
 
     } catch (error) {
-        console.error("❌ Server error during login:", error);
+        console.error("❌ Server error during logout:", error);
         res.status(500).json({ message: "Server Error", error: error.message });
     }
 };

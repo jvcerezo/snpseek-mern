@@ -1,5 +1,5 @@
 import express from "express";
-import { register, login, getProfile, updateProfile } from "../controllers/authController.js";
+import { register, login, getProfile, updateProfile, logout } from "../controllers/authController.js";
 import authMiddleware from "../middleware/authMiddleware.js"; // Import the middleware
 
 const router = express.Router();
@@ -10,8 +10,8 @@ router.post("/login", login);
 
 // Protected routes (require valid token)
 router.get("/profile", authMiddleware, getProfile); // Protect GET /profile
-router.put("/profile", authMiddleware, updateProfile); // Protect PUT /profile
 
+router.post("/logout", authMiddleware, logout); // Protect POST /logout
 // Optional: Add route for password change if needed
 // router.put("/change-password", authMiddleware, changePassword);
 

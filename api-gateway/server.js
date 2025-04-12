@@ -76,11 +76,8 @@ app.use(
     })
 );
 
-// PROTECTED: Other microservices (Add verifyToken middleware BEFORE proxy)
-
 app.use(
     `${API_BASE_URL}/genomic`, // Path: /api/genomic/...
-    verifyToken, // Apply Auth check HERE
     proxy(process.env.GENETIC_FEATURE_SERVICE_URL, { 
         proxyReqPathResolver: (req) => {
             return `/genotype${req.url}`; // To Service: /genotype/...
@@ -103,7 +100,6 @@ app.use(
 
 app.use(
     `${API_BASE_URL}/genetic-features`, // Path: /api/genetic-features/...
-    verifyToken, // Apply Auth check HERE
     proxy(process.env.GENETIC_FEATURE_SERVICE_URL, {
         proxyReqPathResolver: (req) => {
             return `/features${req.url}`; // To Service: /features/...

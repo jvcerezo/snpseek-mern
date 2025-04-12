@@ -4,14 +4,14 @@
 :root {
   --background-primary: #0a192f;
   --background-secondary: #112240;
-  --background-tertiary: #1f2d4a;
+  --background-tertiary: #1f2d4a; /* Use this for disabled bg */
   --text-primary: #e6f1ff;
   --text-secondary: #ccd6f6;
-  --text-muted: #8892b0;
+  --text-muted: #8892b0; /* Use this for disabled text */
   --accent-primary: #64ffda;
   --accent-primary-dark: #0a7c72;
   --accent-primary-hover: #52d8c3;
-  --border-color: #233554;
+  --border-color: #233554; /* Use this for disabled border */
   --border-color-light: #304a7c;
   --error-color: #ff7b7b;
   --error-background: rgba(255, 123, 123, 0.1);
@@ -70,7 +70,7 @@
 
 /* --- Dashboard Sections --- */
 .dashboard-section {
-    margin-bottom: 2.5rem; /* Space between sections */
+   margin-bottom: 2.5rem; /* Space between sections */
 }
 .section-title {
   color: var(--text-secondary); font-size: 1.4rem; /* Slightly larger section titles */
@@ -106,6 +106,39 @@
   border-color: var(--accent-primary); color: var(--accent-primary);
 }
 .action-btn .btn-icon { font-size: 1.3rem; color: var(--accent-primary); width: 24px; text-align: center;}
+
+
+/* --- Styles for DISABLED Action Buttons --- */ /* <-- ADDED/INTEGRATED RULES */
+button.action-btn:disabled,
+button.action-btn[disabled] {
+background-color: var(--background-tertiary); /* Use theme variable */
+color: var(--text-muted);                  /* Use theme variable */
+border-color: var(--border-color);         /* Use theme variable */
+opacity: 0.6;
+cursor: not-allowed;
+box-shadow: none;
+transform: none;
+background-image: none; /* Remove gradients if any */
+}
+
+/* Explicitly prevent hover styles from applying when disabled */
+button.action-btn:disabled:hover,
+button.action-btn[disabled]:hover {
+ background-color: var(--background-tertiary); /* Keep disabled background */
+ color: var(--text-muted);                  /* Keep disabled text color */
+ border-color: var(--border-color);         /* Keep disabled border color */
+ opacity: 0.6;                              /* Keep disabled opacity */
+ box-shadow: none;
+ transform: none;
+}
+
+/* Style the icon inside a disabled button */
+button.action-btn:disabled .btn-icon,
+button.action-btn[disabled] .btn-icon {
+ color: var(--text-muted); /* Match disabled button text */
+ /* Opacity is handled by the parent button's opacity */
+}
+/* --- End Styles for DISABLED Action Buttons --- */
 
 
 /* --- Statistics Cards --- */
@@ -153,6 +186,17 @@
 }
 .activity-details p { margin: 0; font-size: 0.95rem; color: var(--text-secondary); }
 .activity-time { color: var(--text-muted); font-size: 0.8rem; margin-top: 0.2rem; display: block; }
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
 
 
 /* --- Responsive Adjustments (Simpler without sidebar) --- */

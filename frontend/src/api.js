@@ -69,30 +69,52 @@ export const registerUser = async (userData) => {
 };
 
 // ✅ Login User
-export const loginUser = async (userData) => {
-    try {
-        // Gateway path: /api/auth/login
-        const response = await API.post("/auth/login", userData);
-        // Store token on successful login
-        if (response.data && response.data.token) {
-            localStorage.setItem('authToken', response.data.token);
-            console.log("Token stored successfully.");
-        } else {
-            console.warn("Login successful, but no token found in response.");
-        }
-        return response.data;
-    } catch (error) {
-        localStorage.removeItem('authToken'); // Clear token on login failure
-        throw formatErrorForThrowing(error);
+export const loginUser = async (credentials) => { // Expect an object like { identifier, password }
+  const { identifier, password } = credentials; // Destructure for clarity
+  if (!identifier || !password) {
+     throw { message: "Username/Email and Password required in API call" };
+  }
+  try {
+    // Send identifier and password in the request body
+    const response = await API.post("/auth/login", { identifier, password });
+
+    // Interceptor might handle token storage, but explicit is okay too
+    if (response.data && response.data.token) {
+        localStorage.setItem('authToken', response.data.token);
+        console.log("API: Token stored from login response.");
+    } else {
+        console.warn("API: Login response did not contain a token.");
     }
+    // Return the full response data (which includes token and user object)
+    return response.data;
+  } catch (error) {
+     // Clear token on login failure just in case
+     localStorage.removeItem('authToken');
+     // Throw the formatted error from interceptor/helper
+     throw formatErrorForThrowing(error); // Use your error formatting helper
+  }
 };
 
+export const fetchUserProfile = async () => {
+    try {
+        // Gateway path: /api/auth/profile
+        const response = await API.get("/auth/profile");
+        return response.data;
+    } catch (error) {
+        throw formatErrorForThrowing(error);
+    }
+}
+
 // ✅ Logout Helper
-export const logoutUser = () => {
-    localStorage.removeItem('authToken');
-    console.log("Auth token removed.");
-    // Add any other logout logic (redirect, state clear) here
-};
+export const logoutUser = async () => {
+    try {
+        await API.post("/auth/logout"); // Optional: Call logout endpoint if your API has one
+        localStorage.removeItem('authToken'); // Clear token from local storage
+        console.log("API: Token cleared on logout.");
+    } catch (error) {
+        console.error("API: Error during logout:", error);
+    }
+}
 
 // ✅ Fetch Traits
 export const fetchTraits = async () => {

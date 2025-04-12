@@ -1,58 +1,64 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Link, useLocation } from "react-router-dom";
-// Assuming Font Awesome icons are set up, or use react-icons
-import { FaDna, FaHome, FaInfoCircle, FaSearch, FaSignInAlt, FaUserPlus, FaBars, FaTimes, FaProjectDiagram, FaChartLine } from 'react-icons/fa';
+import { Link, useLocation, useNavigate } from "react-router-dom";
+// Import icons
+import { FaDna, FaHome, FaInfoCircle, FaSearch, FaSignInAlt, FaUserPlus, FaBars, FaTimes, FaProjectDiagram, FaChartLine, FaSignOutAlt, FaUserCircle } from 'react-icons/fa';
+// Import auth context hook
+import { useAuth } from "../context/AuthContext"; // Adjust path if necessary
 import "./Header.css"; // Adjust path if necessary
 
 const Header = () => {
     const [isScrolled, setIsScrolled] = useState(false);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const location = useLocation();
-    const headerRef = useRef(null); // Ref for the header element
+    const headerRef = useRef(null);
+    const navigate = useNavigate();
+
+    // Use the authentication context
+    const { isAuthenticated, user, logout } = useAuth(); // Get isAuthenticated status
 
     // Scroll detection effect
     useEffect(() => {
-        const handleScroll = () => {
-            // Check if scrolled more than a small threshold (e.g., 10px)
-            setIsScrolled(window.scrollY > 10);
-        };
-
-        window.addEventListener("scroll", handleScroll, { passive: true }); // Use passive listener
-        // Initial check in case page loads scrolled
+        const handleScroll = () => setIsScrolled(window.scrollY > 10);
+        window.addEventListener("scroll", handleScroll, { passive: true });
         handleScroll();
-
-        // Cleanup listener
         return () => window.removeEventListener("scroll", handleScroll);
     }, []);
 
     // Close mobile menu on route change effect
     useEffect(() => {
         setMobileMenuOpen(false);
+        document.body.classList.remove('no-scroll');
     }, [location]);
 
-    // Toggle mobile menu and body class for scroll lock
+    // Toggle mobile menu
     const toggleMobileMenu = () => {
-        setMobileMenuOpen(prev => {
-            const isOpen = !prev;
-            if (isOpen) {
-                document.body.classList.add('no-scroll'); // Prevent body scroll when menu is open
-            } else {
-                document.body.classList.remove('no-scroll');
-            }
-            return isOpen;
-        });
+         setMobileMenuOpen(prev => {
+             const isOpen = !prev;
+             document.body.classList.toggle('no-scroll', isOpen);
+             return isOpen;
+         });
+     };
+
+    // Handle Logout Click
+    const handleLogout = () => {
+        logout();
+        setMobileMenuOpen(false);
+        document.body.classList.remove('no-scroll');
+        navigate('/');
+        console.log("User logged out.");
     };
 
+    // Tooltip message for disabled links
+    const disabledLinkMessage = "You have to be logged in to continue";
+
     return (
-        // Use ref for potential height calculations if needed later
         <header ref={headerRef} className={`header ${isScrolled ? "scrolled" : ""} ${mobileMenuOpen ? "mobile-menu-active" : ""}`}>
             <div className="header-container">
                 {/* Logo */}
                 <div className="logo-container">
                     <Link to="/" className="logo" aria-label="Homepage">
-                        {/* Use react-icons component */}
                         <FaDna className="logo-icon" />
-                        <span className="logo-text">SNP-MERN</span> {/* Example Name */}
+                        <span className="logo-text">SNP-MERN</span>
                     </Link>
                 </div>
 
@@ -60,7 +66,7 @@ const Header = () => {
                 <nav className={`nav-menu ${mobileMenuOpen ? "mobile-open" : ""}`} id="navigation-menu" aria-label="Main navigation">
                     {/* Main Links */}
                     <ul className="nav-links">
-                        <li> {/* Added class directly to li for simpler CSS */}
+                        <li>
                             <Link to="/" className={location.pathname === "/" ? "active" : ""}>
                                 <FaHome /><span>Home</span>
                             </Link>
@@ -71,36 +77,55 @@ const Header = () => {
                             </Link>
                         </li>
                         <li>
-                             {/* Link to the Gene Loci search page */}
+                            {/* Dashboard might also need protection? Assuming public for now */}
                             <Link to="/dashboard" className={location.pathname === "/dashboard" ? "active" : ""}>
                                 <FaSearch /><span>Dashboard</span>
                             </Link>
                         </li>
-                        <li>
-                             {/* Link to the Pipeline page */}
-                            <Link to="/pipeline" className={location.pathname === "/pipeline" ? "active" : ""}>
-                                <FaProjectDiagram /><span>Pipeline</span>
-                            </Link>
-                        </li>
-                         <li>
-                             {/* Link to the QC Metrics page */}
-                             <Link to="/qc-metrics" className={location.pathname === "/qc-metrics" ? "active" : ""}>
-                                <FaChartLine /><span>QC Metrics</span>
-                            </Link>
-                        </li>
+
+                        {/* Pipeline Link - Conditional disabling */}
+                        <li
+                            className={!isAuthenticated ? 'disabled-nav-item' : ''} // Add class if not logged in
+                            title={!isAuthenticated ? disabledLinkMessage : undefined} // Add title if not logged in
+                        >
+                             <Link to="/pipeline" className={location.pathname === "/pipeline" ? "active" : ""}>
+                                 <FaProjectDiagram /><span>Pipeline</span>
+                             </Link>
+                         </li>
+
+                         {/* QC Metrics Link - Conditional disabling */}
+                         <li
+                            className={!isAuthenticated ? 'disabled-nav-item' : ''} // Add class if not logged in
+                            title={!isAuthenticated ? disabledLinkMessage : undefined} // Add title if not logged in
+                         >
+                              <Link to="/qc-metrics" className={location.pathname === "/qc-metrics" ? "active" : ""}>
+                                  <FaChartLine /><span>QC Metrics</span>
+                              </Link>
+                          </li>
                         {/* Add other main navigation links here */}
                     </ul>
 
-                    {/* Authentication Links/Buttons (Separated for distinct styling) */}
+                    {/* Authentication Links/Buttons */}
                     <div className="nav-auth-links">
-                         {/* Example: Conditionally show Login/Register or User Profile/Logout */}
-                         {/* For now, showing both based on original code */}
-                        <Link to="/login" className={`nav-button login-btn ${location.pathname === "/login" ? "active" : ""}`}>
-                            <FaSignInAlt /><span>Login</span>
-                        </Link>
-                        <Link to="/register" className={`nav-button register-btn ${location.pathname === "/register" ? "active" : ""}`}>
-                            <FaUserPlus /><span>Register</span>
-                        </Link>
+                        {isAuthenticated ? (
+                            <>
+                                <span className="user-greeting">
+                                    <FaUserCircle className="user-icon"/> Hello, {user?.firstName || 'User'}!
+                                </span>
+                                <button onClick={handleLogout} className="nav-button logout-btn">
+                                    <FaSignOutAlt /><span>Logout</span>
+                                </button>
+                            </>
+                        ) : (
+                            <>
+                                <Link to="/login" className={`nav-button login-btn ${location.pathname === "/login" ? "active" : ""}`}>
+                                    <FaSignInAlt /><span>Login</span>
+                                </Link>
+                                <Link to="/register" className={`nav-button register-btn ${location.pathname === "/register" ? "active" : ""}`}>
+                                    <FaUserPlus /><span>Register</span>
+                                </Link>
+                            </>
+                        )}
                     </div>
                 </nav>
 
@@ -110,7 +135,7 @@ const Header = () => {
                     onClick={toggleMobileMenu}
                     aria-label={mobileMenuOpen ? "Close navigation menu" : "Open navigation menu"}
                     aria-expanded={mobileMenuOpen}
-                    aria-controls="navigation-menu" // Controls the nav element
+                    aria-controls="navigation-menu"
                 >
                     {mobileMenuOpen ? <FaTimes /> : <FaBars />}
                 </button>
