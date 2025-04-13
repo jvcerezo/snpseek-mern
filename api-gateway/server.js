@@ -78,7 +78,7 @@ app.use(
 
 app.use(
     `${API_BASE_URL}/genomic`, // Path: /api/genomic/...
-    proxy(process.env.GENETIC_FEATURE_SERVICE_URL, { 
+    proxy(process.env.GENOMIC_SERVICE_URL, { 
         proxyReqPathResolver: (req) => {
             return `/genotype${req.url}`; // To Service: /genotype/...
         },
