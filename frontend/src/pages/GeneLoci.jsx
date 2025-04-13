@@ -355,7 +355,7 @@ const GeneLoci = () => {
     return (
         <div className={`gene-loci-container ${isModalOpen ? 'modal-open' : ''} ${loadingDetails ? 'details-loading' : ''}`}>
             <div className="content-wrapper">
-                <h1 className="page-title"> <FaSearchLocation className="title-icon" /> Search Gene Features </h1>
+                <h1 className="page-title"> <FaSearchLocation className="title-icon" /> Search by Gene Loci </h1>
                 <div className="main-content-area">
                     {/* --- Search Form Card --- */}
                     <div className="search-form-card">
