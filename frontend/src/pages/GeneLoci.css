@@ -298,6 +298,38 @@ label .fas { font-size: 0.9em; color: var(--accent-primary); width: 16px; text-a
   padding: 0.25rem 0.5rem; border-radius: calc(var(--border-radius) - 2px); font-size: 0.85rem;
 }
 .page-select:disabled { opacity: 0.5; cursor: not-allowed; }
+/* Style for 3-column layout specifically */
+.form-row.form-row-three-col {
+  grid-template-columns: repeat(3, 1fr);
+  align-items: end;
+}
+
+/* Style for disabled textareas */
+textarea.disabled-textarea {
+   background-color: var(--background-tertiary);
+   opacity: 0.6;
+   cursor: not-allowed;
+   border-color: var(--border-color);
+}
+.auth-required-note {
+   font-size: 0.8rem;
+   font-style: italic;
+   color: var(--warning-color);
+   margin-top: 0.25rem;
+}
+
+/* Responsive adjustments */
+@media (min-width: 768px) {
+   /* Keep 2 columns for most rows */
+   .form-row { grid-template-columns: 1fr 1fr; }
+   /* Ensure 3 columns for range row */
+   .form-row.form-row-three-col { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 767px) {
+    /* Force ALL form rows to single column on small screens */
+    .form-row,
+    .form-row.form-row-three-col { grid-template-columns: 1fr; }
+}
 
 
 /* --- Responsive Design --- */

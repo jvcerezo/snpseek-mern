@@ -1,22 +1,27 @@
-// GeneLoci.js
+// GeneLoci.jsx
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 // Import API functions
 import {
     fetchTraits,
     fetchReferenceGenomes,
-    fetchFeaturesByGeneName,
-    fetchGenesByTrait,
-    fetchGeneDetailsByNameAndGenome
-    // Import other needed API functions like searchBySnpList etc. when implemented
+    fetchFeaturesByGeneName, // Used for Annotation and Gene Name search
+    fetchGenesByTrait,       // Used for Trait search
+    fetchGeneDetailsByNameAndGenome,
+    fetchChromosomeRange,    // Used for Region search range display
+    fetchChromosomes         // Used for Region chromosome dropdown
+    // NEW function needed for Region search results: fetchFeaturesByRegion
+    // Example: import { fetchFeaturesByRegion } from '../api';
+    // Example: import { searchBySnpList } from '../api';
+    // Example: import { searchByLocusList } from '../api';
 } from "../api"; // Adjust path if necessary
-import { useAuth } from '../context/AuthContext'; // Import useAuth hook
+import { useAuth } from '../context/AuthContext'; // Keep useAuth
 import GeneDetailModal from '../components/GeneDetailModal'; // Adjust path if necessary
 import "./GeneLoci.css"; // Adjust path if necessary
-// Import Icons if not globally available via Font Awesome CSS
+// Import Icons
 import {
     FaSearchLocation, FaFilter, FaDatabase, FaSearch, FaTag, FaDna, FaSearchPlus,
     FaKeyboard, FaChevronDown, FaExclamationTriangle, FaEraser, FaChevronRight,
-    FaChevronLeft, FaPoll, FaTable, FaInfoCircle, FaFolderOpen
+    FaChevronLeft, FaPoll, FaTable, FaInfoCircle, FaFolderOpen, FaMapMarkedAlt // Added FaMapMarkedAlt
 } from 'react-icons/fa';
 
 
@@ -31,37 +36,52 @@ const FormInputSection = ({ isVisible, children }) => {
 };
 
 const GeneLoci = () => {
-    const { isAuthenticated } = useAuth(); // Get auth status
+    const { isAuthenticated } = useAuth(); // Keep for potential future use
 
     // --- State Variables ---
-    const [selectedSearchByOption, setSelectedSearchByOption] = useState("Gene name/symbol/function");
+    const [searchBy, setSearchBy] = useState("geneName"); // Default search type
 
-    // States for different input types
-    const [searchInputValue, setSearchInputValue] = useState("");
-    const [searchType, setSearchType] = useState("substring");
+    // State for specific input values
+    const [searchQuery, setSearchQuery] = useState("");       // For Annotation, Gene Name
+    const [searchMethod, setSearchMethod] = useState("substring"); // For Annotation, Gene Name
 
     const [traitsList, setTraitsList] = useState([]);
     const [selectedCategory, setSelectedCategory] = useState("");
     const [selectedTrait, setSelectedTrait] = useState("");
-    const [loadingTraits, setLoadingTraits] = useState(false);
-    const [traitDetails, setTraitDetails] = useState(null); // Still needed for Trait Description
+    const [loadingTraits, setLoadingTraits] = useState(false); // Specific loading state for traits list
+    const [traitDetails, setTraitDetails] = useState(null); // For displaying trait description
 
-    const [snpListInput, setSnpListInput] = useState("");
-    const [locusListInput, setLocusListInput] = useState("");
+    // State specific to Region search
+    const [regionData, setRegionData] = useState({
+        chromosome: '',
+        start: '',
+        end: ''
+    });
+    const [chromosomeOptions, setChromosomeOptions] = useState([]); // Chromosomes for dropdown
 
     // Reference Genome state
     const [referenceGenomes, setReferenceGenomes] = useState([]);
     const [referenceGenome, setReferenceGenome] = useState("");
-    const [loadingGenomes, setLoadingGenomes] = useState(true);
 
-    // Results state
-    const [searchResults, setSearchResults] = useState([]);
-    const [genesByTrait, setGenesByTrait] = useState([]);
+    // Combined loading state for initial dropdown fetches
+    const [loadingOptions, setLoadingOptions] = useState({
+        referenceGenomes: true, // Start true
+        // traits loading is handled by loadingTraits state
+        chromosomes: false      // Start false, only true when Region selected
+    });
+    // State for dropdown loading errors
+    const [optionsError, setOptionsError] = useState(''); // General error for initial loads
 
-    // General UI state
-    const [loading, setLoading] = useState(false);
-    const [loadingDetails, setLoadingDetails] = useState(false);
-    const [errorMessage, setErrorMessage] = useState("");
+    // State for Chromosome Range specific loading/error
+    const [chromosomeRange, setChromosomeRange] = useState({ minPosition: null, maxPosition: null });
+    const [loadingRange, setLoadingRange] = useState(false);
+    const [rangeError, setRangeError] = useState('');
+
+    // Results & UI state
+    const [results, setResults] = useState([]); // Combined results state
+    const [loading, setLoading] = useState(false); // Main search loading
+    const [loadingDetails, setLoadingDetails] = useState(false); // Modal loading
+    const [errorMessage, setErrorMessage] = useState(""); // Search specific errors
     const [showResultsArea, setShowResultsArea] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedGeneData, setSelectedGeneData] = useState(null);
@@ -69,41 +89,83 @@ const GeneLoci = () => {
 
 
     // --- Data Fetching Effects ---
-    // Fetch Reference Genomes on Mount
+    // Fetch Reference Genomes
     useEffect(() => {
         const loadGenomes = async () => {
-            setLoadingGenomes(true); setErrorMessage("");
+            setLoadingOptions(prev => ({ ...prev, referenceGenomes: true }));
+            setErrorMessage(""); setOptionsError('');
             try {
                 const genomes = await fetchReferenceGenomes();
                 setReferenceGenomes(genomes || []);
                 if (genomes && genomes.length > 0) setReferenceGenome(genomes[0]);
-            } catch (error) { setErrorMessage("Could not load reference genomes."); console.error(error); }
-            finally { setLoadingGenomes(false); }
+            } catch (error) { setOptionsError("Could not load reference genomes."); console.error(error); } // Set specific error
+            finally { setLoadingOptions(prev => ({ ...prev, referenceGenomes: false })); }
         };
         loadGenomes();
-    }, []);
+    }, []); // Run once
 
-    // Fetch Full Traits List only when 'Traits' option is selected
+    // Fetch Traits
     useEffect(() => {
-        if (selectedSearchByOption === "Traits") {
+        if (searchBy === "trait") {
             const loadTraits = async () => {
-                setLoadingTraits(true); setTraitsList([]); setErrorMessage("");
+                setLoadingTraits(true); setTraitsList([]); setErrorMessage(""); setOptionsError('');
                 setSelectedCategory(""); setSelectedTrait(""); setTraitDetails(null);
                 try {
-                    const traits = await fetchTraits();
-                    setTraitsList(traits || []);
-                } catch (error) { setErrorMessage("Could not load traits list."); setTraitsList([]); console.error(error); }
+                    const traits = await fetchTraits(); setTraitsList(traits || []);
+                } catch (error) { setOptionsError("Could not load traits list."); setTraitsList([]); console.error(error); } // Set specific error
                 finally { setLoadingTraits(false); }
             };
             loadTraits();
         } else {
             // Clear trait state if switching away
-            setSelectedCategory(""); setSelectedTrait(""); setTraitDetails(null); setTraitsList([]);
+            setSelectedCategory(""); setSelectedTrait(""); setTraitDetails(null); setTraitsList([]); setLoadingTraits(false);
         }
-    }, [selectedSearchByOption]); // Dependency: selectedSearchByOption
+    }, [searchBy]);
+
+     // Fetch Chromosomes
+     useEffect(() => {
+        if (searchBy === "region") {
+            const loadChromosomes = async () => {
+                setLoadingOptions(prev => ({ ...prev, chromosomes: true }));
+                setErrorMessage(""); setOptionsError(''); setChromosomeOptions([]);
+                try {
+                    const chroms = await fetchChromosomes();
+                    setChromosomeOptions(Array.isArray(chroms) ? chroms : []);
+                } catch (error) { setOptionsError("Could not load chromosomes."); console.error(error); } // Set specific error
+                finally { setLoadingOptions(prev => ({ ...prev, chromosomes: false })); }
+            };
+            loadChromosomes();
+        } else {
+             // Clear region specific data if switching away
+             setRegionData(prev => ({ ...prev, chromosome: '' })); // Clear selected chromosome
+             setChromosomeOptions([]);
+             setLoadingOptions(prev => ({ ...prev, chromosomes: false })); // Ensure loading is false
+        }
+    }, [searchBy]); // Dependency: searchBy
+
+    // Fetch Chromosome Range
+    useEffect(() => {
+        const getRange = async () => {
+            if (searchBy === 'region' && referenceGenome && regionData.chromosome) {
+                setLoadingRange(true); setRangeError(''); setChromosomeRange({ minPosition: null, maxPosition: null });
+                try {
+                    const rangeData = await fetchChromosomeRange(regionData.chromosome, referenceGenome);
+                    setChromosomeRange(rangeData || { minPosition: null, maxPosition: null });
+                    if (!rangeData || rangeData.minPosition === null) {
+                         setRangeError(`No range data found for ${regionData.chromosome}.`);
+                    }
+                } catch (error) { setRangeError(`Failed to fetch range.`); }
+                finally { setLoadingRange(false); }
+            } else {
+                setChromosomeRange({ minPosition: null, maxPosition: null });
+                setRangeError(''); setLoadingRange(false);
+            }
+        };
+        getRange();
+    }, [regionData.chromosome, referenceGenome, searchBy]); // Dependencies
 
 
-    // --- Derived State for Trait Dropdowns (Memoized) ---
+    // --- Derived State for Trait Dropdowns ---
     const traitCategories = useMemo(() => {
         if (!traitsList || traitsList.length === 0) return [];
         const categories = new Set(traitsList.map(trait => trait.category || 'Uncategorized'));
@@ -114,31 +176,24 @@ const GeneLoci = () => {
         if (!selectedCategory || !traitsList || traitsList.length === 0) return [];
         return traitsList
             .filter(trait => (trait.category || 'Uncategorized') === selectedCategory)
-            .map(trait => trait.traitName) // Extract just the names
+            .map(trait => trait.traitName)
             .sort();
     }, [selectedCategory, traitsList]);
 
 
     // --- Event Handlers ---
     const handleReset = () => {
-        setSelectedSearchByOption("Gene name/symbol/function");
-        setSelectedCategory("");
-        setSelectedTrait("");
-        setSearchInputValue("");
-        setSnpListInput("");
-        setLocusListInput("");
-        setSearchType("substring");
-        setSearchResults([]);
-        setGenesByTrait([]);
-        setTraitDetails(null);
-        setErrorMessage("");
-        setLoading(false);
-        setLoadingDetails(false);
-        setShowResultsArea(false);
-        setIsModalOpen(false);
-        setSelectedGeneData(null);
-        setExpandedSections({ queryDetails: true, resultsTable: true }); // Keep open
-        // Optionally reset reference genome
+        setSearchBy("geneName");
+        setSearchQuery(""); setSearchMethod("substring");
+        setSelectedCategory(""); setSelectedTrait(""); setTraitDetails(null);
+        // Removed list inputs from reset
+        setRegionData({ chromosome: '', start: '', end: '' });
+        setResults([]); setErrorMessage(""); setLoading(false); setLoadingDetails(false);
+        setShowResultsArea(false); setIsModalOpen(false); setSelectedGeneData(null);
+        setExpandedSections({ queryDetails: true, resultsTable: true });
+        setChromosomeRange({ minPosition: null, maxPosition: null }); setLoadingRange(false); setRangeError('');
+        setOptionsError(''); // Clear options error on reset too
+        // Optionally reset reference genome to first in list if desired
         // setReferenceGenome(referenceGenomes.length > 0 ? referenceGenomes[0] : "");
     };
 
@@ -158,96 +213,89 @@ const GeneLoci = () => {
         setTraitDetails(detail || null);
     };
 
-    // Update search input value
-    const handleSearchInputChange = (e) => { setSearchInputValue(e.target.value); };
-    // Update SNP list input
-    const handleSnpListChange = (e) => { setSnpListInput(e.target.value); };
-    // Update Locus list input
-    const handleLocusListChange = (e) => { setLocusListInput(e.target.value); };
-
+    // Update search query input (for Annotation / Gene Name)
+    const handleQueryInputChange = (e) => { setSearchQuery(e.target.value); };
+    // Update region data inputs (chromosome, start, end)
+    const handleRegionInputChange = (e) => {
+        const { name, value } = e.target;
+        setRegionData(prev => ({ ...prev, [name]: value }));
+    };
+    // Update search method (for Annotation / Gene Name)
+    const handleSearchMethodChange = (e) => { setSearchMethod(e.target.value); };
 
     // Main Search Handler
     const handleSearch = useCallback(async () => {
-        let isValid = true;
-        let currentSearchTerm = "";
-        setErrorMessage(""); // Clear previous errors before validation
+        let isValid = true; setErrorMessage("");
+        let alertMessage = ""; // Declare alertMessage
 
         if (!referenceGenome) { setErrorMessage("Please select a Reference Genome."); isValid = false; }
 
         // Validation based on selected search type
-        switch(selectedSearchByOption) {
-            case "Traits":
-                if (!selectedCategory) { setErrorMessage("Please select a Trait Category."); isValid = false; }
-                else if (!selectedTrait) { setErrorMessage("Please select a Trait Name."); isValid = false; }
+        switch(searchBy) {
+            case "annotation":
+            case "geneName":
+                if (!searchQuery.trim()) { alertMessage = `Please enter search term for ${searchBy}.`; isValid = false; break; }
+                isValid = true; // Only requirement is search term
                 break;
-            case "Gene name/symbol/function":
-            case "GO Term":
-            case "Sequence": // Add validation for sequence format if needed
-            case "Gene set":
-                currentSearchTerm = searchInputValue.trim();
-                if (!currentSearchTerm) { setErrorMessage(`Please enter a value for '${selectedSearchByOption}'.`); isValid = false; }
+            case "trait":
+                if (!selectedCategory) { alertMessage = "Please select Trait Category."; isValid = false; break; }
+                if (!selectedTrait) { alertMessage = "Please select Trait Name."; isValid = false; break; }
+                 isValid = true;
                 break;
-            case "SNP positions list":
-                 if (!isAuthenticated) { setErrorMessage("Login required for SNP list search."); isValid = false; break; }
-                 currentSearchTerm = snpListInput.trim();
-                 if (!currentSearchTerm) { setErrorMessage("SNP List cannot be empty."); isValid = false; }
-                 // TODO: Add validation for SNP list format if needed
-                 break;
-            case "Locus list":
-                 if (!isAuthenticated) { setErrorMessage("Login required for Locus list search."); isValid = false; break; }
-                 currentSearchTerm = locusListInput.trim();
-                 if (!currentSearchTerm) { setErrorMessage("Locus List cannot be empty."); isValid = false; }
-                  // TODO: Add validation for Locus list format if needed
-                   break;
-            case "Contig and Region": // Explicitly handle this case if kept in dropdown
-                 setErrorMessage("Search by Contig and Region is not implemented in this search form."); isValid = false;
-                 break;
+            case "region":
+                let regionValid = false; // Use local scope for region check
+                if (!regionData.start || !regionData.end) { alertMessage = "Position Start and Position End are required for Region search."; break; }
+                const startPos = parseInt(regionData.start, 10);
+                const endPos = parseInt(regionData.end, 10);
+                if (isNaN(startPos) || isNaN(endPos) || startPos < 0 || startPos > endPos) { alertMessage = "Invalid Start/End position provided."; break; }
+                if (regionData.chromosome) { // Range validation only if chromosome is selected
+                    if (chromosomeRange.minPosition !== null && startPos < chromosomeRange.minPosition) { alertMessage = `Start must be >= ${chromosomeRange.minPosition.toLocaleString()}.`; break; }
+                    if (chromosomeRange.maxPosition !== null && endPos > chromosomeRange.maxPosition) { alertMessage = `End must be <= ${chromosomeRange.maxPosition.toLocaleString()}.`; break; }
+                }
+                regionValid = true;
+                isValid = regionValid; // Set overall validity
+                break;
+            // Removed list types
             default:
                 isValid = false;
-                setErrorMessage("Invalid search type selected.");
+                alertMessage = "Invalid search type selected.";
         }
 
+        // Show alert if validation failed
+        if (!isValid) {
+            alert(alertMessage || errorMessage || "Validation failed."); // Show specific message if available
+            return;
+        }
 
-        if (!isValid) return;
-
-        setLoading(true); setShowResultsArea(true);
-        setSearchResults([]); setGenesByTrait([]); // Clear previous results specific to type
-        // Keep traitDetails if already set
-        setExpandedSections(prev => ({ ...prev, queryDetails: true, resultsTable: true })); // Keep sections open
+        setLoading(true); setShowResultsArea(true); setResults([]);
+        setExpandedSections(prev => ({ ...prev, queryDetails: true, resultsTable: true }));
 
         try {
-            // Fetch logic based on selected option
-             if (selectedSearchByOption === "Traits") {
-                 const genesForTrait = await fetchGenesByTrait(selectedTrait, referenceGenome);
-                 setGenesByTrait(genesForTrait);
-                 // Trait details already set by handleTraitNameChange
-             } else if (["Gene name/symbol/function", "GO Term", "Sequence", "Gene set"].includes(selectedSearchByOption)) {
-                  const results = await fetchFeaturesByGeneName(currentSearchTerm, referenceGenome, searchType);
-                  setSearchResults(results);
-              } else if (selectedSearchByOption === "SNP positions list") {
-                  console.warn("API call for SNP List search not implemented yet.");
-                  // const results = await searchBySnpList(currentSearchTerm, referenceGenome);
-                  setSearchResults([]); // Placeholder
-              } else if (selectedSearchByOption === "Locus list") {
-                   console.warn("API call for Locus List search not implemented yet.");
-                   // const results = await searchByLocusList(currentSearchTerm, referenceGenome);
-                   setSearchResults([]); // Placeholder
+             let fetchedResults = [];
+             if (searchBy === "trait") {
+                 fetchedResults = await fetchGenesByTrait(selectedTrait, referenceGenome);
+             } else if (searchBy === "annotation" || searchBy === "geneName") {
+                  fetchedResults = await fetchFeaturesByGeneName(searchQuery, referenceGenome, searchMethod);
+              } else if (searchBy === "region") {
+                  console.warn("API call for Region search (fetchFeaturesByRegion) not implemented yet.");
+                   // fetchedResults = await fetchFeaturesByRegion(referenceGenome, regionData.chromosome, regionData.start, regionData.end);
+                   fetchedResults = []; // Placeholder
                }
-            // Handle other cases if needed
+             setResults(fetchedResults || []); // Ensure results is always an array
         } catch (error) {
             setErrorMessage(error?.message || "An error occurred during the search.");
             console.error("Search error:", error);
-            setSearchResults([]); setGenesByTrait([]);
+            setResults([]);
         } finally {
             setLoading(false);
         }
-    // Update dependencies for useCallback
-    }, [referenceGenome, selectedSearchByOption, selectedCategory, selectedTrait, searchInputValue, searchType, traitsList, isAuthenticated, snpListInput, locusListInput]);
+    // Update dependencies
+    }, [referenceGenome, searchBy, searchQuery, searchMethod, selectedCategory, selectedTrait, traitsList, regionData, chromosomeRange]); // Removed isAuthenticated, list inputs
 
 
-    // --- Modal Trigger Handler ---
+    // --- Modal Handlers ---
     const handleGeneClick = useCallback(async (geneItem) => {
-        if (loadingDetails || !geneItem?.geneName || !geneItem?.referenceGenome) return; // Add checks
+        if (loadingDetails || !geneItem?.geneName || !geneItem?.referenceGenome) return;
         setLoadingDetails(true); setErrorMessage("");
         console.log(`Workspaceing details for: ${geneItem.geneName} (${geneItem.referenceGenome})`);
         try {
@@ -261,16 +309,48 @@ const GeneLoci = () => {
         } finally { setLoadingDetails(false); }
     }, [loadingDetails]);
 
-    // Modal Close Handler
     const handleCloseModal = () => { setIsModalOpen(false); setSelectedGeneData(null); };
-    // Section Toggle Handler
     const toggleSection = (section) => { setExpandedSections(prev => ({ ...prev, [section]: !prev[section] })); };
-    // Enter Key Handler
-    const handleKeyDown = (e) => { if (e.key === 'Enter' && ["Gene name/symbol/function", "GO Term", "Sequence", "Gene set"].includes(selectedSearchByOption)) handleSearch(); }; // Only trigger search on Enter for text inputs
+    const handleKeyDown = (e) => { if (e.key === 'Enter' && (searchBy === 'annotation' || searchBy === 'geneName')) handleSearch(); };
 
     // Determine display data
-    const displayResults = selectedSearchByOption === "Traits" ? genesByTrait : searchResults;
+    const displayResults = results; // Simplified
     const hasResults = Array.isArray(displayResults) && displayResults.length > 0;
+
+
+    // --- Helper function to render options ---
+    const renderOptions = (optionsArray) => {
+         if (!Array.isArray(optionsArray) || optionsArray.length === 0) return null;
+         const firstItem = optionsArray[0];
+         if (typeof firstItem === 'string') {
+             return optionsArray.map(option => ( <option key={option} value={option}>{option}</option> ));
+         } else if (typeof firstItem === 'object' && firstItem !== null) {
+             const keyProp = firstItem._id || firstItem.id || 'value';
+             const labelProp = firstItem.name || firstItem.label || keyProp;
+             return optionsArray.map((option, index) => {
+                  if (!option || typeof option !== 'object') return null;
+                  const keyValue = option[keyProp] !== undefined ? option[keyProp] : `opt-${index}`;
+                  const labelValue = option[labelProp] !== undefined ? option[labelProp] : '-- Invalid Option --';
+                  const valueValue = labelValue; // Using label as value
+                  return ( <option key={keyValue} value={valueValue}> {labelValue} </option> );
+             });
+         }
+         return <option disabled>Invalid options data</option>;
+    };
+
+    // --- ADD CONSOLE LOG FOR DEBUGGING DISABLED STATE ---
+    // Combine all relevant loading states to determine button disable status
+    const isSearchDisabled = loading || loadingOptions.referenceGenomes || loadingDetails || loadingTraits || loadingOptions.chromosomes;
+    console.log("RENDER - Loading States:", {
+        loading,
+        loadingGenomes: loadingOptions.referenceGenomes,
+        loadingTraits,
+        loadingChromosomes: loadingOptions.chromosomes,
+        loadingDetails,
+        isButtonDisabled: isSearchDisabled
+    });
+    // --- END LOG ---
+
 
     return (
         <div className={`gene-loci-container ${isModalOpen ? 'modal-open' : ''} ${loadingDetails ? 'details-loading' : ''}`}>
@@ -284,10 +364,10 @@ const GeneLoci = () => {
 
                             {/* Reference Genome */}
                             <div className="form-group">
-                                <label htmlFor="referenceGenomeSelect"> <FaDatabase /> Reference Genome <span className="required-indicator" title="Required">*</span> </label>
+                                <label htmlFor="referenceGenomeSelect"> <FaDatabase /> Reference Genome <span className="required-indicator">*</span> </label>
                                 <div className="select-wrapper">
-                                    <select id="referenceGenomeSelect" value={referenceGenome} onChange={(e) => setReferenceGenome(e.target.value)} disabled={loadingGenomes || loading} className="styled-select" required >
-                                        {loadingGenomes ? ( <LoadingOption /> ) : referenceGenomes.length === 0 ? ( <LoadingOption text="No Genomes Available" /> ) : ( <> <option value="">-- Select Genome --</option> {referenceGenomes.map(g => (<option key={g} value={g}>{g}</option>))} </> )}
+                                    <select id="referenceGenomeSelect" name="referenceGenome" value={referenceGenome} onChange={(e) => setReferenceGenome(e.target.value)} disabled={loadingOptions.referenceGenomes || loading} className="styled-select" required >
+                                        {loadingOptions.referenceGenomes ? ( <LoadingOption /> ) : referenceGenomes.length === 0 ? ( <LoadingOption text="No Genomes Available" /> ) : ( <> <option value="">-- Select Genome --</option> {referenceGenomes.map(g => (<option key={g} value={g}>{g}</option>))} </> )}
                                     </select>
                                     <i className="fas fa-chevron-down select-icon"><FaChevronDown/></i>
                                 </div>
@@ -297,42 +377,56 @@ const GeneLoci = () => {
                             <div className="form-group">
                                 <label htmlFor="searchBySelect"><FaSearch /> Search By</label>
                                 <div className="select-wrapper">
-                                   <select id="searchBySelect" value={selectedSearchByOption} onChange={(e) => setSelectedSearchByOption(e.target.value)} disabled={loading} className="styled-select">
-                                        <option value="Gene name/symbol/function">Gene Name/Symbol/Function</option>
-                                        <option value="GO Term">GO Term</option>
-                                        {/* <option value="Contig and Region">Contig and Region</option> */}
-                                        <option value="Sequence">Sequence</option>
-                                        <option value="Traits">Traits</option>
-                                        <option value="Gene set">Gene Set</option>
-                                        <option value="SNP positions list" disabled={!isAuthenticated} title={!isAuthenticated ? "Login required" : ""} style={!isAuthenticated ? { color: 'var(--text-muted)', fontStyle: 'italic' } : {}}>SNP Positions List { !isAuthenticated ? '(Login Required)' : ''}</option>
-                                        <option value="Locus list" disabled={!isAuthenticated} title={!isAuthenticated ? "Login required" : ""} style={!isAuthenticated ? { color: 'var(--text-muted)', fontStyle: 'italic' } : {}}>Locus List { !isAuthenticated ? '(Login Required)' : ''}</option>
+                                   <select id="searchBySelect" value={searchBy} onChange={(e) => setSearchBy(e.target.value)} disabled={loading} className="styled-select">
+                                        {/* Updated Options */}
+                                        <option value="annotation">Annotation</option>
+                                        <option value="geneName">Gene Name/Symbol/Function</option>
+                                        <option value="trait">Trait</option>
+                                        <option value="region">Region</option>
+                                         {/* Removed other options */}
                                    </select>
                                    <i className="fas fa-chevron-down select-icon"><FaChevronDown/></i>
                                  </div>
                             </div>
 
-                            {/* Conditional Input: Traits */}
-                            <FormInputSection isVisible={selectedSearchByOption === 'Traits'}>
-                                <div className="form-row"> {/* Using form-row for side-by-side layout */}
+                            {/* --- Conditional Inputs --- */}
+
+                            {/* == ANNOTATION or GENE NAME INPUTS == */}
+                            <FormInputSection isVisible={searchBy === 'annotation' || searchBy === 'geneName'}>
+                                <div className="form-row">
                                     <div className="form-group">
-                                        <label htmlFor="traitCategorySelect"> <FaFolderOpen /> Trait Category <span className="required-indicator" title="Required">*</span> </label>
+                                        <label htmlFor="searchQueryInput"> <FaKeyboard /> Search Query <span className="required-indicator">*</span> </label>
+                                        <input id="searchQueryInput" type="text" value={searchQuery} onChange={handleQueryInputChange} onKeyDown={handleKeyDown} placeholder={`Enter ${searchBy === 'annotation' ? 'annotation keyword' : 'gene name/symbol'}...`} className="search-input" disabled={loading} required />
+                                    </div>
+                                    <div className="form-group">
+                                        <label htmlFor="searchMethodSelect"><FaSearchPlus /> Match Type</label>
+                                         <div className="select-wrapper">
+                                            <select id="searchMethodSelect" value={searchMethod} onChange={handleSearchMethodChange} disabled={loading} className="styled-select"> <option value="substring">Substring</option> <option value="whole-word">Whole Word</option> <option value="exact">Exact Match</option> <option value="regex">Regular Expression</option> </select>
+                                            <i className="fas fa-chevron-down select-icon"><FaChevronDown/></i>
+                                         </div>
+                                    </div>
+                                </div>
+                            </FormInputSection>
+
+                            {/* == TRAIT INPUTS == */}
+                            <FormInputSection isVisible={searchBy === 'trait'}>
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label htmlFor="traitCategorySelect"> <FaFolderOpen /> Trait Category <span className="required-indicator">*</span> </label>
                                         <div className="select-wrapper">
-                                            <select id="traitCategorySelect" value={selectedCategory} onChange={handleCategoryChange} disabled={loadingTraits || loading || traitsList.length === 0} className="styled-select" required={selectedSearchByOption === 'Traits'}>
+                                            <select id="traitCategorySelect" value={selectedCategory} onChange={handleCategoryChange} disabled={loadingTraits || loading || traitsList.length === 0} className="styled-select" required={searchBy === 'trait'}>
                                                 <option value="">-- Select Category --</option>
-                                                {loadingTraits ? ( <LoadingOption text="Loading Categories..." /> ) : (
-                                                    traitCategories.length > 0 ? ( traitCategories.map((category) => ( <option key={category} value={category}> {category} </option> )) )
-                                                    : ( <option disabled value="">No categories found</option> )
-                                                )}
+                                                {loadingTraits ? ( <LoadingOption text="Loading..." /> ) : ( traitCategories.length > 0 ? ( traitCategories.map((category) => ( <option key={category} value={category}> {category} </option> )) ) : ( <option disabled value="">No categories</option> ) )}
                                             </select>
                                              <i className="fas fa-chevron-down select-icon"><FaChevronDown/></i>
                                         </div>
                                     </div>
                                     <div className="form-group">
-                                        <label htmlFor="traitNameSelect"> <FaTag /> Trait Name <span className="required-indicator" title="Required">*</span> </label>
+                                        <label htmlFor="traitNameSelect"> <FaTag /> Trait Name <span className="required-indicator">*</span> </label>
                                         <div className="select-wrapper">
-                                            <select id="traitNameSelect" value={selectedTrait} onChange={handleTraitNameChange} disabled={!selectedCategory || loadingTraits || loading || filteredTraitNames.length === 0} className="styled-select" required={selectedSearchByOption === 'Traits'}>
+                                            <select id="traitNameSelect" value={selectedTrait} onChange={handleTraitNameChange} disabled={!selectedCategory || loadingTraits || loading || filteredTraitNames.length === 0} className="styled-select" required={searchBy === 'trait'}>
                                                 <option value="">-- Select Trait Name --</option>
-                                                {selectedCategory && loadingTraits ? ( <LoadingOption text="Loading Traits..." /> )
+                                                {selectedCategory && loadingTraits ? ( <LoadingOption text="Loading..." /> )
                                                  : selectedCategory && filteredTraitNames.length > 0 ? ( filteredTraitNames.map((traitName) => ( <option key={traitName} value={traitName}> {traitName} </option> )) )
                                                  : selectedCategory ? ( <option disabled value="">No traits in category</option> )
                                                  : ( <option disabled value="">Select category first</option> )}
@@ -344,44 +438,44 @@ const GeneLoci = () => {
                                 </div>
                              </FormInputSection>
 
-                             {/* Conditional Input: Gene Name / Other Text Inputs */}
-                             <FormInputSection isVisible={["Gene name/symbol/function", "GO Term", "Sequence", "Gene set"].includes(selectedSearchByOption)}>
-                                <div className="form-group"> {/* Full width */}
-                                     <label htmlFor="searchInput"> <FaDna /> {selectedSearchByOption === "GO Term" ? "Enter GO Term" : selectedSearchByOption === "Sequence" ? "Enter Sequence" : selectedSearchByOption === "Gene set" ? "Enter Gene Set Name/ID" : "Gene Name / Symbol / Function" } <span className="required-indicator" title="Required">*</span> </label>
-                                     <div className="input-with-icon">
-                                         <input id="searchInput" type={selectedSearchByOption === "Sequence" ? "textarea" : "text"} rows={selectedSearchByOption === "Sequence" ? 3 : undefined} value={searchInputValue} onChange={handleSearchInputChange} onKeyDown={handleKeyDown} placeholder={`Enter ${selectedSearchByOption}...`} className="search-input" disabled={loading} aria-required="true" required={["Gene name/symbol/function", "GO Term", "Sequence", "Gene set"].includes(selectedSearchByOption)}/>
-                                          <i className="fas fa-keyboard input-icon"><FaKeyboard/></i>
-                                     </div>
-                                 </div>
-                                 {/* Match Type for Gene Name Search */}
-                                 <FormInputSection isVisible={selectedSearchByOption === "Gene name/symbol/function"}>
-                                     <div className="form-group">
-                                         <label htmlFor="searchTypeSelect"><FaSearchPlus /> Match Type</label>
-                                          <div className="select-wrapper">
-                                             <select id="searchTypeSelect" value={searchType} onChange={(e) => setSearchType(e.target.value)} disabled={loading} className="styled-select"> <option value="substring">Substring</option> <option value="whole-word">Whole Word</option> <option value="exact">Exact Match</option> <option value="regex">Regular Expression</option> </select>
-                                             <i className="fas fa-chevron-down select-icon"><FaChevronDown/></i>
-                                          </div>
-                                     </div>
-                                 </FormInputSection>
-                             </FormInputSection>
-
-                            {/* Conditional Input: SNP List */}
-                            <FormInputSection isVisible={selectedSearchByOption === 'SNP positions list'}>
-                                <div className="form-group">
-                                    <label htmlFor="snpList">SNP List (one per line) <span className="required-indicator" title="Required">*</span></label>
-                                    <textarea id="snpList" name="snpList" rows="5" placeholder="Enter SNP IDs..." value={snpListInput} onChange={handleSnpListChange} disabled={!isAuthenticated || loading} required className={!isAuthenticated ? 'disabled-textarea' : ''}></textarea>
-                                    {!isAuthenticated && <p className="auth-required-note">Note: Login required.</p>}
-                                </div>
+                             {/* == REGION INPUTS == */}
+                            <FormInputSection isVisible={searchBy === 'region'}>
+                                <>
+                                    <div className="form-row form-row-three-col">
+                                        <div className="form-group">
+                                            <label htmlFor="regionChromosome">Chromosome</label>
+                                            <select id="regionChromosome" name="chromosome" value={regionData.chromosome} onChange={handleRegionInputChange} disabled={loadingOptions.chromosomes || !!optionsError || loading} >
+                                                {loadingOptions.chromosomes ? ( <LoadingOption text="Loading..." /> )
+                                                : optionsError && chromosomeOptions.length === 0 ? ( <option value="" disabled>Error loading</option> )
+                                                : ( <> <option value="">Any Chromosome</option> {renderOptions(chromosomeOptions)} </> )}
+                                            </select>
+                                        </div>
+                                        <div className="form-group">
+                                            <label htmlFor="regionStart">Position Start <span className="required-indicator">*</span></label>
+                                            <input id="regionStart" type="number" name="start" value={regionData.start} onChange={handleRegionInputChange} placeholder="e.g., 1" required min="0" />
+                                        </div>
+                                        <div className="form-group">
+                                            <label htmlFor="regionEnd">Position End <span className="required-indicator">*</span></label>
+                                            <input id="regionEnd" type="number" name="end" value={regionData.end} onChange={handleRegionInputChange} placeholder="e.g., 50000" required min="0" />
+                                        </div>
+                                    </div>
+                                    {/* Display Chromosome Range */}
+                                    <div className="form-row range-display">
+                                        <div className="form-group">
+                                           {regionData.chromosome && referenceGenome && ( <>
+                                                    {loadingRange && ( <span className="range-info loading">Loading range...</span> )}
+                                                    {rangeError && !loadingRange && ( <span className="range-info error">{rangeError}</span> )}
+                                                    {chromosomeRange.minPosition !== null && chromosomeRange.maxPosition !== null && !loadingRange && !rangeError && (
+                                                        <span className="range-info"> Avail. Range: {chromosomeRange.minPosition.toLocaleString()} - {chromosomeRange.maxPosition.toLocaleString()} </span>
+                                                    )}
+                                                </> )}
+                                            {!(regionData.chromosome && referenceGenome) && <span>&nbsp;</span>}
+                                        </div>
+                                    </div>
+                                </>
                             </FormInputSection>
 
-                            {/* Conditional Input: Locus List */}
-                            <FormInputSection isVisible={selectedSearchByOption === 'Locus list'}>
-                                <div className="form-group">
-                                    <label htmlFor="locusList">Locus List (one per line) <span className="required-indicator" title="Required">*</span></label>
-                                    <textarea id="locusList" name="locusList" rows="5" placeholder="Enter Locus IDs (e.g., LOC_Os...)" value={locusListInput} onChange={handleLocusListChange} disabled={!isAuthenticated || loading} required className={!isAuthenticated ? 'disabled-textarea' : ''}></textarea>
-                                    {!isAuthenticated && <p className="auth-required-note">Note: Login required.</p>}
-                                </div>
-                            </FormInputSection>
+                            {/* Removed SNP/Locus List Sections */}
 
                             {/* Error Message Display */}
                             {errorMessage && ( <div className="error-message"> <FaExclamationTriangle /> <span>{errorMessage}</span> </div> )}
@@ -389,7 +483,8 @@ const GeneLoci = () => {
                             {/* Action Buttons */}
                             <div className="form-actions">
                                 <button type="button" className="secondary-btn clear-btn" onClick={handleReset} disabled={loading || loadingDetails}> <FaEraser /> Clear Form </button>
-                                <button type="button" className="primary-btn search-btn" onClick={handleSearch} disabled={loading || loadingGenomes || loadingDetails || loadingTraits}>
+                                {/* Use the calculated isSearchDisabled variable */}
+                                <button type="button" className="primary-btn search-btn" onClick={handleSearch} disabled={isSearchDisabled}>
                                     {loading ? ( <> <span className="spinner small-spinner"></span> Searching... </> ) : ( <> <FaSearch /> Search </> )}
                                 </button>
                             </div>
@@ -402,7 +497,7 @@ const GeneLoci = () => {
                             <div className="results-section">
                                 {/* Results Header */}
                                 <div className="results-area-header" onClick={() => toggleSection('resultsTable')} role="button" aria-expanded={expandedSections.resultsTable}>
-                                    <h2> <i className={`fas fa-chevron-${expandedSections.resultsTable ? 'down' : 'right'} collapse-icon`}> <FaChevronRight/> </i> <FaPoll /> Search Results </h2>
+                                    <h2> <i className={`fas fa-chevron-${expandedSections.resultsTable ? 'down' : 'right'} collapse-icon`}><FaChevronRight/></i> <FaPoll /> Search Results </h2>
                                     {!loading && hasResults && ( <span className="results-count-badge"> {displayResults.length} result{displayResults.length !== 1 ? 's' : ''} found </span> )}
                                     {loadingDetails && ( <span className="details-loading-indicator"> <span className="spinner small-spinner"></span> Loading Details... </span> )}
                                 </div>
@@ -410,57 +505,47 @@ const GeneLoci = () => {
                                 <div className={`results-content-container ${expandedSections.resultsTable ? 'expanded' : 'collapsed'}`}>
                                      {loading ? ( <div className="loading-state"> <span className="spinner"></span> <span>Loading results...</span> </div> )
                                      : !hasResults ? ( <div className="no-results-state"> <FaInfoCircle className="no-results-icon" /> <h3>No Results</h3> <p>Try adjusting search parameters.</p> </div> )
-                                     : ( // HAS RESULTS
-                                         <>
-                                             {/* --- Query Summary (NOW ALWAYS SHOWN if results exist) --- */}
-                                             <div className="query-details-subsection">
-                                                  <div className="subsection-header" onClick={() => toggleSection('queryDetails')} role="button" aria-expanded={expandedSections.queryDetails}>
-                                                      <h3> <i className={`fas fa-chevron-${expandedSections.queryDetails ? 'down' : 'right'} collapse-icon small-icon`}> <FaChevronRight/> </i> <FaInfoCircle /> Query Summary </h3>
-                                                  </div>
-                                                  <div className={`details-content ${expandedSections.queryDetails ? 'expanded' : 'collapsed'}`}>
-                                                      <p><strong>Genome:</strong> {referenceGenome || "N/A"}</p>
-                                                      <p>
-                                                          <strong>Searched By:</strong> {selectedSearchByOption}
-                                                          {/* Display specific term/trait/list type */}
-                                                          {selectedSearchByOption === "Traits" && ` (${selectedTrait || "N/A"})`}
-                                                          {["Gene name/symbol/function", "GO Term", "Sequence", "Gene set"].includes(selectedSearchByOption) && searchInputValue && ` ("${searchInputValue}")`}
-                                                          {selectedSearchByOption === "SNP positions list" && ` (SNP List Provided)`}
-                                                          {selectedSearchByOption === "Locus list" && ` (Locus List Provided)`}
-                                                          {/* Add Match type if applicable */}
-                                                          {(selectedSearchByOption === "Gene name/symbol/function" && searchInputValue) && ` [${searchType}]`}
-                                                      </p>
-                                                      {/* Only show trait description if it was a trait search */}
-                                                      {selectedSearchByOption === "Traits" && traitDetails?.description && (
-                                                          <div className="trait-details-summary"> <p><strong>Trait Description:</strong> {traitDetails.description}</p> </div>
-                                                      )}
-                                                  </div>
+                                     : ( <>
+                                         {/* Query Summary (Always shown if results exist) */}
+                                         <div className="query-details-subsection">
+                                              <div className="subsection-header" onClick={() => toggleSection('queryDetails')} role="button" aria-expanded={expandedSections.queryDetails}>
+                                                  <h3> <i className={`fas fa-chevron-${expandedSections.queryDetails ? 'down' : 'right'} collapse-icon small-icon`}> <FaChevronRight/> </i> <FaInfoCircle /> Query Summary </h3>
+                                              </div>
+                                              <div className={`details-content ${expandedSections.queryDetails ? 'expanded' : 'collapsed'}`}>
+                                                  <p><strong>Genome:</strong> {referenceGenome || "N/A"}</p>
+                                                  <p>
+                                                      <strong>Searched By:</strong> {searchBy}
+                                                      {searchBy === "trait" && ` (${selectedTrait || "N/A"})`}
+                                                      {(searchBy === "annotation" || searchBy === "geneName") && searchQuery && ` ("${searchQuery}")`}
+                                                      {(searchBy === "annotation" || searchBy === "geneName") && searchQuery && ` [${searchMethod}]`}
+                                                      {searchBy === "region" && ` (${regionData.chromosome || 'Any Chr'}:${regionData.start || '*'}-${regionData.end || '*'})`}
+                                                  </p>
+                                                  {searchBy === "trait" && traitDetails?.description && ( <div className="trait-details-summary"> <p><strong>Trait Description:</strong> {traitDetails.description}</p> </div> )}
+                                              </div>
+                                         </div>
+                                         {/* Results Table */}
+                                         <div className="results-table-subsection">
+                                             <div className="subsection-header static-header"> <h3> <FaTable /> {searchBy === "trait" ? "Associated Genes" : "Matching Features"} </h3> </div>
+                                             <div className="table-responsive-wrapper">
+                                                 <table className="results-table">
+                                                     <thead> <tr> <th>Gene</th><th>Reference</th><th>Location</th><th>Strand</th><th>Description / Function</th> </tr> </thead>
+                                                     <tbody>
+                                                         {displayResults.map((item) => (
+                                                             <tr key={item._id || item.geneName}>
+                                                                 <td data-label="Gene:"> <div className="gene-cell"> <span className={`gene-name clickable ${loadingDetails ? 'disabled' : ''}`} onClick={() => !loadingDetails && handleGeneClick(item)} role="button" tabIndex={loadingDetails ? -1 : 0} onKeyDown={(e) => { if (!loadingDetails && (e.key === 'Enter' || e.key === ' ')) handleGeneClick(item);}} aria-disabled={loadingDetails}> {item.geneName} </span> {item.geneSymbol && ( <span className="gene-symbol">({item.geneSymbol})</span> )} </div> </td>
+                                                                 <td data-label="Reference:">{item.referenceGenome}</td>
+                                                                 <td data-label="Location:">{item.contig || 'N/A'}</td>
+                                                                 <td data-label="Strand:"> <span className={`strand-badge ${item.strand === '+' ? 'positive' : 'negative'}`}> {item.strand || '?'} </span> </td>
+                                                                 <td data-label="Description:"> <div className="description-cell"> {item.description || "No description"} {item.function && ( <div className="gene-function-summary"> <strong>Function:</strong> {item.function} </div> )} </div> </td>
+                                                             </tr>
+                                                         ))}
+                                                     </tbody>
+                                                 </table>
                                              </div>
-                                             {/* --- End Query Summary --- */}
-
-                                             {/* Results Table Sub-section */}
-                                             <div className="results-table-subsection">
-                                                 <div className="subsection-header static-header"> <h3> <FaTable /> {selectedSearchByOption === "Traits" ? "Associated Genes" : "Matching Features"} </h3> </div>
-                                                 <div className="table-responsive-wrapper">
-                                                     <table className="results-table">
-                                                         <thead> <tr> <th>Gene</th><th>Reference</th><th>Location</th><th>Strand</th><th>Description / Function</th> </tr> </thead>
-                                                         <tbody>
-                                                             {displayResults.map((item) => (
-                                                                 <tr key={item._id || item.geneName}>
-                                                                     <td data-label="Gene:"> <div className="gene-cell"> <span className={`gene-name clickable ${loadingDetails ? 'disabled' : ''}`} onClick={() => !loadingDetails && handleGeneClick(item)} role="button" tabIndex={loadingDetails ? -1 : 0} onKeyDown={(e) => { if (!loadingDetails && (e.key === 'Enter' || e.key === ' ')) handleGeneClick(item);}} aria-disabled={loadingDetails}> {item.geneName} </span> {item.geneSymbol && ( <span className="gene-symbol">({item.geneSymbol})</span> )} </div> </td>
-                                                                     <td data-label="Reference:">{item.referenceGenome}</td>
-                                                                     <td data-label="Location:">{item.contig || 'N/A'}</td>
-                                                                     <td data-label="Strand:"> <span className={`strand-badge ${item.strand === '+' ? 'positive' : 'negative'}`}> {item.strand || '?'} </span> </td>
-                                                                     <td data-label="Description:"> <div className="description-cell"> {item.description || "No description"} {item.function && ( <div className="gene-function-summary"> <strong>Function:</strong> {item.function} </div> )} </div> </td>
-                                                                 </tr>
-                                                             ))}
-                                                         </tbody>
-                                                     </table>
-                                                 </div>
-                                                 {/* Pagination Placeholder */}
-                                                 {hasResults && displayResults.length > 10 && ( <div className="table-footer"> {/* Pagination Controls */} </div> )}
-                                             </div>
-                                         </>
-                                     )}
+                                             {/* Pagination Placeholder */}
+                                             {hasResults && displayResults.length > 10 && ( <div className="table-footer"> {/* ... */} </div> )}
+                                         </div>
+                                     </> )}
                                 </div>
                             </div>
                         </div>
