@@ -1,205 +1,416 @@
 // GenotypeSearch.js
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+// Import the API functions
+import {
+    fetchVarietySets,
+    fetchSnpSets,
+    fetchVarietySubpopulations,
+    fetchChromosomes,
+    fetchReferenceGenomes, // Added
+    searchGenotypes,      // Added
+    fetchChromosomeRange  // Added
+} from '../api'; // Adjust path if necessary
 import './GenotypeSearch.css'; // Ensure you link the updated CSS
 
+// Helper component for loading indicators inside dropdowns
+const LoadingOption = ({ text = "Loading..." }) => (
+    <option disabled value="">{text}</option>
+);
+
 const GenotypeSearch = () => {
-  const [formData, setFormData] = useState({
-    varietySet: '',
-    snpSet: '',
-    varietySubpopulation: '',
-    regionChromosome: '',
-    regionStart: '',
-    regionEnd: '',
-    regionGeneLocus: '',
-  });
-  const [showResults, setShowResults] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [searchResults, setSearchResults] = useState([]);
-
-  // --- Sample Data (Keep or replace with actual data fetching) ---
-  const varietySets = ['Variety Set A', 'Variety Set B', 'Variety Set C', 'Core 4K', 'USDA GRIN'];
-  const snpSets = ['SNP Set 1', 'SNP Set 2', 'SNP Set 3', 'GBS v2.1', 'Axiom 50k'];
-  const varietySubpopulations = ['Subpopulation A', 'Subpopulation B', 'Subpopulation C', 'Indica', 'Japonica', 'Aus'];
-  const regionChromosomes = ['chr1', 'chr2', 'chr3', 'chr4', 'chr5', 'chr6', 'chr7', 'chr8', 'chr9', 'chr10', 'chr11', 'chr12'];
-  // --- End Sample Data ---
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setShowResults(true); // Show the results area immediately (to display loading)
-    setSearchResults([]); // Clear previous results
-
-    // Simulate API call
-    console.log('Searching with:', formData);
-    setTimeout(() => {
-      // Simulate finding results or not
-      const hasResults = Math.random() > 0.2; // 80% chance of getting results
-      const simulatedResults = hasResults ? [...Array(15)].map((_, i) => ({ // Increased sample size
-        VarietyID: `VAR${i + 1000 + Math.floor(Math.random() * 500)}`,
-        Chromosome: `chr${Math.floor(Math.random() * 12) + 1}`,
-        Position: Math.floor(Math.random() * 30000000), // More realistic position range
-        Ref: ['A', 'T', 'C', 'G'][Math.floor(Math.random() * 4)],
-        Alt: ['A', 'T', 'C', 'G'][Math.floor(Math.random() * 4)],
-        Genotype: ['AA', 'AT', 'TT', 'CC', 'GG', 'AC', 'AG', 'CT', 'CG', 'GT'][Math.floor(Math.random() * 10)],
-        Quality: Math.floor(Math.random() * 90) + 10, // Quality usually > 0
-      })) : [];
-
-      setSearchResults(simulatedResults);
-      setLoading(false);
-    }, 1500); // Slightly longer delay
-  };
-
-  const handleReset = () => {
-    setFormData({
-      varietySet: '',
-      snpSet: '',
-      varietySubpopulation: '',
-      regionChromosome: '',
-      regionStart: '',
-      regionEnd: '',
-      regionGeneLocus: '',
+    // State for form inputs
+    const [formData, setFormData] = useState({
+        referenceGenome: '',
+        varietySet: '',
+        snpSet: '',
+        varietySubpopulation: '',
+        regionChromosome: '',
+        regionStart: '', // Required by backend logic
+        regionEnd: '',   // Required by backend logic
+        regionGeneLocus: '',
     });
-    setShowResults(false);
-    setSearchResults([]);
-    setLoading(false); // Ensure loading is reset
-  };
 
-  return (
-    // Use a wrapper that allows content to grow but centers it
-    <div className="page-wrapper">
-      <div className="genotype-search-container">
-        <div className="search-card">
-          {/* Use a more descriptive title */}
-          <h2>Genotype Search Criteria</h2>
-          <form onSubmit={handleSubmit} className="genotype-form">
-            {/* Group Datasets */}
-            <div className="form-section">
-              <h3>Datasets</h3>
-              <div className="form-row"> {/* Use rows for better alignment */}
-                <div className="form-group">
-                  <label htmlFor="varietySet">Variety Set</label>
-                  <select id="varietySet" name="varietySet" value={formData.varietySet} onChange={handleInputChange}>
-                    <option value="">Select Variety Set</option>
-                    {varietySets.map(set => <option key={set} value={set}>{set}</option>)}
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label htmlFor="snpSet">SNP Set</label>
-                  <select id="snpSet" name="snpSet" value={formData.snpSet} onChange={handleInputChange}>
-                    <option value="">Select SNP Set</option>
-                    {snpSets.map(set => <option key={set} value={set}>{set}</option>)}
-                  </select>
-                </div>
-              </div>
-            </div>
+    // State for search results - Initialize matching expected structure
+    const [showResults, setShowResults] = useState(false);
+    const [loading, setLoading] = useState(false); // Loading for main search submit
+    const [searchResults, setSearchResults] = useState(null); // Expecting { referenceGenomeName, positions: [], varieties: [] }
 
-            {/* Group Varieties */}
-            <div className="form-section">
-              <h3>Varieties (Optional Filter)</h3>
-              <div className="form-row">
-                <div className="form-group">
-                  <label htmlFor="varietySubpopulation">Subpopulation</label>
-                  <select id="varietySubpopulation" name="varietySubpopulation" value={formData.varietySubpopulation} onChange={handleInputChange}>
-                    <option value="">Any Subpopulation</option>
-                    {varietySubpopulations.map(sub => <option key={sub} value={sub}>{sub}</option>)}
-                  </select>
-                </div>
-                {/* Add more variety filters here if needed */}
-              </div>
-            </div>
+    // --- State for dropdown options ---
+    const [referenceGenomeOptions, setReferenceGenomeOptions] = useState([]);
+    const [varietySetOptions, setVarietySetOptions] = useState([]);
+    const [snpSetOptions, setSnpSetOptions] = useState([]);
+    const [subpopulationOptions, setSubpopulationOptions] = useState([]);
+    const [chromosomeOptions, setChromosomeOptions] = useState([]);
 
-            {/* Group Region */}
-            <div className="form-section">
-              <h3>Region (Optional Filter)</h3>
-              <div className="form-row">
-                <div className="form-group">
-                  <label htmlFor="regionChromosome">Chromosome</label>
-                  <select id="regionChromosome" name="regionChromosome" value={formData.regionChromosome} onChange={handleInputChange}>
-                    <option value="">Any Chromosome</option>
-                    {regionChromosomes.map(chr => <option key={chr} value={chr}>{chr}</option>)}
-                  </select>
-                </div>
-                <div className="form-group region-inputs"> {/* Keep Start/End together */}
-                    <label htmlFor="regionStart">Position Start</label>
-                    <input id="regionStart" type="number" name="regionStart" value={formData.regionStart} onChange={handleInputChange} placeholder="e.g., 100000" />
-                    <label htmlFor="regionEnd">Position End</label>
-                    <input id="regionEnd" type="number" name="regionEnd" value={formData.regionEnd} onChange={handleInputChange} placeholder="e.g., 200000" />
-                </div>
-              </div>
-               <div className="form-row"> {/* Separate row for Gene Locus */}
-                 <div className="form-group">
-                  <label htmlFor="regionGeneLocus">Gene Locus (e.g., LOC_Os...) </label>
-                  <input id="regionGeneLocus" type="text" name="regionGeneLocus" value={formData.regionGeneLocus} onChange={handleInputChange} placeholder="Enter Gene Locus ID" />
-                </div>
-               </div>
-            </div>
+    // State for loading dropdown options
+    const [loadingOptions, setLoadingOptions] = useState({
+        referenceGenomes: true,
+        varietySets: true,
+        snpSets: true,
+        subpopulations: true,
+        chromosomes: true,
+    });
+    // State for dropdown loading errors
+    const [optionsError, setOptionsError] = useState('');
 
-            {/* Actions */}
-            <div className="form-actions">
-              <button type="button" onClick={handleReset} className="secondary-btn">Reset</button>
-              <button type="submit" disabled={loading} className="primary-btn">
-                {loading ? (
-                  <>
-                    <span className="spinner"></span> Searching...
-                  </>
-                 ) : 'Search'}
-              </button>
-            </div>
-          </form>
-        </div> {/* End search-card */}
+    // --- State for Chromosome Range ---
+    const [chromosomeRange, setChromosomeRange] = useState({ minPosition: null, maxPosition: null });
+    const [loadingRange, setLoadingRange] = useState(false);
+    const [rangeError, setRangeError] = useState('');
+    // --- End Chromosome Range State ---
 
-        {/* Results Area */}
-        {showResults && (
-          <div className="results-card">
-            <h3>Search Results</h3>
-            {loading ? (
-              <div className="loading-indicator">
-                 <span className="spinner"></span> Loading data... please wait.
-              </div>
-            ) : searchResults.length > 0 ? (
-              <div className="results-table-container"> {/* Added container for overflow */}
-                <table className="results-table">
-                  <thead>
-                    <tr>
-                      <th>Variety ID</th>
-                      <th>Chromosome</th>
-                      <th>Position</th>
-                      <th>Ref</th>
-                      <th>Alt</th>
-                      <th>Genotype</th>
-                      <th>Quality</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {searchResults.map((result, index) => (
-                      <tr key={index}> {/* Use a more stable key if available, like result.id */}
-                        <td data-label="Variety ID">{result.VarietyID}</td>
-                        <td data-label="Chromosome">{result.Chromosome}</td>
-                        <td data-label="Position">{result.Position.toLocaleString()}</td> {/* Format numbers */}
-                        <td data-label="Ref">{result.Ref}</td>
-                        <td data-label="Alt">{result.Alt}</td>
-                        <td data-label="Genotype">{result.Genotype}</td>
-                        <td data-label="Quality">{result.Quality}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div className="no-results">
-                No genotypes found matching your criteria. Try broadening your search.
-              </div>
-            )}
-          </div> // End results-card
-        )}
-      </div> {/* End genotype-search-container */}
-    </div> // End page-wrapper
-  );
+
+    // --- Fetch dropdown data on component mount ---
+    useEffect(() => {
+        const loadDropdownData = async () => {
+            setOptionsError('');
+            setLoadingOptions({ // Set all to true initially
+                referenceGenomes: true, varietySets: true, snpSets: true, subpopulations: true, chromosomes: true,
+            });
+            console.log("GenotypeSearch: useEffect - Attempting to load ALL dropdown data...");
+            try {
+                // Fetch all concurrently
+                const [refGenomeData, varietyData, snpData, subpopData, chromData] = await Promise.all([
+                    fetchReferenceGenomes(),
+                    fetchVarietySets(),
+                    fetchSnpSets(),
+                    fetchVarietySubpopulations(),
+                    fetchChromosomes()
+                ]);
+
+                // --- Log Received Data ---
+                console.log("GenotypeSearch: useEffect - Received Reference Genomes:", refGenomeData);
+                console.log("GenotypeSearch: useEffect - Received Variety Sets:", varietyData);
+                console.log("GenotypeSearch: useEffect - Received SNP Sets:", snpData);
+                console.log("GenotypeSearch: useEffect - Received Subpopulations:", subpopData);
+                console.log("GenotypeSearch: useEffect - Received Chromosomes:", chromData);
+                // --- End Log ---
+
+                // Set state
+                setReferenceGenomeOptions(Array.isArray(refGenomeData) ? refGenomeData : []);
+                setVarietySetOptions(Array.isArray(varietyData) ? varietyData : []);
+                setSnpSetOptions(Array.isArray(snpData) ? snpData : []);
+                setSubpopulationOptions(Array.isArray(subpopData) ? subpopData : []);
+                setChromosomeOptions(Array.isArray(chromData) ? chromData : []);
+
+            } catch (error) {
+                console.error("GenotypeSearch: useEffect - Failed to load dropdown options:", error);
+                const errorMsg = error?.message || "Could not load filter options. Please try refreshing.";
+                setOptionsError(errorMsg);
+                // Reset all on error
+                setReferenceGenomeOptions([]);
+                setVarietySetOptions([]);
+                setSnpSetOptions([]);
+                setSubpopulationOptions([]);
+                setChromosomeOptions([]);
+            } finally {
+                 console.log("GenotypeSearch: useEffect - Finished loading dropdown data.");
+                 // Set all loading states to false
+                 setLoadingOptions({
+                     referenceGenomes: false, varietySets: false, snpSets: false, subpopulations: false, chromosomes: false,
+                 });
+            }
+        };
+
+        loadDropdownData();
+    }, []); // Run once on mount
+
+
+    // --- useEffect for Chromosome Range Fetch ---
+    useEffect(() => {
+        const getRange = async () => {
+            if (formData.referenceGenome && formData.regionChromosome) {
+                setLoadingRange(true);
+                setRangeError('');
+                setChromosomeRange({ minPosition: null, maxPosition: null });
+                try {
+                    const rangeData = await fetchChromosomeRange(formData.regionChromosome, formData.referenceGenome);
+                    if (rangeData && rangeData.minPosition !== null && rangeData.maxPosition !== null) {
+                        setChromosomeRange(rangeData);
+                    } else {
+                        setRangeError(`No range data found for ${formData.regionChromosome} in ${formData.referenceGenome}.`);
+                    }
+                } catch (error) {
+                    setRangeError(`Failed to fetch range for ${formData.regionChromosome}.`);
+                } finally {
+                    setLoadingRange(false);
+                }
+            } else {
+                setChromosomeRange({ minPosition: null, maxPosition: null });
+                setRangeError(''); setLoadingRange(false);
+            }
+        };
+        getRange();
+    }, [formData.regionChromosome, formData.referenceGenome]);
+
+
+    // Input change handler with logs for debugging selection
+    const handleInputChange = (e) => {
+        const { name, value } = e.target;
+        console.log(`handleInputChange: Field '${name}' changed to value '${value}' (Type: ${typeof value})`);
+        setFormData((prev) => {
+            const newState = { ...prev, [name]: value };
+            return newState;
+        });
+    };
+
+    // Form submit handler - Calls actual API
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        // Validation
+        if (!formData.referenceGenome || !formData.varietySet || !formData.snpSet || !formData.regionStart || !formData.regionEnd) {
+             alert("Reference Genome, Variety Set, SNP Set, Position Start, and Position End are required.");
+             return;
+        }
+         if (chromosomeRange.minPosition !== null && parseInt(formData.regionStart, 10) < chromosomeRange.minPosition) {
+             alert(`Position Start must be >= ${chromosomeRange.minPosition.toLocaleString()} for ${formData.regionChromosome}.`);
+             return;
+         }
+         if (chromosomeRange.maxPosition !== null && parseInt(formData.regionEnd, 10) > chromosomeRange.maxPosition) {
+              alert(`Position End must be <= ${chromosomeRange.maxPosition.toLocaleString()} for ${formData.regionChromosome}.`);
+              return;
+         }
+
+        setLoading(true);
+        setShowResults(true);
+        setSearchResults(null);
+        console.log('Submitting search with criteria:', formData);
+
+        try {
+            // --- Call the ACTUAL API function ---
+            const results = await searchGenotypes(formData);
+            setSearchResults(results);
+            console.log("Search successful, received results:", results);
+        } catch (error) {
+            console.error("Genotype search failed:", error);
+            setSearchResults(null);
+            alert(`Search failed: ${error?.message || 'Unknown error'}`);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Reset handler
+    const handleReset = () => {
+        setFormData({
+            referenceGenome: '', varietySet: '', snpSet: '', varietySubpopulation: '',
+            regionChromosome: '', regionStart: '', regionEnd: '', regionGeneLocus: '',
+        });
+        setShowResults(false); setSearchResults(null); setLoading(false);
+        setOptionsError('');
+        setChromosomeRange({ minPosition: null, maxPosition: null });
+        setLoadingRange(false); setRangeError('');
+    };
+
+    // --- Helper function to render options ---
+    const renderOptions = (optionsArray) => {
+         if (!Array.isArray(optionsArray) || optionsArray.length === 0) return null;
+         const firstItem = optionsArray[0];
+         if (typeof firstItem === 'string') {
+             return optionsArray.map(option => ( <option key={option} value={option}>{option}</option> ));
+         } else if (typeof firstItem === 'object' && firstItem !== null) {
+             const keyProp = firstItem._id || firstItem.id || 'value';
+             const labelProp = firstItem.name || firstItem.label || keyProp;
+             return optionsArray.map((option, index) => {
+                  if (!option || typeof option !== 'object') return null;
+                  const keyValue = option[keyProp] !== undefined ? option[keyProp] : `opt-${index}`;
+                  const labelValue = option[labelProp] !== undefined ? option[labelProp] : '-- Invalid Option --';
+                  const valueValue = labelValue; // Using label as value
+                  return ( <option key={keyValue} value={valueValue}> {labelValue} </option> );
+             });
+         }
+         return <option disabled>Invalid options data</option>;
+    };
+
+    // --- Log state before render ---
+    // console.log("GenotypeSearch Rendering with formData:", formData); // Keep for debugging if needed
+
+    return (
+        <div className="page-wrapper">
+            <div className="genotype-search-container">
+                <div className="search-card">
+                    <h2>Genotype Search Criteria</h2>
+
+                    {optionsError && (
+                        <div className="error-message options-error">
+                            <i className="fas fa-exclamation-triangle"></i>
+                            <span>{optionsError}</span>
+                        </div>
+                    )}
+
+                    <form onSubmit={handleSubmit} className="genotype-form">
+
+                        {/* --- Reference Genome Dropdown --- */}
+                         <div className="form-section">
+                            <h3>Reference Genome</h3>
+                             <div className="form-row">
+                                <div className="form-group">
+                                    <label htmlFor="referenceGenome">Select Reference Genome <span className="required-indicator" title="Required">*</span></label>
+                                    <select id="referenceGenome" name="referenceGenome" value={formData.referenceGenome} onChange={handleInputChange} disabled={loadingOptions.referenceGenomes || !!optionsError} required >
+                                        {loadingOptions.referenceGenomes ? ( <LoadingOption text="Loading Genomes..." /> )
+                                        : optionsError && referenceGenomeOptions.length === 0 ? ( <option value="" disabled>Error loading</option> )
+                                        : ( <> <option value="">-- Select Reference Genome --</option> {renderOptions(referenceGenomeOptions)} </> )}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        {/* --- END Reference Genome Dropdown --- */}
+
+                        {/* Group Datasets */}
+                        <div className="form-section">
+                            <h3>Datasets</h3>
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label htmlFor="varietySet">Variety Set <span className="required-indicator" title="Required">*</span></label>
+                                    <select id="varietySet" name="varietySet" value={formData.varietySet} onChange={handleInputChange} disabled={loadingOptions.varietySets || !!optionsError} required >
+                                        {loadingOptions.varietySets ? ( <LoadingOption text="Loading Variety Sets..." /> )
+                                        : optionsError && varietySetOptions.length === 0 ? ( <option value="" disabled>Error loading</option> )
+                                        : ( <> <option value="">Select Variety Set</option> {renderOptions(varietySetOptions)} </> )}
+                                    </select>
+                                </div>
+                                <div className="form-group">
+                                    <label htmlFor="snpSet">SNP Set <span className="required-indicator" title="Required">*</span></label>
+                                    <select id="snpSet" name="snpSet" value={formData.snpSet} onChange={handleInputChange} disabled={loadingOptions.snpSets || !!optionsError} required >
+                                        {loadingOptions.snpSets ? ( <LoadingOption text="Loading SNP Sets..." /> )
+                                        : optionsError && snpSetOptions.length === 0 ? ( <option value="" disabled>Error loading</option> )
+                                        : ( <> <option value="">Select SNP Set</option> {renderOptions(snpSetOptions)} </> )}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Group Varieties */}
+                        <div className="form-section">
+                            <h3>Varieties (Optional Filter)</h3>
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label htmlFor="varietySubpopulation">Subpopulation</label>
+                                    <select id="varietySubpopulation" name="varietySubpopulation" value={formData.varietySubpopulation} onChange={handleInputChange} disabled={loadingOptions.subpopulations || !!optionsError} >
+                                        {loadingOptions.subpopulations ? ( <LoadingOption text="Loading Subpopulations..." /> )
+                                        : optionsError && subpopulationOptions.length === 0 ? ( <option value="" disabled>Error loading</option> )
+                                        : ( <> <option value="">Any Subpopulation</option> {renderOptions(subpopulationOptions)} </> )}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Group Region */}
+                        <div className="form-section">
+                            <h3>Region</h3>
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label htmlFor="regionChromosome">Chromosome</label>
+                                    <select id="regionChromosome" name="regionChromosome" value={formData.regionChromosome} onChange={handleInputChange} disabled={loadingOptions.chromosomes || !!optionsError} >
+                                        {loadingOptions.chromosomes ? ( <LoadingOption text="Loading Chromosomes..." /> )
+                                        : optionsError && chromosomeOptions.length === 0 ? ( <option value="" disabled>Error loading</option> )
+                                        : ( <>
+                                                <option value="">Any Chromosome</option>
+                                                {renderOptions(chromosomeOptions)}
+                                            </>
+                                          )}
+                                    </select>
+                                </div>
+                                <div className="form-group region-inputs">
+                                    <label htmlFor="regionStart">Position Start <span className="required-indicator" title="Required">*</span></label>
+                                    <input id="regionStart" type="number" name="regionStart" value={formData.regionStart} onChange={handleInputChange} placeholder="e.g., 1" required min="0" />
+                                    <label htmlFor="regionEnd">Position End <span className="required-indicator" title="Required">*</span></label>
+                                    <input id="regionEnd" type="number" name="regionEnd" value={formData.regionEnd} onChange={handleInputChange} placeholder="e.g., 50000" required min="0" />
+                                </div>
+                            </div>
+                             {/* --- Display Chromosome Range --- */}
+                            <div className="form-row range-display">
+                                <div className="form-group">
+                                   {formData.regionChromosome && formData.referenceGenome && (
+                                        <>
+                                            {loadingRange && ( <span className="range-info loading">Loading range...</span> )}
+                                            {rangeError && !loadingRange && ( <span className="range-info error">{rangeError}</span> )}
+                                            {chromosomeRange.minPosition !== null && chromosomeRange.maxPosition !== null && !loadingRange && !rangeError && (
+                                                <span className="range-info">
+                                                    Available range for {formData.regionChromosome}: {chromosomeRange.minPosition.toLocaleString()} - {chromosomeRange.maxPosition.toLocaleString()}
+                                                </span>
+                                            )}
+                                        </>
+                                    )}
+                                    {!(formData.regionChromosome && formData.referenceGenome) && <span>&nbsp;</span>}
+                                </div>
+                            </div>
+                             {/* --- End Display Chromosome Range --- */}
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label htmlFor="regionGeneLocus">Gene Locus (Optional, e.g., LOC_Os...) </label>
+                                    <input id="regionGeneLocus" type="text" name="regionGeneLocus" value={formData.regionGeneLocus} onChange={handleInputChange} placeholder="Enter Gene Locus ID" />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="form-actions">
+                            <button type="button" onClick={handleReset} className="secondary-btn" disabled={loading}>Reset</button>
+                            <button type="submit" disabled={loading || Object.values(loadingOptions).some(Boolean) || (!!optionsError && (referenceGenomeOptions.length === 0 || varietySetOptions.length === 0 || snpSetOptions.length === 0))} className="primary-btn">
+                                {loading ? ( <> <span className="spinner"></span> Searching... </> ) : 'Search'}
+                            </button>
+                        </div>
+                    </form>
+                </div> {/* End search-card */}
+
+                 {/* Results Area */}
+                 {showResults && (
+                   <div className="results-card">
+                         <h3>Search Results {searchResults?.referenceGenomeName ? `for ${searchResults.referenceGenomeName}` : ''}</h3>
+                         {loading ? (
+                             <div className="loading-indicator"> <span className="spinner"></span> Loading results... please wait. </div>
+                         ) : searchResults && searchResults.varieties && searchResults.varieties.length > 0 ? (
+                             <div className="results-table-container">
+                                 <table className="results-table">
+                                     <thead>
+                                         <tr>
+                                             {/* Match headers to image */}
+                                             <th>{searchResults.referenceGenomeName || 'Variety'} Positions</th>
+                                             <th>Assay</th>
+                                             <th>Accession</th>
+                                             <th>Subpop</th>
+                                             <th>Dataset</th>
+                                             <th>Mismatch</th>
+                                             {/* Dynamic Position Headers */}
+                                             {searchResults.positions && searchResults.positions.map(pos => (
+                                                 <th key={pos}>{pos.toLocaleString()}</th>
+                                             ))}
+                                         </tr>
+                                     </thead>
+                                     <tbody>
+                                         {/* Map over varieties (includes reference row first) */}
+                                         {searchResults.varieties.map((variety, index) => (
+                                             <tr key={variety.accession || `row-${index}`}>
+                                                 {/* Static Columns per Variety */}
+                                                 <td data-label="Variety/Accession">
+                                                     {/* Display slightly differently for Reference row vs Variety row */}
+                                                     {index === 0 ? `${variety.name} (-)` : `${variety.name} (${variety.accession})`}
+                                                 </td>
+                                                 <td data-label="Assay">{variety.assay ?? 'N/A'}</td>
+                                                 {/* Render Accession only for non-reference rows or use placeholder */}
+                                                 <td data-label="Accession">{index === 0 ? '-' : (variety.accession ?? 'N/A')}</td>
+                                                 <td data-label="Subpop">{variety.subpop ?? 'N/A'}</td>
+                                                 <td data-label="Dataset">{variety.dataset ?? 'N/A'}</td>
+                                                 <td data-label="Mismatch">{variety.mismatch ?? 'N/A'}</td>
+                                                 {/* Dynamic Position Columns per Variety */}
+                                                 {searchResults.positions && searchResults.positions.map(pos => (
+                                                     <td key={`${variety.accession || index}-${pos}`} data-label={pos.toLocaleString()}>
+                                                         {variety.alleles?.[pos] ?? '-'}
+                                                     </td>
+                                                 ))}
+                                             </tr>
+                                         ))}
+                                     </tbody>
+                                 </table>
+                             </div>
+                         ) : !loading ? (
+                             <div className="no-results"> No genotypes found matching your criteria. Please adjust search parameters or wait for data loading. </div>
+                         ) : null /* Don't show no-results while loading */}
+                     </div> // End results-card
+                )}
+            </div> {/* End genotype-search-container */}
+        </div> // End page-wrapper
+    );
 };
 
 export default GenotypeSearch;

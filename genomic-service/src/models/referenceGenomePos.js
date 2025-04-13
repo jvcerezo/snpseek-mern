@@ -11,6 +11,6 @@ const referenceGenomePosSchema = new mongoose.Schema({
     timestamps: true
 });
 
-const ReferenceGenomePos = mongoose.model("referenceGenomePos", referenceGenomePosSchema, "referenceGenomePos");
+const ReferenceGenomePos = mongoose.model("referenceGenomesPos", referenceGenomePosSchema, "referenceGenomesPos");
 export default ReferenceGenomePos;
 

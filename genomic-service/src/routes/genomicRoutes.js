@@ -6,7 +6,7 @@ import {
     getVarietySubpopulations,
     getChromosomes,
     searchGenotypes,
-    getChromosomeRange
+    getChromosomeRange,
     // Import other controllers like searchGenotypesController when ready
 } from "../controllers/genomicController.js"; // Adjust path if needed
 
@@ -20,7 +20,6 @@ router.get("/chromosomes", getChromosomes);
 router.get("/chromosome-range", getChromosomeRange);
 router.post("/search", searchGenotypes);
 
-// Route for the actual genotype search (Placeholder)
 // router.post("/search", searchGenotypesController); // Example using POST if complex criteria
 
 export default router;
