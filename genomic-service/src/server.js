@@ -13,7 +13,7 @@ app.use(cors()) ;
 app.use(express.json()) ;
 app.use(express.urlencoded({ extended: true })) ;
 
-app.use("/genomic", genomicRoutes) ;
+app.use("/genotype", genomicRoutes) ;
 
 app.get("/", (req, res) => {
     res.send("Genomic Service is Running...") ;
