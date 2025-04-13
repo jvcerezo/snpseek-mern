@@ -13,6 +13,7 @@ import Pipeline from "./pages/Pipeline";
 import GenotypeSearch from "./pages/GenotypeSearch";
 import AboutPage from "./pages/AboutPage";
 import QCMetricsPage from "./pages/QCMetricsPage";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 function App() {
 
@@ -30,10 +31,10 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/search-gene-loci" element={<GeneLoci />} />
-          <Route path="/pipeline" element={<Pipeline />} />
+          <Route path="/pipeline" element={<ProtectedRoute><Pipeline /></ProtectedRoute>} />
           <Route path="/search-genotype" element={<GenotypeSearch />} />
           <Route path="/about" element={<AboutPage />} />
-          <Route path="/qc-metrics" element={<QCMetricsPage />} />
+          <Route path="/qc-metrics" element={<ProtectedRoute><QCMetricsPage /></ProtectedRoute>} />
         </Routes>
       </main>
       {/* Optional Footer component could go here */}
