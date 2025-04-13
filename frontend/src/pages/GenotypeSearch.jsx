@@ -353,61 +353,90 @@ const GenotypeSearch = () => {
                     </form>
                 </div> {/* End search-card */}
 
-                 {/* Results Area */}
-                 {showResults && (
-                   <div className="results-card">
-                         <h3>Search Results {searchResults?.referenceGenomeName ? `for ${searchResults.referenceGenomeName}` : ''}</h3>
-                         {loading ? (
-                             <div className="loading-indicator"> <span className="spinner"></span> Loading results... please wait. </div>
-                         ) : searchResults && searchResults.varieties && searchResults.varieties.length > 0 ? (
-                             <div className="results-table-container">
-                                 <table className="results-table">
-                                     <thead>
-                                         <tr>
-                                             {/* Match headers to image */}
-                                             <th>{searchResults.referenceGenomeName || 'Variety'} Positions</th>
-                                             <th>Assay</th>
-                                             <th>Accession</th>
-                                             <th>Subpop</th>
-                                             <th>Dataset</th>
-                                             <th>Mismatch</th>
-                                             {/* Dynamic Position Headers */}
-                                             {searchResults.positions && searchResults.positions.map(pos => (
-                                                 <th key={pos}>{pos.toLocaleString()}</th>
-                                             ))}
-                                         </tr>
-                                     </thead>
-                                     <tbody>
-                                         {/* Map over varieties (includes reference row first) */}
-                                         {searchResults.varieties.map((variety, index) => (
-                                             <tr key={variety.accession || `row-${index}`}>
-                                                 {/* Static Columns per Variety */}
-                                                 <td data-label="Variety/Accession">
-                                                     {/* Display slightly differently for Reference row vs Variety row */}
-                                                     {index === 0 ? `${variety.name} (-)` : `${variety.name} (${variety.accession})`}
-                                                 </td>
-                                                 <td data-label="Assay">{variety.assay ?? 'N/A'}</td>
-                                                 {/* Render Accession only for non-reference rows or use placeholder */}
-                                                 <td data-label="Accession">{index === 0 ? '-' : (variety.accession ?? 'N/A')}</td>
-                                                 <td data-label="Subpop">{variety.subpop ?? 'N/A'}</td>
-                                                 <td data-label="Dataset">{variety.dataset ?? 'N/A'}</td>
-                                                 <td data-label="Mismatch">{variety.mismatch ?? 'N/A'}</td>
-                                                 {/* Dynamic Position Columns per Variety */}
-                                                 {searchResults.positions && searchResults.positions.map(pos => (
-                                                     <td key={`${variety.accession || index}-${pos}`} data-label={pos.toLocaleString()}>
-                                                         {variety.alleles?.[pos] ?? '-'}
-                                                     </td>
-                                                 ))}
-                                             </tr>
+                {/* --- Results Area --- */}
+            {showResults && (
+               <div className="results-card">
+                     <h3>Search Results {searchResults?.referenceGenomeName ? `for ${searchResults.referenceGenomeName}` : ''}</h3>
+                     {loading ? (
+                         <div className="loading-indicator"> <span className="spinner"></span> Loading results... please wait. </div>
+                     ) : searchResults && searchResults.varieties && searchResults.varieties.length > 0 ? (
+                         <div className="results-table-container">
+                             <table className="results-table">
+                                 <thead>
+                                     <tr>
+                                         {/* Headers (keep as is from previous version) */}
+                                         <th>{searchResults.referenceGenomeName || 'Variety'} Positions</th>
+                                         <th>Assay</th>
+                                         <th>Accession</th>
+                                         <th>Subpop</th>
+                                         <th>Dataset</th>
+                                         <th>Mismatch</th>
+                                         {searchResults.positions?.map(pos => (
+                                             <th key={pos}>{pos.toLocaleString()}</th>
                                          ))}
-                                     </tbody>
-                                 </table>
-                             </div>
-                         ) : !loading ? (
-                             <div className="no-results"> No genotypes found matching your criteria. Please adjust search parameters or wait for data loading. </div>
-                         ) : null /* Don't show no-results while loading */}
-                     </div> // End results-card
-                )}
+                                     </tr>
+                                 </thead>
+                                 <tbody>
+                                     {/* Map over varieties (includes reference row first) */}
+                                     {searchResults.varieties.map((variety, index) => {
+                                        // Determine if this is the reference row
+                                        const isReferenceRow = index === 0;
+                                        // Get the reference alleles (available only if results exist)
+                                        const referenceAlleleData = searchResults.varieties[0]?.alleles;
+
+                                        return (
+                                            <tr
+                                                key={variety.accession || `row-${index}`}
+                                                // Add class for reference row styling
+                                                className={isReferenceRow ? 'reference-genome-row' : 'variety-row'}
+                                            >
+                                                {/* Static Columns per Variety/Reference */}
+                                                <td data-label="Variety/Accession">
+                                                     {/* Display slightly differently for Reference row */}
+                                                     {isReferenceRow ? `${variety.name} (-)` : variety.name } {/* Removed accession here for clarity, it's in next col */}
+                                                 </td>
+                                                <td data-label="Assay">{variety.assay ?? 'N/A'}</td>
+                                                <td data-label="Accession">{isReferenceRow ? '-' : (variety.accession ?? 'N/A')}</td>
+                                                <td data-label="Subpop">{variety.subpop ?? 'N/A'}</td>
+                                                <td data-label="Dataset">{variety.dataset ?? 'N/A'}</td>
+                                                <td data-label="Mismatch">{variety.mismatch ?? 'N/A'}</td>
+
+                                                {/* Dynamic Position Columns per Variety */}
+                                                {searchResults.positions?.map(pos => {
+                                                    const varietyAllele = variety.alleles?.[pos];
+                                                    const displayAllele = varietyAllele ?? '-';
+                                                    let isMismatch = false;
+
+                                                    // Determine mismatch ONLY for non-reference rows
+                                                    if (!isReferenceRow && referenceAlleleData) {
+                                                        const refAllele = referenceAlleleData[pos];
+                                                        // Check if variety has an allele, ref has an allele, and they are different
+                                                        if (displayAllele !== '-' && refAllele && refAllele !== '?' && displayAllele !== refAllele) {
+                                                            // Basic mismatch check - considers 'A/T' different from 'A' or 'T'
+                                                            isMismatch = true;
+                                                        }
+                                                    }
+
+                                                    return (
+                                                        <td key={`${variety.accession || index}-${pos}`} data-label={pos.toLocaleString()}>
+                                                            {/* Add class to span if it's a mismatch */}
+                                                            <span className={isMismatch ? 'allele-mismatch' : ''}>
+                                                                {displayAllele}
+                                                            </span>
+                                                        </td>
+                                                    );
+                                                })}
+                                            </tr>
+                                        );
+                                     })}
+                                 </tbody>
+                             </table>
+                         </div>
+                     ) : !loading ? (
+                         <div className="no-results"> No genotypes found matching your criteria. Please adjust search parameters or wait for data loading. </div>
+                     ) : null }
+                 </div> // End results-card
+            )}
             </div> {/* End genotype-search-container */}
         </div> // End page-wrapper
     );
