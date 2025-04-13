@@ -13,6 +13,7 @@ import {
     // import { fetchGeneLociList } from '../api';
 } from '../api'; // Adjust path if necessary
 import { useAuth } from '../context/AuthContext'; // Import useAuth hook
+import { FaDownload } from 'react-icons/fa'; // <-- Import FaDownload
 import './GenotypeSearch.css'; // Ensure you link the updated CSS
 
 // Helper component for loading indicators inside dropdowns
@@ -129,7 +130,6 @@ const GenotypeSearch = () => {
     // Input change handler
     const handleInputChange = (e) => {
         const { name, value } = e.target;
-        // console.log(`handleInputChange: Field '${name}' changed to value '${value}' (Type: ${typeof value})`); // Keep for debug if needed
         setFormData((prev) => ({ ...prev, [name]: value }));
     };
 
@@ -153,8 +153,8 @@ const GenotypeSearch = () => {
             setChromosomeRange({ minPosition: null, maxPosition: null });
             setRangeError(''); setLoadingRange(false);
         }
-        // TODO: If Gene Locus becomes a dropdown, trigger fetch here if newType === 'geneLocus'
     };
+
 
     // Form submit handler - Calls actual API
     const handleSubmit = async (e) => {
@@ -171,7 +171,7 @@ const GenotypeSearch = () => {
                 const startPos = parseInt(formData.regionStart, 10);
                 const endPos = parseInt(formData.regionEnd, 10);
                 if (isNaN(startPos) || isNaN(endPos) || startPos < 0 || startPos > endPos) { alertMessage = "Invalid Start/End position provided for Range search."; break; }
-                if (formData.regionChromosome) { // Only validate range if chromosome is selected
+                if (formData.regionChromosome) {
                     if (chromosomeRange.minPosition !== null && startPos < chromosomeRange.minPosition) { alertMessage = `Position Start must be >= ${chromosomeRange.minPosition.toLocaleString()}.`; break; }
                     if (chromosomeRange.maxPosition !== null && endPos > chromosomeRange.maxPosition) { alertMessage = `Position End must be <= ${chromosomeRange.maxPosition.toLocaleString()}.`; break; }
                 }
@@ -204,10 +204,10 @@ const GenotypeSearch = () => {
         setLoading(true);
         setShowResults(true);
         setSearchResults(null);
-        console.log('Submitting search with criteria:', formData); // Send the whole formData
+        console.log('Submitting search with criteria:', formData);
 
         try {
-            const results = await searchGenotypes(formData); // Backend needs to handle formData based on regionType
+            const results = await searchGenotypes(formData);
             setSearchResults(results);
             console.log("Search successful, received results:", results);
         } catch (error) {
@@ -221,11 +221,10 @@ const GenotypeSearch = () => {
 
     // Reset handler - Includes new fields
     const handleReset = () => {
-        setRegionInputType('range'); // Reset region type display controller
-        setFormData({ // Reset all form fields
+        setRegionInputType('range');
+        setFormData({
             referenceGenome: '', varietySet: '', snpSet: '', varietySubpopulation: '',
-            regionType: 'range', // Reset type in form data
-            regionChromosome: '', regionStart: '', regionEnd: '',
+            regionType: 'range', regionChromosome: '', regionStart: '', regionEnd: '',
             regionGeneLocus: '', snpList: '', locusList: '',
         });
         setShowResults(false); setSearchResults(null); setLoading(false);
@@ -241,7 +240,6 @@ const GenotypeSearch = () => {
          if (typeof firstItem === 'string') {
              return optionsArray.map(option => ( <option key={option} value={option}>{option}</option> ));
          } else if (typeof firstItem === 'object' && firstItem !== null) {
-             // Adjust idProp/labelProp based on your actual API response structure
              const keyProp = firstItem._id || firstItem.id || 'value';
              const labelProp = firstItem.name || firstItem.label || keyProp;
              return optionsArray.map((option, index) => {
@@ -255,8 +253,56 @@ const GenotypeSearch = () => {
          return <option disabled>Invalid options data</option>;
     };
 
-    // --- Log state before render ---
-    // console.log("GenotypeSearch Rendering with formData:", formData); // Keep for debugging if needed
+    // --- Function to Generate and Download CSV ---
+    const handleDownloadCsv = () => {
+        if (!isAuthenticated) { alert("Please log in to download results."); return; }
+        if (!searchResults || !searchResults.varieties || searchResults.varieties.length === 0) { alert("No results available to download."); return; }
+        console.log("Generating CSV data...");
+        const escapeCsvField = (field) => {
+            const stringField = String(field ?? '');
+            if (stringField.includes(',') || stringField.includes('\n') || stringField.includes('"')) {
+                const escapedField = stringField.replace(/"/g, '""');
+                return `"${escapedField}"`;
+            }
+            return stringField;
+        };
+        try {
+            const staticHeaders = ["VarietyName", "Accession", "Assay", "Subpop", "Dataset", "Mismatch"];
+            const positionHeaders = searchResults.positions.map(pos => pos.toString());
+            const headers = [...staticHeaders, ...positionHeaders];
+            const csvHeader = headers.map(escapeCsvField).join(',');
+            const csvRows = searchResults.varieties.map((variety, index) => {
+                const isReferenceRow = index === 0;
+                const rowData = [
+                    variety.name ?? 'N/A',
+                    isReferenceRow ? '-' : (variety.accession ?? 'N/A'),
+                    variety.assay ?? 'N/A',
+                    variety.subpop ?? 'N/A',
+                    variety.dataset ?? 'N/A',
+                    variety.mismatch ?? 'N/A'
+                ];
+                const alleleData = searchResults.positions.map(pos => variety.alleles?.[pos] ?? '-');
+                return [...rowData, ...alleleData].map(escapeCsvField).join(',');
+            });
+            const csvString = `${csvHeader}\n${csvRows.join('\n')}`;
+            const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            const filename = `genotype_results_${searchResults.referenceGenomeName?.replace(/ /g, '_') || 'data'}_${new Date().toISOString().slice(0,10)}.csv`;
+            link.setAttribute("download", filename);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            console.log("CSV Download triggered.");
+        } catch (error) {
+            console.error("Failed to generate or download CSV:", error);
+            alert("An error occurred while preparing the download.");
+        }
+    };
+    // --- End Download CSV Function ---
 
     return (
         <div className="page-wrapper">
@@ -335,27 +381,27 @@ const GenotypeSearch = () => {
                                     <label htmlFor="regionInputTypeSelect">Search Region By</label>
                                     <select
                                         id="regionInputTypeSelect"
-                                        name="regionType" // Links to formData.regionType via handleInputChange if needed, but separate handler is used
-                                        value={regionInputType} // Controlled by separate state
-                                        onChange={handleRegionTypeChange} // Use specific handler
+                                        name="regionType" // Matches formData.regionType via handleInputChange now
+                                        value={formData.regionType} // Controlled by formData state
+                                        onChange={handleRegionTypeChange} // Use specific handler to also clear fields
                                         disabled={loading}
-                                        className="styled-select" // Apply consistent select styling
+                                        className="styled-select"
                                     >
                                         <option value="range">Range (Chromosome + Position)</option>
                                         <option value="geneLocus">Gene Locus ID</option>
                                         <option value="snpList" disabled={!isAuthenticated} title={!isAuthenticated ? "Login required for SNP list search" : ""} style={!isAuthenticated ? { color: 'var(--text-muted)', fontStyle: 'italic' } : {}}>
                                             SNP List { !isAuthenticated ? '(Login Required)' : ''}
                                         </option>
-                                        <option value="locusList" disabled={!isAuthenticated} title={!isAuthenticated ? "Login required for Locus list search" : ""} style={!isAuthenticated ? { color: 'var(--text-muted)', fontStyle: 'italic' } : {}}>
+                                         <option value="locusList" disabled={!isAuthenticated} title={!isAuthenticated ? "Login required for Locus list search" : ""} style={!isAuthenticated ? { color: 'var(--text-muted)', fontStyle: 'italic' } : {}}>
                                             Locus List { !isAuthenticated ? '(Login Required)' : ''}
                                         </option>
                                     </select>
                                 </div>
                             </div>
 
-                            {/* Conditional Inputs based on regionInputType */}
+                            {/* Conditional Inputs based on regionInputType state */}
 
-                            {/* == RANGE INPUTS (Using specific 3-col layout) == */}
+                            {/* == RANGE INPUTS == */}
                             {regionInputType === 'range' && (
                                 <>
                                     <div className="form-row form-row-three-col"> {/* USE 3-COL CLASS */}
@@ -367,7 +413,7 @@ const GenotypeSearch = () => {
                                                 : ( <> <option value="">Any Chromosome</option> {renderOptions(chromosomeOptions)} </> )}
                                             </select>
                                         </div>
-                                        <div className="form-group"> {/* No more nested region-inputs class needed */}
+                                        <div className="form-group">
                                             <label htmlFor="regionStart">Position Start <span className="required-indicator" title="Required">*</span></label>
                                             <input id="regionStart" type="number" name="regionStart" value={formData.regionStart} onChange={handleInputChange} placeholder="e.g., 1" required min="0" />
                                         </div>
@@ -394,7 +440,7 @@ const GenotypeSearch = () => {
                                 </>
                             )}
 
-                            {/* == GENE LOCUS INPUT (Chromosome select removed) == */}
+                            {/* == GENE LOCUS INPUT == */}
                             {regionInputType === 'geneLocus' && (
                                 <div className="form-row">
                                     <div className="form-group"> {/* Takes full width */}
@@ -460,7 +506,23 @@ const GenotypeSearch = () => {
                  {/* Results Area */}
                 {showResults && (
                    <div className="results-card">
-                         <h3>Search Results {searchResults?.referenceGenomeName ? `for ${searchResults.referenceGenomeName}` : ''}</h3>
+                         {/* Modified Results Header */}
+                         <div className="results-area-header">
+                             <h3>Search Results {searchResults?.referenceGenomeName ? `for ${searchResults.referenceGenomeName}` : ''}</h3>
+                             {/* Conditionally render download button */}
+                             {!loading && searchResults && searchResults.varieties && searchResults.varieties.length > 0 && (
+                                 <button
+                                     className="secondary-btn download-btn"
+                                     onClick={handleDownloadCsv}
+                                     disabled={!isAuthenticated}
+                                     title={!isAuthenticated ? "Login required to download results" : "Download results as CSV"}
+                                 >
+                                     <FaDownload /> Download CSV
+                                 </button>
+                             )}
+                         </div>
+                         {/* End Modified Results Header */}
+
                          {loading ? (
                              <div className="loading-indicator"> <span className="spinner"></span> Loading results... please wait. </div>
                          ) : searchResults && searchResults.varieties && searchResults.varieties.length > 0 ? (
@@ -469,7 +531,8 @@ const GenotypeSearch = () => {
                                      <thead>
                                          <tr>
                                              <th>{searchResults.referenceGenomeName || 'Variety'} Positions</th>
-                                             <th>Assay</th><th>Accession</th><th>Subpop</th><th>Dataset</th><th>Mismatch</th>
+                                             <th>Assay</th><th>Accession</th><th>Subpop</th>
+                                             <th>Dataset</th><th>Mismatch</th>
                                              {searchResults.positions?.map(pos => ( <th key={pos}>{pos.toLocaleString()}</th> ))}
                                          </tr>
                                      </thead>

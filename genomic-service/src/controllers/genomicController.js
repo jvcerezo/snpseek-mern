@@ -132,7 +132,7 @@ const getReferencePositionsAndAllelesInRange = async (referenceIdStr, contig, st
 // --- End Helper ---
 
 /**
- * @desc    Search for genotypes based on multiple criteria (REVISED LOGIC)
+ * @desc    Search for genotypes based on multiple criteria (Displays irisId as Assay)
  * @route   POST /genomic/search
  * @access  Public (or Protected)
  */
@@ -159,7 +159,7 @@ export const searchGenotypes = async (req, res) => {
         const referenceIdStr = refGenomeDoc._id.toString();
         console.log(`CONTROLLER: Found referenceGenome ObjectId: ${refGenomeDoc._id}`);
 
-        // --- Step 2: Determine Target Positions & Get Reference Alleles ---
+        // --- Step 2: Determine Target Positions AND Get Reference Alleles ---
         const { positions: finalPositions, referenceAlleles } = await getReferencePositionsAndAllelesInRange(
             referenceIdStr, regionChromosome, startPos, endPos
         );
@@ -168,87 +168,70 @@ export const searchGenotypes = async (req, res) => {
              return res.status(200).json({ referenceGenomeName: referenceGenomeName, positions: [], varieties: [] });
         }
         console.log(`CONTROLLER: Target positions determined (${finalPositions.length})`);
-        const targetPositionsSet = new Set(finalPositions); // Use Set for efficient lookup later
+        const targetPositionsSet = new Set(finalPositions);
 
-        // --- Step 3: Filter Varieties (Get _id and display fields) ---
+        // --- Step 3: Filter Varieties (Include irisId) ---
         const varietyFilter = { varietySet, snpSet };
         if (varietySubpopulation) varietyFilter.subpopulation = varietySubpopulation;
         console.log("CONTROLLER: Finding matching varieties with filter:", varietyFilter);
-        // Select _id for linking and other fields needed for display
-        const matchingVarieties = await Variety.find(varietyFilter).select("_id name accession subpopulation varietySet").lean();
+        // MODIFICATION: Added 'irisId' to the select statement
+        const matchingVarieties = await Variety.find(varietyFilter)
+            .select("_id id name accession subpopulation varietySet irisId") // <-- Added irisId
+            .lean();
         if (!matchingVarieties || matchingVarieties.length === 0) {
              console.log("CONTROLLER: No varieties found matching criteria.");
              return res.status(200).json({ referenceGenomeName: referenceGenomeName, positions: finalPositions, varieties: [] });
         }
-        // Create a Set of the STRING representations of matching Variety ObjectIDs for filtering VarietiesPos
-        const matchingVarietyObjectIdStringsSet = new Set(matchingVarieties.map(v => v._id.toString()));
+        const matchingVarietyObjectIdStrings = matchingVarieties.map(v => v._id.toString()); // Use _id string
+        const matchingVarietyIdMap = new Map(matchingVarieties.map(v => [v._id.toString(), v])); // Key map by _id string
         console.log(`CONTROLLER: Found ${matchingVarieties.length} matching varieties.`);
 
 
-        // --- Step 4: Fetch Relevant Variety Position Documents ---
-        // Query VarietiesPos based on matching Variety _IDs (as strings in referenceId field) AND contig/range
+        // --- Step 4: Fetch Variety Allele Data (Query uses Variety _ids in referenceId field) ---
         const varietyPosFilter = {
-            referenceId: { $in: Array.from(matchingVarietyObjectIdStringsSet) } // Filter by the Set of Variety _ID strings
+            referenceId: { $in: matchingVarietyObjectIdStrings } // Filter by the Array of Variety _ID strings
         };
-        if (regionChromosome) {
-            varietyPosFilter.contig = regionChromosome;
-        }
-        // Filter by document range overlap based on finalPositions range
+        if (regionChromosome) varietyPosFilter.contig = regionChromosome;
         const minPos = finalPositions[0];
         const maxPos = finalPositions[finalPositions.length - 1];
         varietyPosFilter.start = { $lte: maxPos };
         varietyPosFilter.end = { $gte: minPos };
-
-        console.log("CONTROLLER: Finding variety position data with CORRECTED filter (using Variety _IDs in referenceId):", varietyPosFilter);
-        const varietyPositionDocs = await VarietiesPos.find(varietyPosFilter).select("positions referenceId"); // Select referenceId to know which variety this doc belongs to
+        console.log("CONTROLLER: Finding variety position data with filter (using Variety _IDs in referenceId):", varietyPosFilter);
+        const varietyPositionDocs = await VarietiesPos.find(varietyPosFilter).select("positions referenceId");
         console.log(`CONTROLLER: Found ${varietyPositionDocs.length} relevant variety position document(s).`);
-        // --- End Step 4 ---
 
 
         // --- Step 5: Build Allele Map ---
         // Map structure: Map<varietyId_string (from doc.referenceId), Map<position_number, allele_string>>
         const alleleMap = new Map();
-
         console.log("CONTROLLER: Building Allele Map...");
         for (const doc of varietyPositionDocs) {
-            const varietyIdStr = doc.referenceId; // This is the Variety._id string
-
-            // We already filtered docs by matching variety IDs in Step 4 ($in query)
-            // So, we just need to ensure the map entry exists for this variety
-            if (!alleleMap.has(varietyIdStr)) {
-                 alleleMap.set(varietyIdStr, new Map());
-            }
-            const varietyAlleleData = alleleMap.get(varietyIdStr);
-
-            if (!doc.positions || typeof doc.positions !== 'object') continue;
-
-            for (const posStr in doc.positions) {
-                const position = parseInt(posStr, 10);
-                if (isNaN(position)) continue;
-
-                // Only store alleles for the target positions determined in Step 2
-                if (targetPositionsSet.has(position)) {
-                     // Assumption: doc.positions[posStr] is the allele string, e.g., "A/T"
-                     if (typeof doc.positions[posStr] === 'string') {
-                        varietyAlleleData.set(position, doc.positions[posStr]);
-                     } else {
-                         console.warn(`Unexpected allele data type at pos ${posStr} for variety ${varietyIdStr}:`, doc.positions[posStr]);
-                         varietyAlleleData.set(position, 'ERR'); // Mark error
+            const varietyIdStr = doc.referenceId; // This is the Variety._id string from the doc
+            if (!varietyIdStr || !doc.positions || typeof doc.positions !== 'object') continue;
+            // Ensure this doc belongs to a variety we originally filtered
+            if (matchingVarietyIdMap.has(varietyIdStr)) {
+                 if (!alleleMap.has(varietyIdStr)) alleleMap.set(varietyIdStr, new Map());
+                 const varietyAlleleData = alleleMap.get(varietyIdStr);
+                 for (const posStr in doc.positions) {
+                     const position = parseInt(posStr, 10);
+                     if (!isNaN(position) && targetPositionsSet.has(position)) {
+                          if (typeof doc.positions[posStr] === 'string') {
+                             varietyAlleleData.set(position, doc.positions[posStr]);
+                          } else { varietyAlleleData.set(position, 'ERR'); }
                      }
-                }
-            }
+                 }
+             }
         }
         console.log(`CONTROLLER: Built allele map covering ${alleleMap.size} varieties.`);
-        // --- End Step 5 ---
 
 
-        // --- Step 6: Format Final Response ---
+        // --- Step 6: Format Final Response (Assign irisId to assay, calculate mismatch) ---
         const finalResults = {
             referenceGenomeName: referenceGenomeName,
             positions: finalPositions,
             varieties: []
         };
-        // Add Reference Row (as before)
+        // Add Reference Row
         const referenceGenomeRowData = {
             name: referenceGenomeName, assay: 'Reference', accession: refGenomeDoc.id || '-',
             subpop: '-', dataset: '-', mismatch: 0, alleles: {}
@@ -257,31 +240,27 @@ export const searchGenotypes = async (req, res) => {
         finalResults.varieties.push(referenceGenomeRowData);
 
         // Add Variety Rows
-        for (const variety of matchingVarieties) {
-            const varietyIdStr = variety._id.toString(); // Key to look up in alleleMap
-            const varietyAllelesData = alleleMap.get(varietyIdStr); // Get inner Map for this variety
+        for (const variety of matchingVarieties) { // Iterate original variety docs from Step 3
+            const varietyIdStr = variety._id.toString(); // Key for alleleMap lookup
+            const varietyAllelesData = alleleMap.get(varietyIdStr);
             const formattedAlleles = {};
-            let mismatchCount = 0; // Initialize mismatch count
+            let mismatchCount = 0;
 
             for (const pos of finalPositions) {
                 const varAllele = varietyAllelesData?.get(pos);
                 const refAllele = referenceAlleles.get(pos);
                 formattedAlleles[pos] = varAllele ?? '-';
-
-                // Simple Mismatch Calculation (same as before)
+                // Mismatch Calculation
                  if (varAllele && varAllele !== '-' && refAllele && refAllele !== '?' && varAllele !== refAllele) {
-                    if (varAllele.includes('/') || refAllele.includes('/')) {
-                         if (varAllele !== refAllele) mismatchCount++;
-                     } else if (varAllele !== refAllele) {
-                         mismatchCount++;
-                     }
+                    if (varAllele.includes('/') || refAllele.includes('/')) { if (varAllele !== refAllele) mismatchCount++; }
+                    else if (varAllele !== refAllele) { mismatchCount++; }
                  }
             }
 
             finalResults.varieties.push({
-                 name: variety.name, // Use name from Variety doc
+                 name: variety.name,
                  accession: variety.accession,
-                 assay: 'N/A', // Placeholder
+                 assay: variety.irisId ?? 'N/A', // <-- MODIFICATION: Use irisId here
                  subpop: variety.subpopulation,
                  dataset: variety.varietySet,
                  mismatch: mismatchCount, // Use calculated count
