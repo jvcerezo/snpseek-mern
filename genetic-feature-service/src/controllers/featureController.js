@@ -1,48 +1,161 @@
 import Feature from "../models/Feature.js";
 import Trait from "../models/Traits.js"; 
 
-export const getFeatureByGeneNameAndReferenceGenome = async (req, res) => {
+/**
+ * @desc    Search features by text query in specified field with different match types
+ * @route   GET /api/genetic-features/by-text-search?queryTerm=...&referenceGenome=...&searchMethod=...&searchField=... (Example Route)
+ * @access  Public (or Protected)
+ */
+export const searchFeaturesByText = async (req, res) => {
     try {
-        const { geneName, referenceGenome, searchType } = req.query;
+        const {
+            queryTerm,          // The actual text entered by the user
+            referenceGenome,
+            searchMethod,       // e.g., 'substring', 'whole-word', 'exact', 'regex'
+            // searchField parameter determines which DB field to search
+            // Frontend sends 'annotation' or 'geneName' based on selection
+            searchField = 'geneName' // Default to geneName if not provided
+        } = req.query;
 
-        // Validate required inputs
-        if (!geneName) {
-            return res.status(400).json({ error: "Gene name is required" });
+        // --- Validation ---
+        if (!queryTerm) {
+            return res.status(400).json({ message: "Search term (queryTerm) is required" });
         }
-
         if (!referenceGenome) {
-            return res.status(400).json({ error: "Reference genome is required" });
+            return res.status(400).json({ message: "Reference genome is required" });
+        }
+        // Optional: Validate searchMethod and searchField values if needed
+        const validSearchFields = ['geneName', 'annotation']; // Add more if needed (e.g., 'geneSymbol')
+        const dbFieldToSearch = searchField === 'annotation' ? 'description' : 'geneName'; // Map 'annotation' to 'description' field
+        // Use 'geneName' as default if searchField is invalid or missing
+        if (!validSearchFields.includes(searchField) && searchField !== 'geneName') {
+             console.warn(`Invalid searchField '${searchField}', defaulting to 'geneName'.`);
+             // dbFieldToSearch remains 'geneName'
+        }
+        console.log(`CONTROLLER: Searching field "${dbFieldToSearch}" for term "${queryTerm}" using method "${searchMethod}"`);
+        // --- End Validation ---
+
+        // --- Build Query ---
+        // Escape basic regex metacharacters for safety in most modes
+        // For 'regex' mode, the user intends to use regex, so we don't escape that one.
+        const escapedQueryTerm = (searchMethod !== 'regex')
+            ? queryTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') // Escape most special chars
+            : queryTerm; // Use raw input for user's regex
+
+        let textQuery = {}; // This will hold the specific query for the text field
+
+        // Construct the query based on the selected match type
+        switch (searchMethod) {
+            case "exact":
+                // Case-insensitive exact match using regex anchors ^ (start) and $ (end)
+                 try {
+                     textQuery[dbFieldToSearch] = { $regex: new RegExp(`^${escapedQueryTerm}$`, "i") };
+                 } catch(e) {
+                     console.error("Error building exact match regex:", e);
+                     return res.status(400).json({ message: "Invalid term for exact search." });
+                 }
+                break;
+            case "whole-word":
+                 // Case-insensitive whole word match using word boundaries \b
+                 // Requires double backslash \\b in JavaScript string for RegExp constructor
+                 try {
+                     textQuery[dbFieldToSearch] = { $regex: new RegExp(`\\b${escapedQueryTerm}\\b`, "i") };
+                 } catch(e) {
+                      console.error("Error building whole word regex:", e);
+                      return res.status(400).json({ message: "Invalid term for whole-word search." });
+                 }
+                break;
+            case "regex":
+                // WARNING: Directly using user input as regex is a potential security risk (ReDoS).
+                // Consider sanitizing or validating the regex pattern string 'queryTerm' first in production.
+                try {
+                    // Use original queryTerm, make case-insensitive by default
+                    textQuery[dbFieldToSearch] = { $regex: new RegExp(queryTerm, "i") };
+                } catch (e) {
+                    console.error("Invalid user-provided regex:", e);
+                    return res.status(400).json({ message: "Invalid Regular Expression provided." });
+                }
+                break;
+            case "substring":
+            default: // Default to substring search (case-insensitive)
+                 try {
+                    textQuery[dbFieldToSearch] = { $regex: escapedQueryTerm, $options: "i" };
+                 } catch(e) {
+                     console.error("Error building substring regex:", e);
+                     return res.status(400).json({ message: "Invalid term for substring search." });
+                 }
+                break;
         }
 
-        // Build the query based on search type
-        let query = { referenceGenome };
-        
-        if (searchType === "whole-word") {
-            query.geneName = geneName;
-        } else if (searchType === "substring") {
-            query.geneName = { $regex: geneName, $options: "i" };
-        } else if (searchType === "exact") {
-            query.geneName = { $eq: geneName };
-        } else if (searchType === "regex") {
-            query.geneName = { $regex: new RegExp(geneName) };
-        } else {
-            // Default fallback to substring search
-            query.geneName = { $regex: geneName, $options: "i" };
-        }
+        // Combine text query with the required reference genome filter
+        const finalQuery = {
+            referenceGenome: referenceGenome,
+            ...textQuery
+         };
+         // --- End Query Build ---
 
-        // Query the database
-        const features = await Feature.find(query);
+        console.log("CONTROLLER: Executing feature search with query:", JSON.stringify(finalQuery));
 
-        if (!features.length) {
-            return res.status(404).json({ error: "No features found" });
-        }
+        // Execute query against the Feature collection
+        // Select fields relevant to the results table displayed in GeneLoci.jsx
+        const features = await Feature.find(finalQuery)
+             .select("geneName geneSymbol referenceGenome contig start end strand description function _id") // Adjust fields as needed
+             .limit(500); // Limit results to avoid overwhelming response
 
+        console.log(`CONTROLLER: Found ${features.length} features matching text search.`);
+
+        // Send features back (could be an empty array if no matches)
         res.status(200).json(features);
+
     } catch (error) {
-        console.error("❌ Error searching features:", error);
-        res.status(500).json({ error: "Internal Server Error" });
+        console.error("❌ Error searching features by text:", error);
+        // Avoid sending detailed error info to client unless needed
+        res.status(500).json({ message: "Server Error during feature search." });
     }
 };
+
+// export const getFeatureByGeneNameAndReferenceGenome = async (req, res) => {
+//     try {
+//         const { geneName, referenceGenome, searchType } = req.query;
+
+//         // Validate required inputs
+//         if (!geneName) {
+//             return res.status(400).json({ error: "Gene name is required" });
+//         }
+
+//         if (!referenceGenome) {
+//             return res.status(400).json({ error: "Reference genome is required" });
+//         }
+
+//         // Build the query based on search type
+//         let query = { referenceGenome };
+        
+//         if (searchType === "whole-word") {
+//             query.geneName = geneName;
+//         } else if (searchType === "substring") {
+//             query.geneName = { $regex: geneName, $options: "i" };
+//         } else if (searchType === "exact") {
+//             query.geneName = { $eq: geneName };
+//         } else if (searchType === "regex") {
+//             query.geneName = { $regex: new RegExp(geneName) };
+//         } else {
+//             // Default fallback to substring search
+//             query.geneName = { $regex: geneName, $options: "i" };
+//         }
+
+//         // Query the database
+//         const features = await Feature.find(query);
+
+//         if (!features.length) {
+//             return res.status(404).json({ error: "No features found" });
+//         }
+
+//         res.status(200).json(features);
+//     } catch (error) {
+//         console.error("❌ Error searching features:", error);
+//         res.status(500).json({ error: "Internal Server Error" });
+//     }
+// };
 
 /**
  * @desc Get all available traits from the Traits collection
@@ -185,5 +298,58 @@ export const getGeneDetails = async (req, res) => {
     }
 };
   
+/**
+ * @desc    Get Features that overlap a given genomic region
+ * @route   GET /api/genetic-features/by-region?referenceGenome=...&chromosome=...&start=...&end=...
+ * @access  Public (or Protected if needed)
+ */
+export const getFeaturesByRegion = async (req, res) => {
+    const {
+        referenceGenome,
+        chromosome, // Optional filter ('contig')
+        start,      // Required
+        end         // Required
+    } = req.query;
 
+    console.log("CONTROLLER: Received request for features by region:", req.query);
+
+    // --- Validation ---
+    if (!referenceGenome || !start || !end) {
+        return res.status(400).json({ message: "Reference Genome, Start position, and End position query parameters are required." });
+    }
+    const startPos = parseInt(start, 10);
+    const endPos = parseInt(end, 10);
+    if (isNaN(startPos) || isNaN(endPos) || startPos < 0 || startPos > endPos) {
+         return res.status(400).json({ message: "Invalid Start/End position provided." });
+    }
+    // --- End Validation ---
+
+    try {
+        // Build the MongoDB query
+        const query = {
+            referenceGenome: referenceGenome, // Filter by reference genome
+            // Add chromosome/contig filter if provided
+            ...(chromosome && { contig: chromosome }),
+            // Find features that OVERLAP the given range [startPos, endPos]
+            // Feature starts before or at the query end AND Feature ends after or at the query start
+            start: { $lte: endPos },   // Feature start <= Query end
+            end: { $gte: startPos }      // Feature end >= Query start
+        };
+
+        console.log("CONTROLLER: Querying Features collection with:", JSON.stringify(query));
+
+        // Execute query - select fields relevant for the results table
+        const features = await Feature.find(query)
+            .select("geneName geneSymbol referenceGenome contig start end strand description function _id") // Adjust fields as needed
+            .limit(1000); // Add a sensible limit to prevent excessive results
+
+        console.log(`CONTROLLER: Found ${features.length} features in region.`);
+
+        res.status(200).json(features); // Return found features (or empty array)
+
+    } catch (error) {
+        console.error("❌ Error fetching features by region:", error);
+        res.status(500).json({ message: "Server Error fetching features by region." });
+    }
+};
 

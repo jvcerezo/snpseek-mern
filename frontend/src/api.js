@@ -138,18 +138,37 @@ export const fetchReferenceGenomes = async () => {
     }
 };
 
-// ✅ Fetch Features by Gene Name
-export const fetchFeaturesByGeneName = async (geneName, referenceGenome, searchType) => {
+// // ✅ Fetch Features by Gene Name
+// export const fetchFeaturesByGeneName = async (geneName, referenceGenome, searchType) => {
+//     try {
+//         // Gateway path: /api/genetic-features/by-gene-name
+//         const response = await API.get("/api/genetic-features/by-gene-name", {
+//             params: { geneName, referenceGenome, searchType }
+//         });
+//         return response.data;
+//     } catch (error) {
+//         throw formatErrorForThrowing(error);
+//     }
+// };
+
+export const searchFeaturesByText = async (queryTerm, referenceGenome, searchMethod, searchField = 'geneName') => {
     try {
-        // Gateway path: /api/genetic-features/by-gene-name
-        const response = await API.get("/api/genetic-features/by-gene-name", {
-            params: { geneName, referenceGenome, searchType }
+        // Calls the updated backend route
+        const response = await API.get("/api/genetic-features/by-text-search", {
+            params: { // Send all parameters
+                queryTerm,
+                referenceGenome,
+                searchMethod, // 'substring', 'whole-word', etc.
+                searchField   // 'annotation' or 'geneName'
+             }
         });
         return response.data;
     } catch (error) {
+        console.error(`Error searching features by ${searchField}:`, error);
         throw formatErrorForThrowing(error);
     }
 };
+
 
 // ✅ Fetch Genes by Trait
 export const fetchGenesByTrait = async (traitName, referenceGenome) => {
@@ -303,3 +322,37 @@ export const fetchPhenotypesData = async (params = {}) => {
         throw formatErrorForThrowing(error);
     }
 }
+
+/**
+ * @desc Fetch gene features within a specific genomic region
+ * @param {string} referenceGenome - The selected reference genome name
+ * @param {string} chromosome - The selected chromosome/contig name (optional)
+ * @param {string|number} start - The start position (required)
+ * @param {string|number} end - The end position (required)
+ * @returns {Promise<Array>} - Promise resolving to an array of feature objects
+ */
+export const fetchFeaturesByRegion = async (referenceGenome, chromosome, start, end) => {
+    // Basic validation on frontend
+    if (!referenceGenome || start === '' || start === null || end === '' || end === null ) {
+         console.error("API fetchFeaturesByRegion: Missing required parameters", {referenceGenome, start, end});
+         throw new Error("Reference Genome, Start position, and End position are required for region search.");
+    }
+    try {
+        // Calls GET /api/genetic-features/by-region?referenceGenome=...&chromosome=...&start=...&end=...
+        console.log(`API: Fetching features for region: ${referenceGenome}, ${chromosome || 'any chr'}, ${start}-${end}`);
+        const response = await API.get("/api/genetic-features/by-region", { // Assuming endpoint under genetic-features
+            params: { // Send parameters as query string
+                referenceGenome,
+                // Send chromosome only if it has a value (not empty string)
+                chromosome: chromosome || undefined,
+                start,
+                end
+             }
+        });
+        console.log("API: Received features by region:", response.data);
+        return response.data || []; // Ensure array is returned
+    } catch (error) {
+        console.error("Error fetching features by region:", error);
+        throw formatErrorForThrowing(error); // Use your error helper
+    }
+};

@@ -4,17 +4,15 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
     fetchTraits,
     fetchReferenceGenomes,
-    fetchFeaturesByGeneName, // Used for Annotation and Gene Name search
-    fetchGenesByTrait,       // Used for Trait search
-    fetchGeneDetailsByNameAndGenome,
-    fetchChromosomeRange,    // Used for Region search range display
-    fetchChromosomes         // Used for Region chromosome dropdown
-    // NEW function needed for Region search results: fetchFeaturesByRegion
-    // Example: import { fetchFeaturesByRegion } from '../api';
-    // Example: import { searchBySnpList } from '../api';
-    // Example: import { searchByLocusList } from '../api';
+    fetchFeaturesByGeneName,         // Used for Annotation and Gene Name search
+    fetchGenesByTrait,               // Used for Trait search
+    fetchGeneDetailsByNameAndGenome, // Used for Modal
+    fetchChromosomeRange,            // Used for Region search range display
+    fetchChromosomes,                // Used for Region chromosome dropdown
+    fetchFeaturesByRegion,          // <-- Import NEW function for Region search results
+    searchFeaturesByText
 } from "../api"; // Adjust path if necessary
-import { useAuth } from '../context/AuthContext'; // Keep useAuth
+import { useAuth } from '../context/AuthContext'; // Keep useAuth for potential future use
 import GeneDetailModal from '../components/GeneDetailModal'; // Adjust path if necessary
 import "./GeneLoci.css"; // Adjust path if necessary
 // Import Icons
@@ -36,28 +34,25 @@ const FormInputSection = ({ isVisible, children }) => {
 };
 
 const GeneLoci = () => {
-    const { isAuthenticated } = useAuth(); // Keep for potential future use
+    const { isAuthenticated } = useAuth(); // Get auth status (keep for future use)
 
     // --- State Variables ---
-    const [searchBy, setSearchBy] = useState("geneName"); // Default search type
+    const [searchBy, setSearchBy] = useState("geneName"); // Renamed, default search type
 
-    // State for specific input values
-    const [searchQuery, setSearchQuery] = useState("");       // For Annotation, Gene Name
-    const [searchMethod, setSearchMethod] = useState("substring"); // For Annotation, Gene Name
+    // State for Annotation/Gene Name search
+    const [searchQuery, setSearchQuery] = useState("");
+    const [searchMethod, setSearchMethod] = useState("substring");
 
+    // State for Trait search
     const [traitsList, setTraitsList] = useState([]);
     const [selectedCategory, setSelectedCategory] = useState("");
     const [selectedTrait, setSelectedTrait] = useState("");
-    const [loadingTraits, setLoadingTraits] = useState(false); // Specific loading state for traits list
-    const [traitDetails, setTraitDetails] = useState(null); // For displaying trait description
+    const [loadingTraits, setLoadingTraits] = useState(false);
+    const [traitDetails, setTraitDetails] = useState(null);
 
     // State specific to Region search
-    const [regionData, setRegionData] = useState({
-        chromosome: '',
-        start: '',
-        end: ''
-    });
-    const [chromosomeOptions, setChromosomeOptions] = useState([]); // Chromosomes for dropdown
+    const [regionData, setRegionData] = useState({ chromosome: '', start: '', end: '' });
+    const [chromosomeOptions, setChromosomeOptions] = useState([]);
 
     // Reference Genome state
     const [referenceGenomes, setReferenceGenomes] = useState([]);
@@ -65,12 +60,11 @@ const GeneLoci = () => {
 
     // Combined loading state for initial dropdown fetches
     const [loadingOptions, setLoadingOptions] = useState({
-        referenceGenomes: true, // Start true
-        // traits loading is handled by loadingTraits state
-        chromosomes: false      // Start false, only true when Region selected
+        referenceGenomes: true,
+        chromosomes: false // Only true when region is selected
     });
     // State for dropdown loading errors
-    const [optionsError, setOptionsError] = useState(''); // General error for initial loads
+    const [optionsError, setOptionsError] = useState('');
 
     // State for Chromosome Range specific loading/error
     const [chromosomeRange, setChromosomeRange] = useState({ minPosition: null, maxPosition: null });
@@ -79,30 +73,28 @@ const GeneLoci = () => {
 
     // Results & UI state
     const [results, setResults] = useState([]); // Combined results state
-    const [loading, setLoading] = useState(false); // Main search loading
-    const [loadingDetails, setLoadingDetails] = useState(false); // Modal loading
+    const [loading, setLoading] = useState(false);
+    const [loadingDetails, setLoadingDetails] = useState(false);
     const [errorMessage, setErrorMessage] = useState(""); // Search specific errors
     const [showResultsArea, setShowResultsArea] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedGeneData, setSelectedGeneData] = useState(null);
-    const [expandedSections, setExpandedSections] = useState({ queryDetails: true, resultsTable: true }); // Keep summary open by default
+    const [expandedSections, setExpandedSections] = useState({ queryDetails: true, resultsTable: true });
 
 
     // --- Data Fetching Effects ---
     // Fetch Reference Genomes
     useEffect(() => {
         const loadGenomes = async () => {
-            setLoadingOptions(prev => ({ ...prev, referenceGenomes: true }));
-            setErrorMessage(""); setOptionsError('');
+            setLoadingOptions(prev => ({ ...prev, referenceGenomes: true })); setErrorMessage(""); setOptionsError('');
             try {
-                const genomes = await fetchReferenceGenomes();
-                setReferenceGenomes(genomes || []);
+                const genomes = await fetchReferenceGenomes(); setReferenceGenomes(genomes || []);
                 if (genomes && genomes.length > 0) setReferenceGenome(genomes[0]);
-            } catch (error) { setOptionsError("Could not load reference genomes."); console.error(error); } // Set specific error
+            } catch (error) { setOptionsError("Could not load reference genomes."); console.error(error); }
             finally { setLoadingOptions(prev => ({ ...prev, referenceGenomes: false })); }
         };
         loadGenomes();
-    }, []); // Run once
+    }, []);
 
     // Fetch Traits
     useEffect(() => {
@@ -110,38 +102,26 @@ const GeneLoci = () => {
             const loadTraits = async () => {
                 setLoadingTraits(true); setTraitsList([]); setErrorMessage(""); setOptionsError('');
                 setSelectedCategory(""); setSelectedTrait(""); setTraitDetails(null);
-                try {
-                    const traits = await fetchTraits(); setTraitsList(traits || []);
-                } catch (error) { setOptionsError("Could not load traits list."); setTraitsList([]); console.error(error); } // Set specific error
+                try { const traits = await fetchTraits(); setTraitsList(traits || []); }
+                catch (error) { setOptionsError("Could not load traits list."); setTraitsList([]); console.error(error); }
                 finally { setLoadingTraits(false); }
             };
             loadTraits();
-        } else {
-            // Clear trait state if switching away
-            setSelectedCategory(""); setSelectedTrait(""); setTraitDetails(null); setTraitsList([]); setLoadingTraits(false);
-        }
+        } else { setSelectedCategory(""); setSelectedTrait(""); setTraitDetails(null); setTraitsList([]); setLoadingTraits(false); }
     }, [searchBy]);
 
      // Fetch Chromosomes
      useEffect(() => {
         if (searchBy === "region") {
             const loadChromosomes = async () => {
-                setLoadingOptions(prev => ({ ...prev, chromosomes: true }));
-                setErrorMessage(""); setOptionsError(''); setChromosomeOptions([]);
-                try {
-                    const chroms = await fetchChromosomes();
-                    setChromosomeOptions(Array.isArray(chroms) ? chroms : []);
-                } catch (error) { setOptionsError("Could not load chromosomes."); console.error(error); } // Set specific error
+                setLoadingOptions(prev => ({ ...prev, chromosomes: true })); setErrorMessage(""); setOptionsError(''); setChromosomeOptions([]);
+                try { const chroms = await fetchChromosomes(); setChromosomeOptions(Array.isArray(chroms) ? chroms : []); }
+                catch (error) { setOptionsError("Could not load chromosomes."); console.error(error); }
                 finally { setLoadingOptions(prev => ({ ...prev, chromosomes: false })); }
             };
             loadChromosomes();
-        } else {
-             // Clear region specific data if switching away
-             setRegionData(prev => ({ ...prev, chromosome: '' })); // Clear selected chromosome
-             setChromosomeOptions([]);
-             setLoadingOptions(prev => ({ ...prev, chromosomes: false })); // Ensure loading is false
-        }
-    }, [searchBy]); // Dependency: searchBy
+        } else { setRegionData(prev => ({ ...prev, chromosome: '' })); setChromosomeOptions([]); setLoadingOptions(prev => ({ ...prev, chromosomes: false })); }
+    }, [searchBy]);
 
     // Fetch Chromosome Range
     useEffect(() => {
@@ -151,21 +131,16 @@ const GeneLoci = () => {
                 try {
                     const rangeData = await fetchChromosomeRange(regionData.chromosome, referenceGenome);
                     setChromosomeRange(rangeData || { minPosition: null, maxPosition: null });
-                    if (!rangeData || rangeData.minPosition === null) {
-                         setRangeError(`No range data found for ${regionData.chromosome}.`);
-                    }
+                    if (!rangeData || rangeData.minPosition === null) setRangeError(`No range data found.`);
                 } catch (error) { setRangeError(`Failed to fetch range.`); }
                 finally { setLoadingRange(false); }
-            } else {
-                setChromosomeRange({ minPosition: null, maxPosition: null });
-                setRangeError(''); setLoadingRange(false);
-            }
+            } else { setChromosomeRange({ minPosition: null, maxPosition: null }); setRangeError(''); setLoadingRange(false); }
         };
         getRange();
-    }, [regionData.chromosome, referenceGenome, searchBy]); // Dependencies
+    }, [regionData.chromosome, referenceGenome, searchBy]);
 
 
-    // --- Derived State for Trait Dropdowns ---
+    // --- Derived State ---
     const traitCategories = useMemo(() => {
         if (!traitsList || traitsList.length === 0) return [];
         const categories = new Set(traitsList.map(trait => trait.category || 'Uncategorized'));
@@ -174,98 +149,57 @@ const GeneLoci = () => {
 
     const filteredTraitNames = useMemo(() => {
         if (!selectedCategory || !traitsList || traitsList.length === 0) return [];
-        return traitsList
-            .filter(trait => (trait.category || 'Uncategorized') === selectedCategory)
-            .map(trait => trait.traitName)
-            .sort();
+        return traitsList.filter(trait => (trait.category || 'Uncategorized') === selectedCategory).map(trait => trait.traitName).sort();
     }, [selectedCategory, traitsList]);
 
 
     // --- Event Handlers ---
     const handleReset = () => {
-        setSearchBy("geneName");
-        setSearchQuery(""); setSearchMethod("substring");
+        setSearchBy("geneName"); setSearchQuery(""); setSearchMethod("substring");
         setSelectedCategory(""); setSelectedTrait(""); setTraitDetails(null);
-        // Removed list inputs from reset
         setRegionData({ chromosome: '', start: '', end: '' });
         setResults([]); setErrorMessage(""); setLoading(false); setLoadingDetails(false);
         setShowResultsArea(false); setIsModalOpen(false); setSelectedGeneData(null);
         setExpandedSections({ queryDetails: true, resultsTable: true });
         setChromosomeRange({ minPosition: null, maxPosition: null }); setLoadingRange(false); setRangeError('');
-        setOptionsError(''); // Clear options error on reset too
-        // Optionally reset reference genome to first in list if desired
-        // setReferenceGenome(referenceGenomes.length > 0 ? referenceGenomes[0] : "");
+        setOptionsError('');
     };
 
-     // Handler for category selection
-     const handleCategoryChange = (e) => {
-        setSelectedCategory(e.target.value);
-        setSelectedTrait(""); // Reset trait name when category changes
-        setTraitDetails(null); // Clear details as well
-     };
-
-    // Handler for trait name selection
-    const handleTraitNameChange = (e) => {
-        const traitName = e.target.value;
-        setSelectedTrait(traitName);
-         // Find and set details for the selected trait immediately (optional display in form)
-        const detail = traitsList.find(t => t.traitName === traitName);
-        setTraitDetails(detail || null);
-    };
-
-    // Update search query input (for Annotation / Gene Name)
+    const handleCategoryChange = (e) => { setSelectedCategory(e.target.value); setSelectedTrait(""); setTraitDetails(null); };
+    const handleTraitNameChange = (e) => { const tn = e.target.value; setSelectedTrait(tn); setTraitDetails(traitsList.find(t => t.traitName === tn) || null); };
     const handleQueryInputChange = (e) => { setSearchQuery(e.target.value); };
-    // Update region data inputs (chromosome, start, end)
-    const handleRegionInputChange = (e) => {
-        const { name, value } = e.target;
-        setRegionData(prev => ({ ...prev, [name]: value }));
-    };
-    // Update search method (for Annotation / Gene Name)
+    const handleRegionInputChange = (e) => { const { name, value } = e.target; setRegionData(prev => ({ ...prev, [name]: value })); };
     const handleSearchMethodChange = (e) => { setSearchMethod(e.target.value); };
 
-    // Main Search Handler
+    // Main Search Handler - Updated API Calls
     const handleSearch = useCallback(async () => {
         let isValid = true; setErrorMessage("");
-        let alertMessage = ""; // Declare alertMessage
+        let alertMessage = "";
 
         if (!referenceGenome) { setErrorMessage("Please select a Reference Genome."); isValid = false; }
 
-        // Validation based on selected search type
         switch(searchBy) {
-            case "annotation":
-            case "geneName":
-                if (!searchQuery.trim()) { alertMessage = `Please enter search term for ${searchBy}.`; isValid = false; break; }
-                isValid = true; // Only requirement is search term
-                break;
+            case "annotation": case "geneName":
+                if (!searchQuery.trim()) { alertMessage = `Please enter search term.`; isValid = false; break; }
+                isValid = true; break;
             case "trait":
                 if (!selectedCategory) { alertMessage = "Please select Trait Category."; isValid = false; break; }
                 if (!selectedTrait) { alertMessage = "Please select Trait Name."; isValid = false; break; }
-                 isValid = true;
-                break;
+                isValid = true; break;
             case "region":
-                let regionValid = false; // Use local scope for region check
+                let regionValid = false;
                 if (!regionData.start || !regionData.end) { alertMessage = "Position Start and Position End are required for Region search."; break; }
-                const startPos = parseInt(regionData.start, 10);
-                const endPos = parseInt(regionData.end, 10);
+                const startPos = parseInt(regionData.start, 10); const endPos = parseInt(regionData.end, 10);
                 if (isNaN(startPos) || isNaN(endPos) || startPos < 0 || startPos > endPos) { alertMessage = "Invalid Start/End position provided."; break; }
-                if (regionData.chromosome) { // Range validation only if chromosome is selected
+                if (regionData.chromosome) {
                     if (chromosomeRange.minPosition !== null && startPos < chromosomeRange.minPosition) { alertMessage = `Start must be >= ${chromosomeRange.minPosition.toLocaleString()}.`; break; }
                     if (chromosomeRange.maxPosition !== null && endPos > chromosomeRange.maxPosition) { alertMessage = `End must be <= ${chromosomeRange.maxPosition.toLocaleString()}.`; break; }
                 }
-                regionValid = true;
-                isValid = regionValid; // Set overall validity
-                break;
-            // Removed list types
-            default:
-                isValid = false;
-                alertMessage = "Invalid search type selected.";
+                regionValid = true; isValid = regionValid; break;
+            default: isValid = false; alertMessage = "Invalid search type.";
         }
 
-        // Show alert if validation failed
-        if (!isValid) {
-            alert(alertMessage || errorMessage || "Validation failed."); // Show specific message if available
-            return;
-        }
+        if (!isValid) { alert(alertMessage || errorMessage || "Validation failed."); return; }
 
         setLoading(true); setShowResultsArea(true); setResults([]);
         setExpandedSections(prev => ({ ...prev, queryDetails: true, resultsTable: true }));
@@ -275,13 +209,19 @@ const GeneLoci = () => {
              if (searchBy === "trait") {
                  fetchedResults = await fetchGenesByTrait(selectedTrait, referenceGenome);
              } else if (searchBy === "annotation" || searchBy === "geneName") {
-                  fetchedResults = await fetchFeaturesByGeneName(searchQuery, referenceGenome, searchMethod);
+                  // Pass searchMethod (renamed from searchType)
+                  // Pass searchBy to indicate if querying 'annotation' or 'geneName' field
+                  fetchedResults = await searchFeaturesByText(searchQuery, referenceGenome, searchMethod, searchBy);
               } else if (searchBy === "region") {
-                  console.warn("API call for Region search (fetchFeaturesByRegion) not implemented yet.");
-                   // fetchedResults = await fetchFeaturesByRegion(referenceGenome, regionData.chromosome, regionData.start, regionData.end);
-                   fetchedResults = []; // Placeholder
+                   // Call the new API function for region search
+                   fetchedResults = await fetchFeaturesByRegion(
+                       referenceGenome,
+                       regionData.chromosome,
+                       regionData.start,
+                       regionData.end
+                   );
                }
-             setResults(fetchedResults || []); // Ensure results is always an array
+             setResults(fetchedResults || []);
         } catch (error) {
             setErrorMessage(error?.message || "An error occurred during the search.");
             console.error("Search error:", error);
@@ -290,23 +230,19 @@ const GeneLoci = () => {
             setLoading(false);
         }
     // Update dependencies
-    }, [referenceGenome, searchBy, searchQuery, searchMethod, selectedCategory, selectedTrait, traitsList, regionData, chromosomeRange]); // Removed isAuthenticated, list inputs
+    }, [referenceGenome, searchBy, searchQuery, searchMethod, selectedCategory, selectedTrait, traitsList, regionData, chromosomeRange]);
 
 
     // --- Modal Handlers ---
     const handleGeneClick = useCallback(async (geneItem) => {
         if (loadingDetails || !geneItem?.geneName || !geneItem?.referenceGenome) return;
         setLoadingDetails(true); setErrorMessage("");
-        console.log(`Workspaceing details for: ${geneItem.geneName} (${geneItem.referenceGenome})`);
         try {
             const detailedData = await fetchGeneDetailsByNameAndGenome(geneItem.geneName, geneItem.referenceGenome);
             if (detailedData) { setSelectedGeneData(detailedData); setIsModalOpen(true); }
             else { setErrorMessage(`Could not find complete details for ${geneItem.geneName}.`); setSelectedGeneData(null); setIsModalOpen(false); }
-        } catch (error) {
-            console.error("Error fetching gene details:", error);
-            setErrorMessage(error.message || "Failed to load gene details.");
-            setSelectedGeneData(null); setIsModalOpen(false);
-        } finally { setLoadingDetails(false); }
+        } catch (error) { console.error("Error fetching gene details:", error); setErrorMessage(error.message || "Failed to load gene details."); setSelectedGeneData(null); setIsModalOpen(false); }
+        finally { setLoadingDetails(false); }
     }, [loadingDetails]);
 
     const handleCloseModal = () => { setIsModalOpen(false); setSelectedGeneData(null); };
@@ -314,7 +250,7 @@ const GeneLoci = () => {
     const handleKeyDown = (e) => { if (e.key === 'Enter' && (searchBy === 'annotation' || searchBy === 'geneName')) handleSearch(); };
 
     // Determine display data
-    const displayResults = results; // Simplified
+    const displayResults = results;
     const hasResults = Array.isArray(displayResults) && displayResults.length > 0;
 
 
@@ -338,24 +274,14 @@ const GeneLoci = () => {
          return <option disabled>Invalid options data</option>;
     };
 
-    // --- ADD CONSOLE LOG FOR DEBUGGING DISABLED STATE ---
-    // Combine all relevant loading states to determine button disable status
-    const isSearchDisabled = loading || loadingOptions.referenceGenomes || loadingDetails || loadingTraits || loadingOptions.chromosomes;
-    console.log("RENDER - Loading States:", {
-        loading,
-        loadingGenomes: loadingOptions.referenceGenomes,
-        loadingTraits,
-        loadingChromosomes: loadingOptions.chromosomes,
-        loadingDetails,
-        isButtonDisabled: isSearchDisabled
-    });
-    // --- END LOG ---
+    // Calculate if search button should be disabled based on loading states
+    const isSearchDisabled = loading || loadingOptions.referenceGenomes || loadingDetails || loadingTraits || loadingOptions.chromosomes || loadingRange;
 
 
     return (
         <div className={`gene-loci-container ${isModalOpen ? 'modal-open' : ''} ${loadingDetails ? 'details-loading' : ''}`}>
             <div className="content-wrapper">
-                <h1 className="page-title"> <FaSearchLocation className="title-icon" /> Search by Gene Loci </h1>
+                <h1 className="page-title"> <FaSearchLocation className="title-icon" /> Search Gene Features </h1>
                 <div className="main-content-area">
                     {/* --- Search Form Card --- */}
                     <div className="search-form-card">
@@ -378,12 +304,11 @@ const GeneLoci = () => {
                                 <label htmlFor="searchBySelect"><FaSearch /> Search By</label>
                                 <div className="select-wrapper">
                                    <select id="searchBySelect" value={searchBy} onChange={(e) => setSearchBy(e.target.value)} disabled={loading} className="styled-select">
-                                        {/* Updated Options */}
+                                        {/* Simplified Options */}
                                         <option value="annotation">Annotation</option>
                                         <option value="geneName">Gene Name/Symbol/Function</option>
                                         <option value="trait">Trait</option>
                                         <option value="region">Region</option>
-                                         {/* Removed other options */}
                                    </select>
                                    <i className="fas fa-chevron-down select-icon"><FaChevronDown/></i>
                                  </div>
@@ -446,7 +371,7 @@ const GeneLoci = () => {
                                             <label htmlFor="regionChromosome">Chromosome</label>
                                             <select id="regionChromosome" name="chromosome" value={regionData.chromosome} onChange={handleRegionInputChange} disabled={loadingOptions.chromosomes || !!optionsError || loading} >
                                                 {loadingOptions.chromosomes ? ( <LoadingOption text="Loading..." /> )
-                                                : optionsError && chromosomeOptions.length === 0 ? ( <option value="" disabled>Error loading</option> )
+                                                : optionsError && chromosomeOptions.length === 0 ? ( <option value="" disabled>Error</option> ) // Simplified error
                                                 : ( <> <option value="">Any Chromosome</option> {renderOptions(chromosomeOptions)} </> )}
                                             </select>
                                         </div>
@@ -475,7 +400,7 @@ const GeneLoci = () => {
                                 </>
                             </FormInputSection>
 
-                            {/* Removed SNP/Locus List Sections */}
+                            {/* Removed SNP/Locus List Inputs */}
 
                             {/* Error Message Display */}
                             {errorMessage && ( <div className="error-message"> <FaExclamationTriangle /> <span>{errorMessage}</span> </div> )}
@@ -483,7 +408,6 @@ const GeneLoci = () => {
                             {/* Action Buttons */}
                             <div className="form-actions">
                                 <button type="button" className="secondary-btn clear-btn" onClick={handleReset} disabled={loading || loadingDetails}> <FaEraser /> Clear Form </button>
-                                {/* Use the calculated isSearchDisabled variable */}
                                 <button type="button" className="primary-btn search-btn" onClick={handleSearch} disabled={isSearchDisabled}>
                                     {loading ? ( <> <span className="spinner small-spinner"></span> Searching... </> ) : ( <> <FaSearch /> Search </> )}
                                 </button>
