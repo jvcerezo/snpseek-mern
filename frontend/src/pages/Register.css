@@ -67,12 +67,9 @@
 }
 
 /* Register Header (Consistent with Login) */
-.register-header { text-align: center; margin-bottom: 1.8rem; } /* Slightly less margin */
+.register-header { text-align: center; margin-bottom: 1.8rem; }
 .logo-container { margin-bottom: 1rem; }
-.logo-link {
-  display: inline-flex; align-items: center; gap: 0.6rem; text-decoration: none;
-  color: var(--accent-primary); font-size: 1.6rem; font-weight: 600;
-}
+.logo-link { display: inline-flex; align-items: center; gap: 0.6rem; text-decoration: none; color: var(--accent-primary); font-size: 1.6rem; font-weight: 600; }
 .logo-icon { font-size: 1.8rem; }
 .register-title { color: var(--text-secondary); font-size: 1.4rem; margin: 0 0 0.25rem 0; font-weight: 600; }
 .register-subtitle { color: var(--text-muted); font-size: 0.95rem; margin: 0; }
@@ -80,33 +77,67 @@
 /* --- Form Styling --- */
 .register-form { display: flex; flex-direction: column; gap: 1rem; }
 
-/* Input Group (Using Login's themed styles) */
+/* Input Group Styling */
 .input-group { margin-bottom: 0.5rem; }
-.input-group.floating label { /* Floating label */
-    position: absolute; top: 50%; left: 40px; transform: translateY(-50%);
-    color: var(--text-muted); font-size: 0.95rem; pointer-events: none;
-    transition: all 0.2s ease; background: var(--background-primary); padding: 0 4px;
-}
 .input-wrapper { position: relative; display: flex; align-items: center; }
+
 .input-icon-prefix {
     position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
     color: var(--text-muted); line-height: 0; transition: color var(--transition-speed) ease;
+    z-index: 1; /* Keep icon below floated label */
 }
-.input-group input {
-  width: 100%; padding: 0.9rem 1rem 0.9rem 40px; background-color: var(--background-primary);
-  color: var(--text-primary); border: 1px solid var(--border-color-light);
-  border-radius: var(--border-radius); font-size: 0.95rem;
+
+/* Default state for floating label */
+.input-group.floating label {
+    position: absolute; top: 50%; left: 40px; transform: translateY(-50%);
+    color: var(--text-muted); font-size: 0.95rem; pointer-events: none;
+    transition: all 0.2s ease;
+    background: var(--background-primary); /* MODIFIED: Match input background */
+    padding: 0 4px;
+    z-index: 1; /* Below input border initially */
+}
+
+/* Input Styling (Increased Specificity + !important padding) */
+.register-form .input-group .input-wrapper input[type="text"],
+.register-form .input-group .input-wrapper input[type="email"],
+.register-form .input-group .input-wrapper input[type="password"] {
+  width: 100%;
+  padding-top: 0.9rem !important;
+  padding-right: 1rem !important; /* Default right padding */
+  padding-bottom: 0.9rem !important;
+  padding-left: 40px !important; /* Force left padding */
+
+  background-color: var(--background-primary); /* Input background */
+  color: var(--text-primary);
+  border: 1px solid var(--border-color-light);
+  border-radius: var(--border-radius);
+  font-size: 0.95rem;
   transition: border-color var(--transition-speed) ease;
+  box-sizing: border-box;
 }
+.register-form .input-group .input-wrapper input[type="password"] {
+    padding-right: 40px !important; /* Force padding for toggle */
+}
+
+/* Input Focus State */
 .input-group input:focus {
   outline: none; border-color: var(--accent-primary);
   box-shadow: 0 0 0 2px rgba(100, 255, 218, 0.2);
 }
-.input-group input:disabled { background-color: var(--background-tertiary); opacity: 0.6; cursor: not-allowed; }
-/* Floating Label Interaction */
+/* Input Disabled State */
+.input-group input:disabled {
+  background-color: var(--background-tertiary);
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Floating Label Interaction State */
 .input-group.floating input:focus + label,
 .input-group.floating input:not(:placeholder-shown) + label {
-  top: 0; transform: translateY(-50%) scale(0.85); color: var(--accent-primary);
+  top: 0; transform: translateY(-50%) scale(0.85);
+  color: var(--accent-primary);
+  background: var(--background-primary); /* MODIFIED: Match input background */
+  z-index: 2; /* Bring label above input border */
 }
 
 /* Password Toggle Button */
@@ -114,69 +145,29 @@
   position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
   background: transparent; border: none; color: var(--text-muted); cursor: pointer;
   padding: 0.25rem; line-height: 0; transition: color var(--transition-speed) ease;
+  z-index: 2; /* Above input */
 }
 .password-toggle-btn:hover, .password-toggle-btn:focus { color: var(--accent-primary); outline: none; }
 .password-toggle-btn:disabled { cursor: not-allowed; opacity: 0.5; }
 
 /* Password Strength Indicator */
-.password-strength {
-  display: flex;
-  align-items: center;
-  gap: 8px; /* Smaller gap */
-  margin-top: 0.4rem; /* Space above indicator */
-  height: 10px; /* Total height including text */
-}
-.strength-bar {
-  height: 5px; /* Bar height */
-  flex-grow: 1;
-  background: var(--background-tertiary); /* Darker background */
-  border-radius: 3px;
-  overflow: hidden;
-  position: relative;
-}
-/* Themed strength bar fill */
-.strength-bar::after {
-  content: ''; position: absolute; left: 0; top: 0; height: 100%;
-  width: 0%; /* Start at 0 */
-  background-color: var(--error-color); /* Default to weak */
-  border-radius: 3px;
-  transition: width 0.3s ease, background-color 0.3s ease;
-}
+.password-strength { display: flex; align-items: center; gap: 8px; margin-top: 0.4rem; height: 10px; }
+.strength-bar { height: 5px; flex-grow: 1; background: var(--background-tertiary); border-radius: 3px; overflow: hidden; position: relative; }
+.strength-bar::after { content: ''; position: absolute; left: 0; top: 0; height: 100%; width: 0%; background-color: var(--error-color); border-radius: 3px; transition: width 0.3s ease, background-color 0.3s ease; }
 .strength-bar.weak::after { width: 25%; background-color: var(--error-color); }
 .strength-bar.medium::after { width: 65%; background-color: var(--warning-color); }
 .strength-bar.strong::after { width: 100%; background-color: var(--success-color); }
-
-.strength-text {
-  color: var(--text-muted);
-  font-size: 0.75rem; /* Smaller text */
-  min-width: 50px; /* Fixed width */
-  text-align: right;
-  font-weight: 500;
-  transition: color 0.3s ease;
-}
-/* Change text color based on strength */
+.strength-text { color: var(--text-muted); font-size: 0.75rem; min-width: 50px; text-align: right; font-weight: 500; transition: color 0.3s ease; }
 .password-strength .weak { color: var(--error-color); }
 .password-strength .medium { color: var(--warning-color); }
 .password-strength .strong { color: var(--success-color); }
 
 
 /* Error Message (Consistent with Login) */
-.error-message.register-error {
-  color: var(--error-color); font-size: 0.9rem; margin-bottom: 0.5rem; padding: 0.7rem 1rem;
-  background-color: var(--error-background); border-radius: var(--border-radius);
-  border: 1px solid rgba(255, 123, 123, 0.3); border-left: 3px solid var(--error-color);
-  display: flex; align-items: center; gap: 0.6rem;
-}
+.error-message.register-error { color: var(--error-color); font-size: 0.9rem; margin-bottom: 0.5rem; padding: 0.7rem 1rem; background-color: var(--error-background); border-radius: var(--border-radius); border: 1px solid rgba(255, 123, 123, 0.3); border-left: 3px solid var(--error-color); display: flex; align-items: center; gap: 0.6rem; }
 
 /* Register Button (Using Primary Style) */
-.register-button {
-  width: 100%; margin-top: 1rem; /* Space above button */
-   /* Inherit from .primary-btn via component className */
-   /* Optional: Keep gradient if preferred, using theme colors */
-   /* background: linear-gradient(135deg, var(--accent-primary-dark), var(--accent-primary)); */
-   /* color: var(--background-primary); */
-   /* border: none; */
-}
+.register-button { width: 100%; margin-top: 1rem; }
 
 /* --- Divider (Consistent with Login) --- */
 .divider { display: flex; align-items: center; margin: 1.5rem 0; color: var(--text-muted); font-size: 0.85rem; text-transform: uppercase; }
@@ -185,21 +176,49 @@
 
 /* --- Social Login (Consistent with Login) --- */
 .social-login { display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1.5rem; }
-.social-button {
-  width: 100%; justify-content: center; /* Center content */
-  /* Inherit from .secondary-btn via component className */
-}
+.social-button { width: 100%; justify-content: center; }
 .social-button .social-icon { font-size: 1.1em; }
 .social-button.google:hover { background-color: #4285F4; color: white; border-color: #4285F4;}
 .social-button.github:hover { background-color: #333; color: white; border-color: #333;}
 
+/* --- Registration Success Message --- */
+.registration-success-message {
+  text-align: center;
+  padding: 2rem 1rem; /* Add padding */
+}
+
+.registration-success-message .success-icon {
+  font-size: 3.5rem; /* Larger icon */
+  color: var(--success-color); /* Use theme success color */
+  margin-bottom: 1rem;
+}
+
+.registration-success-message h3 {
+  color: var(--text-primary); /* Primary text color for heading */
+  font-size: 1.4rem;
+  margin-bottom: 0.5rem;
+}
+
+.registration-success-message p {
+  color: var(--text-secondary); /* Secondary text color */
+  font-size: 1rem;
+  line-height: 1.6;
+  margin-bottom: 1.5rem;
+}
+
+.go-to-login-btn {
+  /* Uses primary-btn styles, add margin if needed */
+  margin-top: 1rem;
+  display: inline-flex; /* Ensure button doesn't stretch full width unless intended */
+  width: auto; /* Allow button to size to content */
+  padding-left: 2rem; /* Adjust padding */
+  padding-right: 2rem;
+}
+
 /* --- Footer --- */
 .register-footer { margin-top: 1.5rem; text-align: center; }
 .login-text { color: var(--text-muted); font-size: 0.95rem; }
-.login-link {
-  color: var(--accent-primary); text-decoration: none; font-weight: 600;
-  transition: all var(--transition-speed) ease; display: inline-flex; align-items: center; gap: 0.4rem;
-}
+.login-link { color: var(--accent-primary); text-decoration: none; font-weight: 600; transition: all var(--transition-speed) ease; display: inline-flex; align-items: center; gap: 0.4rem; }
 .login-link:hover { text-decoration: underline; color: var(--accent-primary-hover); }
 
 /* Spinner (Consistent with Login) */
@@ -213,8 +232,19 @@
   .register-card { padding: 1.5rem; }
   .logo-text { font-size: 1.5rem; }
   .register-title { font-size: 1.2rem; }
-  .input-group input { padding: 0.8rem 1rem 0.8rem 40px; }
-  .input-group.floating label { font-size: 0.9rem; left: 40px; }
+  /* Ensure specific padding rule applies on mobile too */
+  .register-form .input-group .input-wrapper input[type="text"],
+  .register-form .input-group .input-wrapper input[type="email"],
+  .register-form .input-group .input-wrapper input[type="password"] {
+      padding-top: 0.8rem !important; /* Adjusted mobile padding */
+      padding-bottom: 0.8rem !important;
+      padding-left: 40px !important;
+      padding-right: 1rem !important; /* Default right */
+  }
+  .register-form .input-group .input-wrapper input[type="password"] {
+      padding-right: 40px !important; /* Keep password right padding */
+  }
+  .input-group.floating label { font-size: 0.9rem; left: 40px; background: var(--background-primary); } /* Match bg */
   .input-group.floating input:focus + label,
-  .input-group.floating input:not(:placeholder-shown) + label { transform: translateY(-50%) scale(0.8); top: 0.4rem; }
+  .input-group.floating input:not(:placeholder-shown) + label { transform: translateY(-50%) scale(0.8); top: 0.4rem; background: var(--background-primary); } /* Match bg */
 }
