@@ -155,4 +155,26 @@ app.use((err, req, res, next) => {
     });
 });
 
+app.use(
+    `${API_BASE_URL}/PHG`, // Path: /api/PHG/...
+    proxy(process.env.PHG_SERVICE_URL, {
+        proxyReqPathResolver: (req) => {
+            return `${req.url}`; // To Service: /...
+        },
+        proxyReqOptDecorator: (proxyReqOpts, srcReq) => {
+            proxyReqOpts.headers["Content-Type"] = "application/json";
+            // Optional: Forward user info if needed by downstream service
+            // if (req.user) proxyReqOpts.headers['X-User-Id'] = req.user.id;
+            return proxyReqOpts;
+        },
+        proxyReqBodyDecorator: (bodyContent, srcReq) => {
+            return bodyContent ? JSON.stringify(bodyContent) : '{}';
+        },
+        proxyErrorHandler: (err, res, next) => {
+            console.error('Proxy Error (PHG Service):', err);
+            res.status(503).json({ message: 'PHG service unavailable' });
+        }
+    })
+);
+
 app.listen(PORT, () => console.log(`✅ API Gateway running on port ${PORT}`));

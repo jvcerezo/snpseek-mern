@@ -303,3 +303,46 @@ export const fetchPhenotypesData = async (params = {}) => {
         throw formatErrorForThrowing(error);
     }
 }
+
+// ✅ Fetch Features by Gene Name
+export const fetchDirectorySequences = async () => {
+    try {
+        // Gateway path: /api/PHG/by-gene-name
+        const response = await API.get("/api/PHG/get-directory-sequences");
+        return response.data;
+    } catch (error) {
+        throw formatErrorForThrowing(error);
+    }
+};
+
+
+// ✅ Fetch Features by Gene Name
+export const fetchDirectoryProjects = async () => {
+    try {
+        // Gateway path: /api/PHG/by-gene-name
+        const response = await API.get("/api/PHG/get-directory-projects");
+        return response.data;
+    } catch (error) {
+        throw formatErrorForThrowing(error);
+    }
+};
+
+export const fetchDirectoryAvailableGff = async () => {
+    try {
+        const response = await API.get("/api/PHG/get-available-gff");
+        return response.data;
+    } catch (error) {
+        throw formatErrorForThrowing(error);
+    }
+};
+
+export const fetchProjectsUpdatedAssemblies = async (Project_Name) => {
+    try {
+        const response = await API.get("/api/PHG/get-projects-updated-assemblies?",{
+            params: { Project_Name }
+        });
+        return response.data;
+    } catch (error) {
+        throw formatErrorForThrowing(error);
+    }
+};

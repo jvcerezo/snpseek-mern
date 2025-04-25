@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { fetchDirectorySequences,fetchDirectoryProjects, fetchDirectoryAvailableGff, fetchProjectsUpdatedAssemblies} from "../api"
 import {
     FaProjectDiagram, FaPlus, FaCog, FaCompressArrowsAlt, FaFileAlt, FaListOl, FaPencilAlt,
     FaRulerCombined, FaLink, FaVial, FaDatabase, FaFileCode, 
@@ -21,19 +22,48 @@ const simulateProcessing = (duration = 1500) => {
     });
 };
 
+const handleFiles = async (e) => {
+    e.preventDefault(); // Prevent default form submission
+//     setIsLoading(true);
+//     setError("");
+//     try {
+//         // Basic validation client-side
+//         if (!identifier || !password) {
+//             throw new Error("Username/Email and password are required.");
+//         }
+//         await login({ identifier, password }); // <-- 4. CALL context's login function
+//         console.log("Login component: Context login successful. Waiting for navigation effect...");
+
+
+//     } catch (err) {
+//          // Use err.message provided by the api.js error handling (passed through context)
+//         setError(err?.message || "Login failed. Please check credentials.");
+//         console.error("Login component error:", err);
+//     } finally {
+//         setIsLoading(false);
+//     }
+};
+
+
+
 const Pipeline = () => {
     // --- Global State ---
-    const [selectedProject, setSelectedProject] = useState('');
-    const [projects, setProjects] = useState(['Rice Genome Analysis', 'Wheat Variant Calling', 'Maize Transposon Study']);
+    const [selectedProject, setSelectedProject] = useState(localStorage.getItem('Project'));
+    // const [projects, setProjects] = useState(['Rice Genome Analysis', 'Wheat Variant Calling', 'Maize Transposon Study']);
+    const [projects, setProjects] = useState([]);
     const [isProcessing, setIsProcessing] = useState({}); // Track loading state for each step { stepId: boolean }
 
     // --- Mock Data (Replace with API calls based on selectedProject) ---
-    const availableSequences = ['japonica_chr1.fa', 'indica_chr1.fa', 'aus_chr1.fa', 'reference_genome_v5.fa', 'assembly_contigs.fasta'];
-    const availableGffs = ['japonica_genes.gff3', 'reference_genes.gff', 'predicted_models.gff'];
+    // const availableSequences = ['japonica_chr1.fa', 'indica_chr1.fa', 'aus_chr1.fa', 'reference_genome_v5.fa', 'assembly_contigs.fasta'];
+    const [availableSequences, setAvailableSequences] = useState([]);
+    const [updatedSequences, setUpdatedSequences] = useState([]);
+    // const availableGffs = ['japonica_genes.gff3', 'reference_genes.gff', 'predicted_models.gff']; 
+    const [availableGffs, setAvailableGffs] = useState([]);
     const availableBeds = ['promoter_regions.bed', 'repeat_mask.bed'];
     // Source files for steps (should be dynamically determined)
-    const sourcesForStep2 = availableSequences;
-    const sourcesForStep4Queries = availableSequences;
+
+    const sourcesForStep2 = updatedSequences;
+    const sourcesForStep4Queries = updatedSequences;
     const sourcesForStep5VCF = ['output_step4_alignment.bam', 'variants.vcf.gz'];
     const sourcesForStep6Load = ['output_step5.vcf.gz'];
 
@@ -62,6 +92,72 @@ const Pipeline = () => {
     const [step6_loadVcf, setStep6_loadVcf] = useState({
         vcfFileSource: '', status: null, message: '',
     });
+
+    //fethcing available sequences
+    useEffect(() => {
+        const fetchSequences = async () => {
+            try {
+                const response = await fetchDirectorySequences(); // Replace with your actual API endpoint
+                if (!(200 <= response.status_code < 400)) throw new Error("Failed to fetch sequences");
+                const data = await response; // Assuming the API returns a JSON array
+                setAvailableSequences(data.Files);
+            } catch (error) {
+                console.error("Error fetching sequences:", error);
+            }
+        };
+    
+        fetchSequences(); // Run on mount
+
+    }, []);
+
+    useEffect(() => {
+        const fetchProjects = async () => {
+            try {
+                const response = await fetchDirectoryProjects(); // Replace with your actual API endpoint
+                if (!(200 <= response.status_code < 400)) throw new Error("Failed to fetch projects");
+                const data = await response; // Assuming the API returns a JSON array
+                setProjects(data.Files);
+            } catch (error) {
+                console.error("Error fetching sequences:", error);
+            }
+        };
+    
+        fetchProjects(); // Run on mount
+
+    }, []);
+
+    useEffect(() => {
+        const fetchGffs = async () => {
+            try {
+                const response = await fetchDirectoryAvailableGff(); // Replace with your actual API endpoint
+                if (!(200 <= response.status_code < 400)) throw new Error("Failed to fetch projects");
+                const data = await response; // Assuming the API returns a JSON array
+                setAvailableGffs(data.Files);
+            } catch (error) {
+                console.error("Error fetching sequences:", error);
+            }
+        };
+    
+        fetchGffs(); // Run on mount
+
+    }, []);
+
+    useEffect(() => {
+        const fetchUpdatedAssemblies = async () => {
+            try {
+                const response = await fetchProjectsUpdatedAssemblies(selectedProject); // Replace with your actual API endpoint
+                if (!(200 <= response.status_code < 400)) throw new Error("Failed to fetch projects");
+                const data = await response; // Assuming the API returns a JSON array
+                setUpdatedSequences(data.Files);
+            } catch (error) {
+                console.error("Error fetching sequences:", error);
+            }
+        };
+    
+        fetchUpdatedAssemblies(); // Run on mount
+
+    }, [selectedProject]);
+
 
     // --- Handlers ---
     const handleCreateProject = () => {
@@ -171,7 +267,11 @@ const Pipeline = () => {
                     <select
                         className="themed-select project-select"
                         value={selectedProject}
-                        onChange={(e) => setSelectedProject(e.target.value)}
+                        onChange={(e) => {
+                            const selectedValue = e.target.value;
+                            setSelectedProject(selectedValue);
+                            localStorage.setItem('Project', selectedValue);
+                          }}
                     >
                         <option value="">Select Project...</option>
                         {projects.map(project => (
