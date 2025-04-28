@@ -82,27 +82,6 @@ const Header = () => {
                                 <FaSearch /><span>Dashboard</span>
                             </Link>
                         </li>
-
-                        {/* Pipeline Link - Conditional disabling */}
-                        <li
-                            className={!isAuthenticated ? 'disabled-nav-item' : ''} // Add class if not logged in
-                            title={!isAuthenticated ? disabledLinkMessage : undefined} // Add title if not logged in
-                        >
-                             <Link to="/pipeline" className={location.pathname === "/pipeline" ? "active" : ""}>
-                                 <FaProjectDiagram /><span>Pipeline</span>
-                             </Link>
-                         </li>
-
-                         {/* QC Metrics Link - Conditional disabling */}
-                         <li
-                            className={!isAuthenticated ? 'disabled-nav-item' : ''} // Add class if not logged in
-                            title={!isAuthenticated ? disabledLinkMessage : undefined} // Add title if not logged in
-                         >
-                              <Link to="/qc-metrics" className={location.pathname === "/qc-metrics" ? "active" : ""}>
-                                  <FaChartLine /><span>QC Metrics</span>
-                              </Link>
-                          </li>
-                        {/* Add other main navigation links here */}
                     </ul>
 
                     {/* Authentication Links/Buttons */}

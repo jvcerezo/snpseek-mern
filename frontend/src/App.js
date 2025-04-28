@@ -12,8 +12,8 @@ import GeneLoci from "./pages/GeneLoci";
 import Pipeline from "./pages/Pipeline";
 import GenotypeSearch from "./pages/GenotypeSearch";
 import AboutPage from "./pages/AboutPage";
-import QCMetricsPage from "./pages/QCMetricsPage";
 import ProtectedRoute from "./components/ProtectedRoute";
+import PHGVisualizationPage from "./pages/PHGVisualization";
 
 function App() {
 
@@ -33,11 +33,10 @@ function App() {
           <Route path="/search-gene-loci" element={<GeneLoci />} />
           <Route path="/pipeline" element={<ProtectedRoute><Pipeline /></ProtectedRoute>} />
           <Route path="/search-genotype" element={<GenotypeSearch />} />
+          <Route path="/phg-visualization" element={<ProtectedRoute><PHGVisualizationPage /></ProtectedRoute>} />
           <Route path="/about" element={<AboutPage />} />
-          <Route path="/qc-metrics" element={<ProtectedRoute><QCMetricsPage /></ProtectedRoute>} />
         </Routes>
       </main>
-      {/* Optional Footer component could go here */}
     </Router>
   );
 }

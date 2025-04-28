@@ -356,3 +356,5 @@ export const fetchFeaturesByRegion = async (referenceGenome, chromosome, start, 
         throw formatErrorForThrowing(error); // Use your error helper
     }
 };
+
+export default API;

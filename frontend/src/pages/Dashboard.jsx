@@ -55,11 +55,11 @@ const Dashboard = () => {
                           <button className="action-btn" onClick={() => handleNavigate("/search-genotype")}>
                               <FaSearch className="btn-icon" /><span>Search by Genotype</span>
                           </button>
-                           <button className="action-btn" onClick={() => handleNavigate("/search-variety")}>
-                               <FaSeedling className="btn-icon" /><span>Search by Variety</span>
-                           </button>
                            <button className="action-btn" onClick={() => handleNavigate("/search-gene-loci")}>
                                <FaFlask className="btn-icon" /><span>Search by Gene Loci</span>
+                           </button>
+                           <button className="action-btn" onClick={() => handleNavigate("/phg-visualization")}>
+                               <FaSeedling className="btn-icon" /><span>PHG Visualization</span>
                            </button>
 
                            {/* Analysis Pipeline Button - Conditional disabling */}
