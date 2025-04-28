@@ -13,6 +13,7 @@ import Pipeline from "./pages/Pipeline";
 import GenotypeSearch from "./pages/GenotypeSearch";
 import AboutPage from "./pages/AboutPage";
 import ProtectedRoute from "./components/ProtectedRoute";
+import MyLists from "./pages/MyLists";
 import PHGVisualizationPage from "./pages/PHGVisualization";
 
 function App() {
@@ -34,6 +35,7 @@ function App() {
           <Route path="/pipeline" element={<ProtectedRoute><Pipeline /></ProtectedRoute>} />
           <Route path="/search-genotype" element={<GenotypeSearch />} />
           <Route path="/phg-visualization" element={<ProtectedRoute><PHGVisualizationPage /></ProtectedRoute>} />
+          <Route path="/my-lists" element={<ProtectedRoute><MyLists /></ProtectedRoute>} />
           <Route path="/about" element={<AboutPage />} />
         </Routes>
       </main>

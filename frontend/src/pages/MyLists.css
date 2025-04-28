@@ -1,0 +1,176 @@
+/* MyLists.css - Styles specific to the MyLists component */
+
+/* --- Assumes theme variables are defined globally or in an imported base CSS file --- */
+/* Reference Variables (from PHGVisualization.css dark theme):
+:root { ... }
+*/
+
+/* --- Container and Layout --- */
+.my-lists-container {
+    padding: 2rem; /* Consistent padding */
+    width: 100%;
+    max-width: 1600px;
+    margin: 0 auto;
+    color: var(--phg-color-text-primary); /* Ensure default text color */
+}
+
+.phg-page-title { /* Reusing class from Pipeline.css for consistency */
+    font-family: var(--phg-font-primary);
+    color: var(--phg-color-accent-primary);
+    font-size: 2rem;
+    font-weight: 700;
+    margin: 0 0 2.5rem 0; /* Add bottom margin */
+    border-bottom: 1px solid var(--phg-color-border);
+    padding-bottom: 1rem;
+}
+
+.lists-grid {
+    display: grid;
+    /* Create 3 columns, adjusting minmax for responsiveness */
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem; /* Gap between list cards */
+}
+
+.my-list-card {
+    /* Inherits base .phg-card styles */
+    display: flex; /* Allow content to grow */
+    flex-direction: column;
+}
+
+.my-list-card .phg-card-header {
+    /* Optional: specific header styles */
+    background-color: var(--phg-color-background-tertiary); /* Slightly different header */
+}
+
+.my-list-card .phg-card-title {
+    color: var(--phg-color-accent-primary); /* Use accent for list titles */
+    font-size: 1.2rem;
+}
+
+.my-list-card .phg-card-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem; /* Space between add form and list */
+    flex-grow: 1; /* Allow content area to fill card height */
+}
+
+/* --- Add Item Form --- */
+.add-item-form {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+.add-item-input {
+    flex-grow: 1; /* Allow input to take available space */
+    /* Inherits .phg-input styles */
+}
+
+.add-item-button {
+    flex-shrink: 0; /* Prevent button from shrinking */
+    padding: 0.6rem 1rem; /* Adjust padding if needed */
+    /* Inherits .phg-button, .phg-button-primary */
+}
+
+.add-item-button .button-icon {
+    width: 1.1em;
+    height: 1.1em;
+    margin-right: 0.4em; /* Space between icon and text */
+}
+
+/* --- Item List --- */
+.item-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    flex-grow: 1; /* Allow list to take space */
+    overflow-y: auto; /* Add scroll if list gets long */
+    max-height: 400px; /* Example max height */
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem; /* Space between list items */
+    border-top: 1px solid var(--phg-color-border); /* Separator */
+    padding-top: 1rem; /* Space above list */
+}
+
+.list-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.6rem 0.75rem; /* Padding inside item */
+    background-color: var(--phg-color-background-tertiary); /* Background for items */
+    border-radius: var(--phg-border-radius);
+    border: 1px solid var(--phg-color-border);
+    transition: background-color var(--phg-transition-speed) ease;
+}
+
+.list-item:hover {
+    background-color: var(--phg-color-border); /* Slightly darker on hover */
+}
+
+.item-text {
+    color: var(--phg-color-text-secondary);
+    font-size: 0.9rem;
+    word-break: break-all; /* Prevent long items from overflowing */
+    margin-right: 1rem; /* Space before remove button */
+}
+
+.remove-item-button {
+    padding: 0.3rem 0.5rem; /* Smaller padding for remove button */
+    background-color: transparent;
+    border-color: transparent;
+    color: var(--phg-color-text-muted);
+    flex-shrink: 0;
+}
+
+.remove-item-button:hover:not(:disabled) {
+    background-color: rgba(255, 123, 123, 0.1); /* Error background on hover */
+    color: var(--phg-error-color); /* Error color on hover */
+    border-color: transparent;
+}
+
+.remove-item-button .button-icon {
+    width: 1.1em;
+    height: 1.1em;
+}
+
+.list-item-empty {
+    text-align: center;
+    color: var(--phg-color-text-muted);
+    font-style: italic;
+    padding: 2rem 1rem;
+}
+
+/* --- Responsive Adjustments --- */
+@media (max-width: 768px) {
+    .my-lists-container {
+        padding: 1.5rem;
+    }
+    .lists-grid {
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); /* Adjust minmax */
+        gap: 1.5rem;
+    }
+     .phg-page-title {
+        font-size: 1.8rem;
+        margin-bottom: 2rem;
+    }
+}
+
+@media (max-width: 640px) {
+     .my-lists-container {
+        padding: 1rem;
+    }
+    .lists-grid {
+        grid-template-columns: 1fr; /* Stack cards */
+        gap: 1.5rem;
+    }
+     .phg-page-title {
+        font-size: 1.6rem;
+        margin-bottom: 1.5rem;
+    }
+    .add-item-form {
+        flex-direction: column; /* Stack input and button */
+        align-items: stretch; /* Make button full width */
+    }
+}
+
