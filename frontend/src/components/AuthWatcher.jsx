@@ -13,7 +13,7 @@ function AuthWatcher() {
     if (!isLoading) {
       // Define the paths where the user should NOT be if they are authenticated
       // Typically login, register, maybe the landing page '/'
-      const authRestrictedPaths = ['/login', '/register', '/']; // Adjust as needed
+      const authRestrictedPaths = ['/login', '/register']; // Adjust as needed
 
       // If the user IS authenticated...
       if (isAuthenticated) {
