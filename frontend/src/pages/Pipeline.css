@@ -1,247 +1,437 @@
-/* src/styles/Pipeline.css */
+/* Pipeline.css - Self-Contained Styles specific to the Pipeline component */
 
-/* --- Base & Variables (Assume defined globally or copy here) --- */
+/* --- Font Imports (Assuming these are loaded globally or via index.html/main CSS) --- */
+/* @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&family=Lato:wght@400;700&display=swap'); */
+
+/* --- CSS Variables (Dark Theme - Assumed to be defined globally or replace with actual values) --- */
 :root {
-  --background-primary: #0a192f;
-  --background-secondary: #112240;
-  --background-tertiary: #1f2d4a;
-  --text-primary: #e6f1ff;
-  --text-secondary: #ccd6f6;
-  --text-muted: #8892b0;
-  --accent-primary: #64ffda;
-  --accent-primary-dark: #0a7c72;
-  --accent-primary-hover: #52d8c3;
-  --border-color: #233554;
-  --border-color-light: #304a7c;
-  --error-color: #ff7b7b;
-  --error-background: rgba(255, 123, 123, 0.1);
-  --success-color: var(--accent-primary);
-  --success-background: rgba(100, 255, 218, 0.1);
-  --info-color: #77a5ff;
-  --info-background: rgba(119, 165, 255, 0.1);
-  --warning-color: #ffcc66;
-  --warning-background: rgba(255, 204, 102, 0.1);
-
-  --border-radius: 6px;
-  --card-shadow: 0 8px 25px -8px rgba(2, 12, 27, 0.6);
-  --transition-speed: 0.25s;
+  /* Define variables here OR ensure they are loaded globally */
+  --phg-font-primary: 'Poppins', sans-serif;
+  --phg-font-secondary: 'Lato', sans-serif;
+  --phg-color-background-primary: #0a192f;
+  --phg-color-background-secondary: #112240;
+  --phg-color-background-tertiary: #1f2d4a;
+  --phg-color-background-overlay: rgba(17, 34, 64, 0.85);
+  --phg-color-background-disabled: var(--phg-color-background-tertiary);
+  --phg-color-text-primary: #e6f1ff;
+  --phg-color-text-secondary: #ccd6f6;
+  --phg-color-text-muted: #8892b0;
+  --phg-color-text-on-accent: var(--phg-color-background-primary);
+  --phg-color-accent-primary: #64ffda;
+  --phg-color-accent-primary-hover: #52d8c3;
+  --phg-color-accent-overlay-hover: rgba(100, 255, 218, 0.1);
+  --phg-color-border: #233554;
+  --phg-color-border-light: #304a7c;
+  --phg-color-border-disabled: var(--phg-color-border);
+  --phg-shadow: 0 4px 10px -2px rgba(2, 12, 27, 0.6);
+  --phg-shadow-lg: 0 10px 30px -10px rgba(2, 12, 27, 0.7);
+  --phg-border-radius: 6px;
+  --phg-transition-speed: 0.2s;
+  --phg-error-color: #ff7b7b; /* Added for error text */
 }
 
-/* --- General Styles --- */
-body { /* Apply base styles if not done elsewhere */
-  margin: 0;
-  background-color: var(--background-primary);
-  color: var(--text-primary);
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  line-height: 1.6;
-}
-* { box-sizing: border-box; margin: 0; padding: 0; }
+/* --- Base Styles Copied from Theme (Needed for self-containment) --- */
 
-/* --- Page Container (Used by both pages) --- */
-.page-container {
-  background-color: var(--background-primary);
-  color: var(--text-primary);
-  min-height: 100vh;
-  padding: 2rem;
-  /* Consider adding max-width & margin: auto here if not handled by router layout */
-  /* max-width: 1600px; */
-  /* margin: 0 auto; */
+/* Card Base */
+.phg-card {
+  background-color: var(--phg-color-background-secondary); /* Default card bg */
+  border: 1px solid var(--phg-color-border);
+  border-radius: var(--phg-border-radius);
+  box-shadow: var(--phg-shadow);
+  overflow: hidden;
+  color: var(--phg-color-text-primary); /* Default text color in card */
 }
 
-/* --- Page Header (Common style) --- */
-.page-header {
+.phg-card-header {
   display: flex;
-  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 2.5rem;
-  padding-bottom: 1.5rem;
-  border-bottom: 1px solid var(--border-color-light);
+  padding: 0.75rem 1.5rem; /* Increased horizontal padding */
+  border-bottom: 1px solid var(--phg-color-border);
 }
-.page-header h1 {
-  color: var(--accent-primary);
-  display: flex;
-  align-items: center;
-  gap: 0.8rem;
-  font-size: 2rem;
-  margin: 0 0 1rem 0;
-  flex-basis: 100%;
-}
-@media (min-width: 768px) {
-  .page-header h1 { flex-basis: auto; margin-bottom: 0; }
-}
-.page-header h1 .header-icon { font-size: 1.8rem; }
 
-.page-controls { /* Used in both headers */
-  display: flex;
-  gap: 1rem;
+.phg-card-title {
+  font-family: var(--phg-font-primary);
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--phg-color-text-secondary);
+  margin: 0;
+}
+
+.phg-card-content {
+  padding: 1.5rem; /* Increased padding */
+}
+
+/* Button Base */
+.phg-button {
+  display: inline-flex;
   align-items: center;
+  justify-content: center;
+  padding: 0.6rem 1.2rem; /* Slightly increased padding */
+  border-radius: var(--phg-border-radius);
+  font-family: var(--phg-font-primary);
+  font-weight: 600;
+  font-size: 0.875rem;
+  border: 1px solid var(--phg-color-border);
+  background-color: var(--phg-color-background-tertiary);
+  color: var(--phg-color-text-secondary);
+  cursor: pointer;
+  transition: background-color var(--phg-transition-speed) ease-out, border-color var(--phg-transition-speed) ease-out, color var(--phg-transition-speed) ease-out, opacity var(--phg-transition-speed) ease-out, transform var(--phg-transition-speed) ease-out;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.phg-button:focus-visible {
+  outline: 2px solid var(--phg-color-accent-primary);
+  outline-offset: 2px;
+}
+.phg-button:hover:not(:disabled) {
+  border-color: var(--phg-color-border-light);
+  background-color: var(--phg-color-background-tertiary);
+  color: var(--phg-color-text-primary);
+}
+.phg-button:disabled {
+  background-color: var(--phg-color-background-disabled);
+  color: var(--phg-color-text-muted);
+  border-color: var(--phg-color-border-disabled);
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+.phg-button:disabled:hover {
+   background-color: var(--phg-color-background-disabled);
+   color: var(--phg-color-text-muted);
+   border-color: var(--phg-color-border-disabled);
+}
+
+/* Primary Button Variant */
+.phg-button-primary {
+  background-color: var(--phg-color-accent-primary);
+  color: var(--phg-color-text-on-accent);
+  border-color: var(--phg-color-accent-primary);
+}
+.phg-button-primary:hover:not(:disabled) {
+  background-color: var(--phg-color-accent-primary-hover);
+  border-color: var(--phg-color-accent-primary-hover);
+  transform: translateY(-2px);
+}
+
+/* Input/Select Base */
+.phg-input,
+.phg-select {
+  width: 100%;
+  padding: 0.6rem 0.85rem; /* Slightly increased padding */
+  border: 1px solid var(--phg-color-border);
+  border-radius: var(--phg-border-radius);
+  background-color: var(--phg-color-background-secondary);
+  color: var(--phg-color-text-primary);
+  font-size: 0.875rem;
+  font-family: var(--phg-font-secondary);
+  transition: border-color var(--phg-transition-speed) ease-out, box-shadow var(--phg-transition-speed) ease-out;
+}
+.phg-input::placeholder {
+  color: var(--phg-color-text-muted);
+  opacity: 0.8;
+}
+.phg-input:focus,
+.phg-select:focus {
+  border-color: var(--phg-color-accent-primary);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(100, 255, 218, 0.3);
+}
+.phg-input:disabled,
+.phg-select:disabled {
+  background-color: var(--phg-color-background-disabled);
+  color: var(--phg-color-text-muted);
+  border-color: var(--phg-color-border-disabled);
+  cursor: not-allowed;
+}
+.phg-input:disabled::placeholder {
+  color: var(--phg-color-text-muted);
+  opacity: 0.5;
+}
+.phg-select {
+  appearance: none;
+  background-image: url('data:image/svg+xml;charset=US-ASCII,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="%238892b0"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>');
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center; /* Adjusted position */
+  background-size: 1.1em 1.1em; /* Slightly smaller arrow */
+  padding-right: 2.75rem; /* More space for arrow */
+}
+.phg-select:disabled {
+  background-image: url('data:image/svg+xml;charset=US-ASCII,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="%23555e70"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>');
+}
+.phg-select option {
+   background-color: var(--phg-color-background-secondary);
+   color: var(--phg-color-text-primary);
+   padding: 0.5rem;
+}
+
+/* Form Group Base */
+.phg-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem; /* Increased gap */
+}
+
+.phg-label {
+  font-weight: 600;
+  color: var(--phg-color-text-secondary);
+  font-size: 0.875rem;
+  margin-bottom: 0.2rem; /* Increased space below label */
+}
+
+/* --- Pipeline Specific Styles --- */
+
+.pipeline-container { /* Added class to main div in JSX */
+  padding: 2rem; /* Increased overall padding */
+  width: 100%;
+  max-width: 1600px; /* Optional: constrain max width */
+  margin: 0 auto; /* Center if max-width is applied */
+}
+
+
+.pipeline-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
   flex-wrap: wrap;
+  gap: 1.5rem 2rem; /* Increased column gap */
+  margin-bottom: 2.5rem; /* Increased space below header */
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--phg-color-border);
 }
 
-/* Themed select (used for projects, QC dropdowns) */
-.themed-select {
-  background-color: var(--background-secondary); color: var(--text-primary);
-  border: 1px solid var(--border-color-light); padding: 0.7rem 1rem;
-  border-radius: var(--border-radius); font-size: 0.95rem;
-  min-width: 220px; transition: border-color var(--transition-speed) ease;
+.phg-page-title {
+  font-family: var(--phg-font-primary);
+  color: var(--phg-color-accent-primary);
+  font-size: 2rem; /* Larger title */
+  font-weight: 700;
+  margin: 0;
+  flex-shrink: 0;
 }
-.themed-select:focus {
-  outline: none; border-color: var(--accent-primary);
-  box-shadow: 0 0 0 2px rgba(100, 255, 218, 0.3);
+
+.pipeline-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem 2rem; /* Increased gaps */
+  align-items: center;
 }
-.themed-select:disabled { background-color: var(--background-tertiary); opacity: 0.6; cursor: not-allowed; }
-.project-select { /* Specific adjustments if needed */ }
 
-
-/* --- Buttons (Common Styles) --- */
-.primary-btn, .secondary-btn { /* Base for reuse */
-  padding: 0.7rem 1.25rem; border-radius: var(--border-radius); font-size: 0.95rem; font-weight: 600;
-  cursor: pointer; transition: all var(--transition-speed) ease; display: inline-flex; align-items: center;
-  justify-content: center; gap: 0.6rem; border: 1px solid transparent; text-decoration: none;
+.pipeline-action-group {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 1rem; /* Increased gap within group */
+  align-items: center;
 }
-.primary-btn { background-color: var(--accent-primary-dark); color: white; border-color: var(--accent-primary-dark); }
-.primary-btn:hover:not(:disabled) { background-color: var(--accent-primary); color: var(--background-primary); border-color: var(--accent-primary); transform: translateY(-2px); }
-.secondary-btn { background-color: transparent; color: var(--text-muted); border-color: var(--border-color-light); }
-.secondary-btn:hover:not(:disabled) { color: var(--accent-primary); border-color: var(--accent-primary); background-color: rgba(100, 255, 218, 0.05); }
-.primary-btn:disabled, .secondary-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
-.primary-btn .btn-icon, .secondary-btn .btn-icon { /* Icon within button */ margin-right: 0.3rem; } /* Adjusted margin */
-.create-project-btn { /* Inherits primary */ }
-.process-btn { width: 100%; margin-top: auto; font-size: 1rem; } /* Pushes to bottom */
-.qc-generate-btn { /* Inherits primary */ margin-bottom: 1rem; }
 
+.pipeline-action-group .phg-input,
+.pipeline-action-group .phg-select {
+  min-width: 200px; /* Slightly larger min-width */
+  flex-grow: 1;
+}
 
-/* --- Cards Grid (Common for Pipeline Steps & QC) --- */
-.cards-grid {
+.pipeline-form-card {
+  margin-top: 2rem; /* Increased space below header */
+}
+
+.pipeline-form {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-  gap: 2rem;
-  margin-bottom: 3rem; /* Applies to pipeline-cards container too */
+  /* Adjust grid columns for better spacing */
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); /* Wider minmax */
+  gap: 1.5rem 2rem; /* Increased row and column gap */
 }
 
-/* Themed Card Styles */
-.styled-card {
-  background-color: var(--background-secondary); border-radius: var(--border-radius);
-  border: 1px solid var(--border-color); box-shadow: var(--card-shadow);
-  overflow: hidden; display: flex; flex-direction: column;
-  transition: transform var(--transition-speed) ease, box-shadow var(--transition-speed) ease;
+.pipeline-form-submit {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: center;
+  margin-top: 1.5rem; /* Increased space above submit */
 }
-.styled-card:hover { transform: translateY(-4px); box-shadow: 0 10px 25px -5px rgba(2, 12, 27, 0.7); }
-.pipeline-card, .qc-card { /* Apply base style */ }
 
-.card-header { background-color: var(--background-tertiary); padding: 1rem 1.5rem; border-bottom: 1px solid var(--border-color); }
-.card-header h2, .card-header h3 {
-  margin: 0; font-size: 1.15rem; display: flex; align-items: center;
-  gap: 0.7rem; color: var(--text-secondary); font-weight: 600;
+/* Dropdown specific styles */
+.phg-dropdown-container {
+  position: relative;
 }
-.card-header .card-icon { color: var(--accent-primary); font-size: 1.2em; }
-.card-content { padding: 1.5rem; flex-grow: 1; display: flex; flex-direction: column; }
 
-/* Input Group Styling */
-.input-group { margin-bottom: 1.25rem; }
-.input-group label {
-  display: block; margin-bottom: 0.5rem; color: var(--text-muted);
-  font-size: 0.9rem; font-weight: 500; display: flex; align-items: center; gap: 0.4rem;
+.phg-dropdown-trigger {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  text-align: left;
+  width: 100%;
+  cursor: pointer;
 }
-.input-group label .label-icon { color: var(--accent-primary); font-size: 0.9em; }
-
-/* Themed Inputs & Selects */
-.input-group input[type="text"],
-.input-group input[type="number"],
-.input-group select {
-  width: 100%; padding: 0.75rem 1rem; background-color: var(--background-primary);
-  color: var(--text-primary); border: 1px solid var(--border-color-light);
-  border-radius: calc(var(--border-radius) - 2px); font-size: 0.95rem;
-  transition: border-color var(--transition-speed) ease, box-shadow var(--transition-speed) ease;
+.phg-dropdown-trigger span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-right: 0.5rem;
+  flex-grow: 1;
 }
-.input-group input[type="text"]:focus,
-.input-group input[type="number"]:focus,
-.input-group select:focus {
-  outline: none; border-color: var(--accent-primary);
-  box-shadow: 0 0 0 2px rgba(100, 255, 218, 0.3);
+.phg-dropdown-icon {
+  width: 1.1em;
+  height: 1.1em;
+  flex-shrink: 0;
+  color: var(--phg-color-text-muted);
 }
-.input-group input:disabled,
-.input-group select:disabled { background-color: var(--background-tertiary); opacity: 0.6; cursor: not-allowed; }
-.multi-select { min-height: 80px; padding: 0.5rem; }
-.multi-select option { padding: 0.4rem 0.8rem; margin-bottom: 2px; }
-.multi-select option:checked { background-color: var(--accent-primary-dark); color: white; border-radius: 3px; }
-
-/* Themed Toggle Buttons */
-.toggle-group { margin-bottom: 1.25rem; }
-.toggle-group label {}
-.toggle-container { display: flex; border: 1px solid var(--border-color-light); border-radius: var(--border-radius); overflow: hidden; }
-.toggle-btn {
-  flex: 1; padding: 0.6rem 0.8rem; background-color: var(--background-primary);
-  color: var(--text-muted); border: none; cursor: pointer; font-size: 0.9rem;
-  font-weight: 500; transition: background-color var(--transition-speed) ease, color var(--transition-speed) ease;
-  text-align: center;
-}
-.toggle-btn:not(:last-child) { border-right: 1px solid var(--border-color-light); }
-.toggle-btn.active { background-color: var(--accent-primary-dark); color: white; font-weight: 600; }
-.toggle-btn:hover:not(.active) { background-color: var(--background-tertiary); color: var(--text-secondary); }
-.toggle-btn:disabled { opacity: 0.5; cursor: not-allowed; background-color: var(--background-tertiary) !important; color: var(--text-muted) !important; }
 
 
-/* Output/Status Styling */
-.output-area { margin-top: 1rem; padding-top: 1rem; border-top: 1px dashed var(--border-color); font-size: 0.9rem; }
-.output-success, .output-error, .output-info, .output-warning {
-  padding: 0.8rem 1rem; border-left-width: 4px; border-left-style: solid;
-  border-radius: calc(var(--border-radius) - 2px); display: flex; align-items: center; gap: 0.75rem;
+.phg-dropdown-menu {
+  position: absolute;
+  z-index: 20;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background-color: var(--phg-color-background-secondary);
+  border: 1px solid var(--phg-color-border-light);
+  border-radius: 0 0 var(--phg-border-radius) var(--phg-border-radius);
+  margin-top: -1px;
+  max-height: 200px;
+  overflow-y: auto;
+  box-shadow: var(--phg-shadow);
 }
-.output-success { background-color: var(--success-background); border-left-color: var(--success-color); color: var(--text-secondary); }
-.output-error { background-color: var(--error-background); border-left-color: var(--error-color); color: var(--error-color); }
-.output-info { background-color: var(--info-background); border-left-color: var(--info-color); color: var(--info-color); }
-.output-warning { background-color: var(--warning-background); border-left-color: var(--warning-color); color: var(--warning-color); }
-.output-area .status-icon { font-size: 1.1em; }
-.download-link {
-  color: var(--accent-primary); text-decoration: none; display: inline-flex;
-  align-items: center; gap: 0.5rem; font-weight: 500;
-}
-.download-link:hover { text-decoration: underline; color: var(--accent-primary-hover); }
 
-/* --- QC Section Specific Styles --- */
-/* QC Header uses .page-header */
-/* QC Cards Grid uses .cards-grid */
-/* QC Card uses .styled-card */
-.qc-card .card-header h3 { font-size: 1.1rem; } /* Use H3 for QC card titles */
-
-.metrics-list p {
-  margin: 0.6rem 0; color: var(--text-muted); font-size: 0.9rem;
-  display: flex; justify-content: space-between; align-items: center;
-  padding-bottom: 0.6rem; border-bottom: 1px dashed var(--border-color);
+.phg-dropdown-item,
+.phg-dropdown-item-disabled {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.7rem 1.2rem; /* Increased item padding */
+  font-size: 0.875rem;
+  color: var(--phg-color-text-secondary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: background-color var(--phg-transition-speed) ease;
 }
-.metrics-list p:last-child { border-bottom: none; }
-.metrics-list p strong { color: var(--text-secondary); margin-right: 0.5rem; }
-.metrics-list p span { font-weight: 500; color: var(--text-primary); }
-
-.plot-output-area, .metrics-output-area { /* Renamed classes */
-  background-color: var(--background-primary); border: 1px dashed var(--border-color-light);
-  border-radius: var(--border-radius); padding: 2rem 1.5rem; text-align: center;
-  color: var(--text-muted); min-height: 200px; display: flex; align-items: center;
-  justify-content: center; flex-grow: 1; margin-top: 1rem; flex-direction: column; gap: 1rem;
+.phg-dropdown-item:hover,
+.phg-dropdown-item:focus {
+  background-color: var(--phg-color-background-tertiary);
+  color: var(--phg-color-text-primary);
+  outline: none;
 }
-.plot-output-area img { max-width: 100%; height: auto; border-radius: var(--border-radius); margin-top: 1rem;}
-
-/* --- Spinner (Common) --- */
-.spinner { border: 3px solid rgba(255, 255, 255, 0.3); border-radius: 50%; border-top-color: var(--accent-primary); width: 1.5rem; height: 1.5rem; animation: spin 1s linear infinite; display: inline-block; }
-.small-spinner { width: 1.0rem; height: 1.0rem; border-width: 2px; }
-@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-
-/* --- Responsive Design --- */
-@media (max-width: 1024px) {
-  .page-container { padding: 1.5rem; }
-  .page-header { align-items: center; }
+.phg-dropdown-item-disabled {
+  color: var(--phg-color-text-muted);
+  cursor: default;
+  font-style: italic;
 }
-@media (max-width: 768px) {
-  .cards-grid { grid-template-columns: 1fr; } /* Applies to both pipeline and qc cards */
-  .page-header h1 { font-size: 1.8rem; }
-  .page-controls { width: 100%; justify-content: space-between; }
-  .themed-select { min-width: 180px; flex-grow: 1; }
+.phg-dropdown-item[aria-selected="true"] {
+  font-weight: 600;
+  color: var(--phg-color-accent-primary);
 }
-@media (max-width: 480px) {
-   .page-container { padding: 1rem; }
-   .page-header h1 { font-size: 1.6rem; }
-   .page-controls { flex-direction: column; align-items: stretch; }
-   .primary-btn { width: 100%; justify-content: center; } /* For create project btn */
-   .card-content { padding: 1rem; }
+
+/* Multi-select specific */
+.phg-dropdown-menu-multi {
+  /* No specific styles needed currently */
+}
+
+.phg-dropdown-item-multi {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+.phg-checkbox {
+  margin-right: 0.85rem; /* Increased space */
+  height: 1rem;
+  width: 1rem;
+  accent-color: var(--phg-color-accent-primary);
+  cursor: pointer;
+  background-color: var(--phg-color-background-tertiary);
+  border: 1px solid var(--phg-color-border);
+  border-radius: 3px;
+  vertical-align: middle;
+  appearance: none;
+  display: inline-block;
+  position: relative;
+}
+.phg-checkbox:checked {
+  background-color: var(--phg-color-accent-primary);
+  border-color: var(--phg-color-accent-primary);
+}
+.phg-checkbox:checked::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 1px;
+  width: 4px;
+  height: 8px;
+  border: solid var(--phg-color-text-on-accent);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+
+/* Error message styling */
+.phg-error-text {
+  color: var(--phg-error-color);
+  font-size: 0.8rem; /* Slightly larger error text */
+  margin-top: 0.35rem; /* More space above error */
+  display: block;
+}
+
+/* Spinner animation */
+.phg-spinner {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: phg-spin 0.6s linear infinite;
+  margin-right: 0.5em;
+  vertical-align: -0.125em;
+}
+
+@keyframes phg-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Responsive adjustments for the form */
+@media (max-width: 768px) { /* Adjust breakpoint if needed */
+   .pipeline-container {
+      padding: 1.5rem; /* Reduce padding on smaller screens */
+  }
+  .pipeline-header {
+      gap: 1rem; /* Reduce header gap */
+  }
+   .pipeline-actions {
+      gap: 1rem; /* Reduce actions gap */
+  }
+  .pipeline-action-group {
+      gap: 0.75rem; /* Reduce group gap */
+  }
+   .pipeline-form {
+      grid-template-columns: 1fr; /* Stack form elements */
+      gap: 1.2rem; /* Adjust gap for single column */
+  }
+}
+
+@media (max-width: 640px) {
+  .pipeline-container {
+      padding: 1rem;
+  }
+  .pipeline-header {
+      flex-direction: column;
+      align-items: stretch;
+  }
+  .pipeline-actions {
+      flex-direction: column;
+      align-items: stretch;
+  }
+  .pipeline-action-group {
+      flex-direction: column;
+      align-items: stretch;
+  }
+  .pipeline-action-group .phg-input,
+  .pipeline-action-group .phg-select,
+  .pipeline-action-group .phg-button {
+      width: 100%;
+      min-width: unset; /* Remove min-width */
+  }
+  .phg-page-title {
+      font-size: 1.6rem; /* Adjust title size */
+  }
+  .phg-card-content {
+      padding: 1rem; /* Reduce card padding */
+  }
 }

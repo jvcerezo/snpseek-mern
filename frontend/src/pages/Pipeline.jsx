@@ -1,448 +1,478 @@
-import React, { useState } from 'react';
-import {
-    FaProjectDiagram, FaPlus, FaCog, FaCompressArrowsAlt, FaFileAlt, FaListOl, FaPencilAlt,
-    FaRulerCombined, FaLink, FaVial, FaDatabase, FaFileCode, 
-    FaTags, FaExpandArrowsAlt, FaArrowsAltH, FaToggleOn, FaToggleOff, FaArrowRight,
-    FaCheckCircle, FaExclamationTriangle, FaInfoCircle, FaFileDownload
-} from 'react-icons/fa';
-import './Pipeline.css'; 
+import React, { useState, useEffect, useCallback } from "react";
+import { Toaster, toast } from "sonner"; // For notifications
+import { saveAs } from 'file-saver'; // For downloading files
+import api from "../api"; // Adjust path as needed
 
-// Placeholder function to simulate API calls/processing
-const simulateProcessing = (duration = 1500) => {
-    return new Promise((resolve, reject) => {
-        const success = Math.random() > 0.15; 
-        setTimeout(() => {
-            if (success) {
-                resolve({ message: "Processing complete." });
-            } else {
-                reject(new Error("Simulated processing failure."));
-            }
-        }, duration);
-    });
-};
+import './Pipeline.css';
 
+// --- SVG Chevron Icon ---
+const ChevronDownIcon = ({ className = "w-5 h-5", open }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    fill="none"
+    viewBox="0 0 24 24"
+    strokeWidth={2}
+    stroke="currentColor"
+    // Apply className for potential utility classes, but base style in CSS
+    className={`${className} phg-dropdown-icon transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+    style={{ flexShrink: 0 }}
+  >
+    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+  </svg>
+);
+
+// --- Main Pipeline Component ---
 const Pipeline = () => {
-    // --- Global State ---
-    const [selectedProject, setSelectedProject] = useState('');
-    const [projects, setProjects] = useState(['Rice Genome Analysis', 'Wheat Variant Calling', 'Maize Transposon Study']);
-    const [isProcessing, setIsProcessing] = useState({}); // Track loading state for each step { stepId: boolean }
+    // --- State ---
+    const [projects, setProjects] = useState([]);
+    const [projectName, setProjectName] = useState("");
+    const [isSubmittingProjectCreation, setIsSubmittingProjectCreation] = useState(false);
+    const [selectedProjectForDownload, setSelectedProjectForDownload] = useState("");
+    const [isDownloading, setIsDownloading] = useState(false);
+    const [formData, setFormData] = useState({
+        project: "", selectedSequences: [], gff: "", reference: "",
+        boundary: "", minRangeSize: "", pad: "",
+    });
+    const [errors, setErrors] = useState({});
+    const [isSubmittingPipeline, setIsSubmittingPipeline] = useState(false);
+    const [showProjectDropdown, setShowProjectDropdown] = useState(false);
+    const [showSequencesDropdown, setShowSequencesDropdown] = useState(false);
+    const [showGffDropdown, setShowGffDropdown] = useState(false);
+    const [showReferenceDropdown, setShowReferenceDropdown] = useState(false);
+    const [showBoundaryDropdown, setShowBoundaryDropdown] = useState(false);
 
-    // --- Mock Data (Replace with API calls based on selectedProject) ---
-    const availableSequences = ['japonica_chr1.fa', 'indica_chr1.fa', 'aus_chr1.fa', 'reference_genome_v5.fa', 'assembly_contigs.fasta'];
-    const availableGffs = ['japonica_genes.gff3', 'reference_genes.gff', 'predicted_models.gff'];
-    const availableBeds = ['promoter_regions.bed', 'repeat_mask.bed'];
-    // Source files for steps (should be dynamically determined)
-    const sourcesForStep2 = availableSequences;
-    const sourcesForStep4Queries = availableSequences;
-    const sourcesForStep5VCF = ['output_step4_alignment.bam', 'variants.vcf.gz'];
-    const sourcesForStep6Load = ['output_step5.vcf.gz'];
+    // --- Constants ---
+    const sequenceOptions = [
+        { value: "Ref.fa", label: "Ref.fa" }, { value: "LineA.fa", label: "LineA.fa" },
+        { value: "LineB.fa", label: "LineB.fa" },
+    ];
+    const gffOptions = ["anchors.gff"];
+    const boundaryOptions = ["gene", "cds"];
+
+    // --- Effects ---
+    const fetchProjects = useCallback(async () => {
+        try {
+            console.log("Fetching projects...");
+            const res = await api.get('/PHG/pipeline/get-directory-projects');
+            if (res.data?.Files && Array.isArray(res.data.Files)) {
+                setProjects(res.data.Files);
+                console.log("Projects fetched:", res.data.Files);
+            } else {
+                setProjects([]);
+                console.warn("No projects found or unexpected format:", res.data);
+            }
+        } catch (error) {
+            toast.error("An error occurred while fetching projects");
+            console.error("Fetch projects error:", error);
+            setProjects([]);
+        }
+    }, []);
+
+    useEffect(() => {
+        fetchProjects();
+    }, [fetchProjects, isSubmittingProjectCreation]);
+
+    // --- Helper Functions ---
+    const pollLogStatus = async (endpoint, projectName, maxRetries = 20, delay = 15000) => {
+        let retries = 0;
+        const stepName = endpoint.split('/').pop().replace('-log-file', '').replace(/-/g, ' ');
+        toast.info(`Polling status for ${stepName}... Attempt ${retries + 1}`);
+        console.log(`Polling status for ${endpoint}, Project: ${projectName}, Attempt ${retries + 1}`);
+
+        while (retries < maxRetries) {
+            try {
+                const res = await api.post(endpoint, { Project_Name: projectName });
+                console.log(`Poll response for ${endpoint}:`, res.data);
+                const statusEntry = Array.isArray(res.data) ? res.data.find(entry => typeof entry === 'object' && entry !== null && "Exit status" in entry) : null;
+
+                if (statusEntry && "Exit status" in statusEntry) {
+                    const exitCode = statusEntry["Exit status"];
+                    console.log(`Exit status found for ${stepName}: ${exitCode}`);
+                    if (exitCode == "0") {
+                        toast.success(`${stepName} completed successfully.`);
+                        return true;
+                    } else if (exitCode != null && exitCode != "0") {
+                        toast.error(`${stepName} failed with exit code ${exitCode}.`);
+                        console.error(`${endpoint} failed with exit code ${exitCode}. Log data:`, res.data);
+                        return false;
+                    }
+                } else {
+                     console.log(`No exit status found yet for ${stepName}. Retrying...`);
+                }
+            } catch (error) {
+                console.error(`Error polling ${endpoint} (Attempt ${retries + 1}):`, error);
+            }
+            retries++;
+            if (retries < maxRetries) {
+                await new Promise((resolve) => setTimeout(resolve, delay));
+                toast.info(`Polling status for ${stepName}... Attempt ${retries + 1}`);
+                console.log(`Polling status for ${endpoint}, Project: ${projectName}, Attempt ${retries + 1}`);
+            }
+        }
+        toast.error(`${stepName} timed out waiting for completion status.`);
+        console.error(`${endpoint} timed out after ${maxRetries} retries.`);
+        return false;
+    };
 
 
-    // --- State for Each Pipeline Step ---
-    const [step1_prepareFasta, setStep1_prepareFasta] = useState({
-        selectedSequences: [], outputName: `prepared_${selectedProject || 'assembly'}`,
-        status: null, message: '', downloadLink: null,
-    });
-    const [step2_compressFasta, setStep2_compressFasta] = useState({
-        selectedSequences: [], referenceSequence: '', outputName: `compressed_${selectedProject || 'assembly'}`,
-        status: null, message: '', downloadLink: null,
-    });
-    const [step3_createRanges, setStep3_createRanges] = useState({
-        gffFile: '', referenceFile: '', featureType: 'gene', rangePad: 1000, minRangeSize: 50, outputName: `ranges_${selectedProject || 'ref'}`,
-        status: null, message: '', downloadLink: null,
-    });
-    const [step4_alignAssemblies, setStep4_alignAssemblies] = useState({
-        gffFile: '', referenceFile: '', querySequences: [], outputPrefix: `aligned_${selectedProject || 'run'}`,
-        status: null, message: '', downloadLinks: [],
-    });
-    const [step5_createVcf, setStep5_createVcf] = useState({
-        vcfType: 'ref', referenceFile: '', bedFile: '', outputName: `variants_${selectedProject || 'set'}`,
-        status: null, message: '', downloadLink: null,
-    });
-    const [step6_loadVcf, setStep6_loadVcf] = useState({
-        vcfFileSource: '', status: null, message: '',
-    });
-
-    // --- Handlers ---
-    const handleCreateProject = () => {
-        const newProject = prompt("Enter new project name:", `Project_${projects.length + 1}`);
-        if (newProject && newProject.trim() && !projects.includes(newProject.trim())) {
-             const trimmedProjectName = newProject.trim();
-            setProjects([...projects, trimmedProjectName]);
-            setSelectedProject(trimmedProjectName);
-             // TODO: Add API call to create project on backend
-        } else if (newProject && projects.includes(newProject.trim())) {
-            alert("Project name already exists!");
+    // --- Event Handlers ---
+    const handleCreateProject = async (e) => {
+        e.preventDefault();
+        if (projectName.trim() === "") {
+            toast.warning("Please enter a project name."); return;
+        }
+        setIsSubmittingProjectCreation(true);
+        try {
+            const res = await api.post(`/PHG/pipeline/create-project`, { Project_Name: projectName.trim() }, { headers: { 'Content-Type': 'application/json' } });
+            if (res.data?.message?.includes("created successfully")) {
+                toast.success("Project Created Successfully!"); setProjectName("");
+            } else if (res.data?.message === "Project Name Already Used") {
+                toast.warning(res.data.message);
+            } else { toast.error(res.data?.message || "Failed to create project."); }
+        } catch (error) {
+            toast.error(error.response?.data?.message || "An error occurred during project creation."); console.error("Create project error:", error);
+        } finally {
+             setTimeout(() => setIsSubmittingProjectCreation(false), 0);
         }
     };
 
-    const handleStepChange = (stepSetter, field, value) => {
-        stepSetter(prev => ({ ...prev, [field]: value, status: null, message: '', downloadLink: null, downloadLinks: [] }));
+    const handleDownloadMetrics = async (e) => {
+        e.preventDefault();
+        if (!selectedProjectForDownload) { toast.warning("Please select a project to download metrics."); return; }
+        setIsDownloading(true); toast.info("Preparing VCF Metrics download...");
+        try {
+            const res = await api.post(`/PHG/pipeline/get-vcf-metrics`, { Project_Name: selectedProjectForDownload }, { headers: { 'Content-Type': 'application/json' }, responseType: 'blob' });
+            saveAs(res.data, `${selectedProjectForDownload}_VCFMetrics.tsv`); toast.success("VCF Metrics downloaded successfully!");
+        } catch (error) {
+            console.error("Download metrics error:", error); let errorMsg = "An error occurred during metrics download.";
+            if (error.response?.data instanceof Blob) { try { const text = await error.response.data.text(); const json = JSON.parse(text); errorMsg = json.message || json.detail || errorMsg; } catch (parseError) { console.error("Could not parse error blob:", parseError); } } else { errorMsg = error.response?.data?.message || error.response?.data?.detail || errorMsg; } toast.error(errorMsg);
+        } finally { setIsDownloading(false); }
     };
-    const handleMultiSelectChange = (stepSetter, field, event) => {
-         const selectedOptions = Array.from(event.target.selectedOptions, option => option.value);
-         stepSetter(prev => ({ ...prev, [field]: selectedOptions, status: null, message: '', downloadLink: null, downloadLinks: [] }));
-    };
-     const handleToggleChange = (stepSetter, field, newValue) => {
-        stepSetter(prev => ({ ...prev, [field]: newValue, status: null, message: '', downloadLink: null, downloadLinks: [] }));
-    }
 
-    const handleProcessStep = async (stepId, stepSetter, inputData) => {
-        if (!selectedProject) {
-             alert("Please select or create a project first.");
-             return;
+     const handleDownloadPlot = async (e) => {
+        e.preventDefault();
+        if (!selectedProjectForDownload) { toast.warning("Please select a project to download the plot."); return; }
+        setIsDownloading(true); toast.info("Preparing Dot Plot download...");
+        try {
+            const res = await api.post(`/PHG/pipeline/get-dot-plots`, { Project_Name: selectedProjectForDownload }, { headers: { 'Content-Type': 'application/json' }, responseType: 'blob' });
+            saveAs(res.data, `${selectedProjectForDownload}_DotPlot.zip`); toast.success("Dot Plot downloaded successfully!");
+        } catch (error) {
+            console.error("Download plot error:", error); let errorMsg = "An error occurred during plot download.";
+             if (error.response?.data instanceof Blob) { try { const text = await error.response.data.text(); const json = JSON.parse(text); errorMsg = json.message || json.detail || errorMsg; } catch (parseError) { console.error("Could not parse error blob:", parseError); } } else { errorMsg = error.response?.data?.message || error.response?.data?.detail || errorMsg; } toast.error(errorMsg);
+        } finally { setIsDownloading(false); }
+    };
+
+    const handleChange = (e) => {
+        const { name, value } = e.target;
+        setFormData({ ...formData, [name]: value });
+        if (errors[name]) { setErrors({ ...errors, [name]: null }); }
+    };
+
+    const validate = () => {
+        let isValid = true; const newErrors = {};
+        if (!formData.project) { newErrors.project = "Select a Project"; isValid = false; }
+        if (formData.selectedSequences.length === 0) { newErrors.selectedSequences = "At least one sequence is required"; isValid = false; }
+        if (!formData.gff) { newErrors.gff = "Select a GFF File"; isValid = false; }
+        if (!formData.reference) { newErrors.reference = "Select a Reference File"; isValid = false; }
+        if (!formData.boundary) { newErrors.boundary = "Select a Boundary"; isValid = false; }
+        if (!formData.minRangeSize || Number(formData.minRangeSize) <= 0) { newErrors.minRangeSize = "Enter a positive Min Range Size"; isValid = false; }
+        if (!formData.pad || Number(formData.pad) < 0) { newErrors.pad = "Enter a non-negative Pad Size"; isValid = false; }
+        setErrors(newErrors); return isValid;
+    };
+
+    // *** FIXED toggleDropdown function ***
+    const toggleDropdown = (setter, currentState) => {
+        const shouldOpen = !currentState; // Determine if the target dropdown should open
+
+        // Close all dropdowns first
+        setShowProjectDropdown(false);
+        setShowSequencesDropdown(false);
+        setShowGffDropdown(false);
+        setShowReferenceDropdown(false);
+        setShowBoundaryDropdown(false);
+
+        // Set the target dropdown state ONLY if it should open
+        if (shouldOpen) {
+            setter(true);
         }
-        setIsProcessing(prev => ({ ...prev, [stepId]: true }));
-        const outputName = inputData.outputName || inputData.outputPrefix || `${stepId}_${selectedProject}_${Date.now()}`; // Use provided name/prefix or generate one
-        const processingInput = { ...inputData, outputName: outputName, project: selectedProject };
+        // If shouldOpen is false, the target dropdown remains closed due to the reset above.
+    };
 
-        stepSetter(prev => ({ ...prev, status: 'info', message: 'Processing request...', downloadLink: null, downloadLinks: [], error: null }));
-        console.log(`Processing Step ${stepId} for project ${selectedProject} with data:`, processingInput);
+
+    const handleDropdownBlur = (e, setter) => {
+        setTimeout(() => {
+            if (e.currentTarget && !e.currentTarget.contains(document.activeElement)) {
+                 setter(false);
+            }
+        }, 0);
+    };
+
+    const handleSelect = (field, value, dropdownSetter) => {
+        setFormData((prevFormData) => ({ ...prevFormData, [field]: value }));
+        if (errors[field]) { setErrors({ ...errors, [field]: null }); }
+        dropdownSetter(false);
+    };
+
+    const handleSequenceSelect = (value) => {
+        let newSequences;
+        if (formData.selectedSequences.includes(value)) {
+            newSequences = formData.selectedSequences.filter((seq) => seq !== value);
+        } else { newSequences = [...formData.selectedSequences, value]; }
+        setFormData({ ...formData, selectedSequences: newSequences });
+        if (errors.selectedSequences && newSequences.length > 0) {
+             setErrors({ ...errors, selectedSequences: null });
+        }
+    };
+
+    const handleSubmitPipeline = async (e) => {
+        e.preventDefault();
+        if (!validate()) {
+            toast.warning("Please check the form for errors.");
+            const firstErrorKey = Object.keys(errors).find(key => errors[key]);
+            if (firstErrorKey) { document.getElementById(firstErrorKey)?.focus(); }
+            return;
+        }
+        setIsSubmittingPipeline(true);
+        toast.info("Pipeline started, please wait... This may take a while.");
+        console.log("Submitting pipeline with data:", formData);
+        const selectedProjectName = formData.project;
+        const newNames = formData.selectedSequences.map(filename => filename.replace(/\.[^/.]+$/, ""));
+        const filteredSequences = formData.selectedSequences.filter(seq => seq !== formData.reference);
 
         try {
-            await simulateProcessing();
-            let successData = {
-                status: 'success',
-                message: `Step ${stepId} completed successfully.`,
-                downloadLink: null,
-                downloadLinks: []
-            };
-            if (['step1', 'step2', 'step3', 'step5'].includes(stepId)) {
-                 successData.downloadLink = `/api/download/${selectedProject}/${outputName}.zip`; // Example download link
-            } else if (stepId === 'step4') {
-                 successData.downloadLinks = [
-                    `/api/download/${selectedProject}/${outputName}_alignment1.bam`,
-                    `/api/download/${selectedProject}/${outputName}_alignment2.bam`
-                 ];
+            let stepOK = true;
+            if (stepOK) {
+                toast.info("Step 1/6: Preparing Assembly...");
+                const prepareRes = await api.post(`/PHG/pipeline/prepare-assembly`, { sequences: formData.selectedSequences, new_names: newNames, Project_Name: selectedProjectName, hvcf_anchorgap: 1000000, gvcf_anchorgap: 1000 });
+                if (!prepareRes.data || prepareRes.data.detail === "Process already running.") throw new Error(prepareRes.data?.detail || "Failed to start Prepare Assembly.");
+                console.log("Prepare Assembly response:", prepareRes.data);
+                stepOK = await pollLogStatus("/PHG/pipeline/prepare-assembly-log-file", selectedProjectName);
+                if (!stepOK) throw new Error("Prepare Assembly step failed or timed out.");
             }
-            stepSetter(prev => ({ ...prev, ...successData }));
-            // TODO: Update global state or notify QC page that results are ready/updated
+             if (stepOK) {
+                toast.info("Step 2/6: Compressing FASTA...");
+                const compressRes = await api.post(`/PHG/pipeline/agc-compress`, { Project_Name: selectedProjectName, sequences: filteredSequences, reference: formData.reference });
+                if (!compressRes.data || compressRes.data.detail === "Process already running.") throw new Error(compressRes.data?.detail || "Failed to start AGC Compress.");
+                console.log("Compress FASTA response:", compressRes.data);
+                stepOK = await pollLogStatus("/PHG/pipeline/agc-compress-log-file", selectedProjectName);
+                if (!stepOK) throw new Error("Compress FASTA step failed or timed out.");
+            }
+             if (stepOK) {
+                toast.info("Step 3/6: Creating Reference Ranges...");
+                const rangeRes = await api.post(`/PHG/pipeline/create-reference-ranges`, { Project_Name: selectedProjectName, gff_file: formData.gff, reference: formData.reference, boundary: formData.boundary, pad: Number(formData.pad), min_range_size: Number(formData.minRangeSize) });
+                if (!rangeRes.data || rangeRes.data.detail === "Process already running.") throw new Error(rangeRes.data?.detail || "Failed to start Create Reference Ranges.");
+                console.log("Create Reference Ranges response:", rangeRes.data);
+                stepOK = await pollLogStatus("/PHG/pipeline/create-reference-ranges-log-file", selectedProjectName);
+                if (!stepOK) throw new Error("Create Reference Ranges step failed or timed out.");
+            }
+             if (stepOK) {
+                toast.info("Step 4/6: Aligning Assemblies...");
+                const alignRes = await api.post(`/PHG/pipeline/align-assemblies`, { Project_Name: selectedProjectName, gff_file: formData.gff, reference: formData.reference, sequences: filteredSequences });
+                if (!alignRes.data || alignRes.data.detail === "Process already running.") throw new Error(alignRes.data?.detail || "Failed to start Align Assemblies.");
+                console.log("Align Assemblies response:", alignRes.data);
+                stepOK = await pollLogStatus("/PHG/pipeline/align-assemblies-log-file", selectedProjectName);
+                if (!stepOK) throw new Error("Align Assemblies step failed or timed out.");
+            }
+             if (stepOK) {
+                toast.info("Step 5/6: Creating VCF...");
+                const vcfRes = await api.post(`/PHG/pipeline/create-vcf`, { reference: formData.reference, Project_Name: selectedProjectName });
+                if (!vcfRes.data || vcfRes.data.detail === "Process already running.") throw new Error(vcfRes.data?.detail || "Failed to start Create VCF.");
+                console.log("Create VCF response:", vcfRes.data);
+            }
+             if (stepOK) {
+                toast.info("Step 6/6: Loading VCF...");
+                const loadRes = await api.post(`/PHG/pipeline/load-vcf`, { Project_Name: selectedProjectName });
+                if (!loadRes.data || loadRes.data.detail === "Process already running.") throw new Error(loadRes.data?.detail || "Failed to start Load VCF.");
+                console.log("Load VCF response:", loadRes.data);
+                stepOK = await pollLogStatus("/PHG/pipeline/load-vcf-log-file", selectedProjectName);
+                if (!stepOK) throw new Error("Load VCF step failed or timed out.");
+            }
+            if (stepOK) {
+                toast.success("Pipeline completed successfully!");
+                setFormData({ project: "", selectedSequences: [], gff: "", reference: "", boundary: "", minRangeSize: "", pad: "" });
+                setErrors({});
+            }
         } catch (error) {
-            console.error(`Error processing step ${stepId}:`, error);
-            stepSetter(prev => ({ ...prev, status: 'error', message: `Error during step ${stepId}: ${error.message || 'Unknown error'}` }));
+            console.error("Pipeline execution error:", error);
+            toast.error(`Pipeline failed: ${error.message || "An unknown error occurred."}`);
         } finally {
-            setIsProcessing(prev => ({ ...prev, [stepId]: false }));
+            setIsSubmittingPipeline(false);
         }
     };
 
-     const renderStatus = (status, message, downloadLink, downloadLinks) => {
-        if (!status) return null;
-        let icon;
-        switch(status) {
-            case 'success': icon = <FaCheckCircle />; break;
-            case 'error': icon = <FaExclamationTriangle />; break;
-            case 'info': icon = <FaInfoCircle />; break;
-            case 'warning': icon = <FaExclamationTriangle />; break;
-            default: icon = <FaInfoCircle />;
-        }
-        const linkContent = downloadLinks && downloadLinks.length > 0 ? (
-             <ul style={{ listStyle: 'none', paddingLeft: 0, marginTop: '0.5rem' }}>
-                 {downloadLinks.map((link, index) => (
-                    <li key={index} style={{marginTop: '0.25rem'}}>
-                        <a href={link} className="download-link" target="_blank" rel="noopener noreferrer">
-                            <FaFileDownload /> Download File {index + 1}
-                         </a>
-                    </li>
-                 ))}
-             </ul>
-         ) : downloadLink ? (
-            <div style={{marginTop: '0.5rem'}}>
-                 <a href={downloadLink} className="download-link" target="_blank" rel="noopener noreferrer">
-                     <FaFileDownload /> Download Output File
-                 </a>
-            </div>
-         ) : null;
-        return (
-            <div className={`output-area output-${status}`}>
-                <span className="status-icon">{icon}</span>
-                <span>{message}</span>
-                {linkContent}
-            </div>
-        );
-    };
 
-    const isStepDisabled = (stepId) => isProcessing[stepId] || !selectedProject;
-
+    // --- Render ---
     return (
-        <div className="page-container pipeline-steps-container">
-            <div className="page-header">
-                <h1><FaProjectDiagram className="header-icon" /> Genome Analysis Pipeline</h1>
-                <div className="page-controls">
-                    <select
-                        className="themed-select project-select"
-                        value={selectedProject}
-                        onChange={(e) => setSelectedProject(e.target.value)}
-                    >
-                        <option value="">Select Project...</option>
-                        {projects.map(project => (
-                            <option key={project} value={project}>{project}</option>
-                        ))}
-                    </select>
-                    <button className="primary-btn create-project-btn" onClick={handleCreateProject}>
-                        <FaPlus /> Create Project
-                    </button>
-                </div>
-            </div>
+        <div className="pipeline-container">
+            <Toaster position="top-right" richColors theme="dark" />
 
-            {!selectedProject && (
-                 <div className="output-area output-info" style={{marginBottom: '2rem'}}>
-                    <FaInfoCircle /> Please select or create a project to start the pipeline.
-                 </div>
-             )}
-
-            {/* --- Pipeline Step Cards --- */}
-            <div className="cards-grid pipeline-cards">
-
-                {/* Card 1: Prepare FASTA */}
-                <div className="styled-card pipeline-card">
-                    <div className="card-header"><h2><FaFileAlt className="card-icon" /> 1. Prepare FASTA</h2></div>
-                    <div className="card-content">
-                        <div className="input-group">
-                            <label><FaListOl className="label-icon" />Input Sequences</label>
-                            <select multiple className="multi-select"
-                                value={step1_prepareFasta.selectedSequences}
-                                onChange={(e) => handleMultiSelectChange(setStep1_prepareFasta, 'selectedSequences', e)}
-                                disabled={isStepDisabled('step1')}>
-                                {availableSequences.map(seq => ( <option key={seq} value={seq}>{seq}</option> ))}
-                            </select>
-                             <small style={{color: 'var(--text-muted)', marginTop: '0.3rem'}}>Hold Ctrl/Cmd to select multiple.</small>
-                        </div>
-                        <div className="input-group">
-                            <label><FaPencilAlt className="label-icon" />Output Name Prefix</label>
-                            <input type="text" placeholder="e.g., prepared_assembly"
-                                value={step1_prepareFasta.outputName}
-                                onChange={(e) => handleStepChange(setStep1_prepareFasta, 'outputName', e.target.value)}
-                                disabled={isStepDisabled('step1')} />
-                        </div>
-                        {renderStatus(step1_prepareFasta.status, step1_prepareFasta.message, step1_prepareFasta.downloadLink)}
-                        <button className="process-btn primary-btn"
-                            onClick={() => handleProcessStep('step1', setStep1_prepareFasta, step1_prepareFasta)}
-                            disabled={isStepDisabled('step1') || step1_prepareFasta.selectedSequences.length === 0}>
-                             {isProcessing['step1'] ? <><span className="spinner small-spinner"></span> Processing...</> : <><FaArrowRight className="btn-icon" /> Run Prepare</>}
-                        </button>
-                    </div>
-                </div>
-
-                {/* Card 2: Compress FASTA */}
-                <div className="styled-card pipeline-card">
-                    <div className="card-header"><h2><FaCompressArrowsAlt className="card-icon" /> 2. Compress FASTA</h2></div>
-                    <div className="card-content">
-                         <div className="input-group">
-                            <label><FaListOl className="label-icon" />Input Sequences</label>
-                             <select multiple className="multi-select"
-                                 value={step2_compressFasta.selectedSequences}
-                                 onChange={(e) => handleMultiSelectChange(setStep2_compressFasta, 'selectedSequences', e)}
-                                 disabled={isStepDisabled('step2')}>
-                                 {sourcesForStep2.map(seq => ( <option key={seq} value={seq}>{seq}</option> ))}
-                             </select>
-                         </div>
-                         <div className="input-group">
-                             <label><FaFileAlt className="label-icon" />Reference Sequence</label>
-                             <select value={step2_compressFasta.referenceSequence}
-                                onChange={(e) => handleStepChange(setStep2_compressFasta, 'referenceSequence', e.target.value)}
-                                disabled={isStepDisabled('step2')}>
-                                 <option value="">Select Reference...</option>
-                                 {availableSequences.map(seq => ( <option key={seq} value={seq}>{seq}</option> ))}
-                             </select>
-                         </div>
-                          <div className="input-group">
-                             <label><FaPencilAlt className="label-icon" />Output Name Prefix</label>
-                             <input type="text" placeholder="e.g., compressed_assembly"
-                                value={step2_compressFasta.outputName}
-                                onChange={(e) => handleStepChange(setStep2_compressFasta, 'outputName', e.target.value)}
-                                disabled={isStepDisabled('step2')} />
-                         </div>
-                          {renderStatus(step2_compressFasta.status, step2_compressFasta.message, step2_compressFasta.downloadLink)}
-                         <button className="process-btn primary-btn"
-                            onClick={() => handleProcessStep('step2', setStep2_compressFasta, step2_compressFasta)}
-                            disabled={isStepDisabled('step2') || step2_compressFasta.selectedSequences.length === 0 || !step2_compressFasta.referenceSequence}>
-                             {isProcessing['step2'] ? <><span className="spinner small-spinner"></span> Compressing...</> : <><FaArrowRight className="btn-icon" /> Run Compress</>}
+            <header className="pipeline-header">
+                <h1 className="phg-page-title">RicePHG Pipeline</h1>
+                <div className="pipeline-actions">
+                     <form onSubmit={handleCreateProject} className="pipeline-action-group">
+                         <input value={projectName} onChange={(e) => setProjectName(e.target.value)} type="text" placeholder="New Project Name" className="phg-input" aria-label="New Project Name" />
+                         <button type="submit" disabled={isSubmittingProjectCreation || !projectName.trim()} className="phg-button phg-button-primary" >
+                            {isSubmittingProjectCreation ? ( <><span className="phg-spinner"></span> Creating...</> ) : ( "Create Project" )}
                          </button>
-                    </div>
-                </div>
-
-                 {/* Card 3: Create Ranges */}
-                 <div className="styled-card pipeline-card">
-                     <div className="card-header"><h2><FaRulerCombined className="card-icon" /> 3. Create Ranges</h2></div>
-                     <div className="card-content">
-                         <div className="input-group">
-                             {/* Corrected Icon Usage */}
-                             <label><FaFileCode className="label-icon" />Annotation GFF</label>
-                             <select value={step3_createRanges.gffFile}
-                                onChange={(e) => handleStepChange(setStep3_createRanges, 'gffFile', e.target.value)}
-                                disabled={isStepDisabled('step3')}>
-                                 <option value="">Select GFF File...</option>
-                                 {availableGffs.map(file => ( <option key={file} value={file}>{file}</option> ))}
-                             </select>
-                         </div>
-                          <div className="input-group">
-                             <label><FaFileAlt className="label-icon" />Reference FASTA</label>
-                             <select value={step3_createRanges.referenceFile}
-                                onChange={(e) => handleStepChange(setStep3_createRanges, 'referenceFile', e.target.value)}
-                                disabled={isStepDisabled('step3')}>
-                                 <option value="">Select Reference...</option>
-                                 {availableSequences.map(seq => ( <option key={seq} value={seq}>{seq}</option> ))}
-                             </select>
-                         </div>
-                         <div className="toggle-group">
-                             <label><FaTags className="label-icon"/>Feature Type</label>
-                             <div className="toggle-container">
-                                 <button className={`toggle-btn ${step3_createRanges.featureType === 'gene' ? 'active' : ''}`}
-                                    onClick={() => handleToggleChange(setStep3_createRanges, 'featureType', 'gene')}
-                                    disabled={isStepDisabled('step3')}>Gene</button>
-                                 <button className={`toggle-btn ${step3_createRanges.featureType === 'cds' ? 'active' : ''}`}
-                                    onClick={() => handleToggleChange(setStep3_createRanges, 'featureType', 'cds')}
-                                    disabled={isStepDisabled('step3')}>CDS</button>
-                             </div>
-                         </div>
-                         <div className="input-group">
-                             <label><FaExpandArrowsAlt className="label-icon" />Range Pad (bp)</label>
-                              <input type="number" value={step3_createRanges.rangePad}
-                                onChange={(e) => handleStepChange(setStep3_createRanges, 'rangePad', parseInt(e.target.value, 10) || 0)}
-                                disabled={isStepDisabled('step3')} min="0" />
-                         </div>
-                         <div className="input-group">
-                             <label><FaArrowsAltH className="label-icon" />Min Range Size (bp)</label>
-                              <input type="number" value={step3_createRanges.minRangeSize}
-                                onChange={(e) => handleStepChange(setStep3_createRanges, 'minRangeSize', parseInt(e.target.value, 10) || 1)}
-                                disabled={isStepDisabled('step3')} min="1" />
-                         </div>
-                         <div className="input-group">
-                             <label><FaPencilAlt className="label-icon" />Output BED Name</label>
-                              <input type="text" placeholder="e.g., gene_ranges" value={step3_createRanges.outputName}
-                                onChange={(e) => handleStepChange(setStep3_createRanges, 'outputName', e.target.value)}
-                                disabled={isStepDisabled('step3')} required/>
-                         </div>
-                          {renderStatus(step3_createRanges.status, step3_createRanges.message, step3_createRanges.downloadLink)}
-                         <button className="process-btn primary-btn"
-                             onClick={() => handleProcessStep('step3', setStep3_createRanges, step3_createRanges)}
-                             disabled={isStepDisabled('step3') || !step3_createRanges.gffFile || !step3_createRanges.referenceFile || !step3_createRanges.outputName}>
-                             {isProcessing['step3'] ? <><span className="spinner small-spinner"></span> Generating...</> : <><FaArrowRight className="btn-icon" /> Generate Ranges</>}
+                     </form>
+                     <div className="pipeline-action-group">
+                         <select value={selectedProjectForDownload} onChange={(e) => setSelectedProjectForDownload(e.target.value)} className="phg-select" aria-label="Select project for download" >
+                            <option value="">Select Project for Download</option>
+                            {projects.map((proj) => (<option key={proj} value={proj}>{proj}</option>))}
+                         </select>
+                         <button disabled={isDownloading || !selectedProjectForDownload} onClick={handleDownloadMetrics} className="phg-button" >
+                            {isDownloading ? ( <> <span className="phg-spinner"></span> Downloading...</> ) : ( "Download QC Metrics" )}
                          </button>
-                    </div>
-                 </div>
+                         <button disabled={isDownloading || !selectedProjectForDownload} onClick={handleDownloadPlot} className="phg-button" >
+                             {isDownloading ? ( <> <span className="phg-spinner"></span> Downloading...</> ) : ( "Download Dot Plot" )}
+                         </button>
+                     </div>
+                </div>
+            </header>
 
-                {/* Card 4: Align Assemblies */}
-                <div className="styled-card pipeline-card">
-                     <div className="card-header"><h2><FaLink className="card-icon" /> 4. Align Assemblies</h2></div>
-                     <div className="card-content">
-                          <div className="input-group">
-                              {/* Corrected Icon Usage */}
-                             <label><FaFileCode className="label-icon" />Reference GFF</label>
-                             <select value={step4_alignAssemblies.gffFile}
-                                onChange={(e) => handleStepChange(setStep4_alignAssemblies, 'gffFile', e.target.value)}
-                                disabled={isStepDisabled('step4')}>
-                                 <option value="">Select GFF File...</option>
-                                 {availableGffs.map(file => ( <option key={file} value={file}>{file}</option> ))}
-                             </select>
-                         </div>
-                          <div className="input-group">
-                             <label><FaFileAlt className="label-icon" />Reference FASTA</label>
-                             <select value={step4_alignAssemblies.referenceFile}
-                                onChange={(e) => handleStepChange(setStep4_alignAssemblies, 'referenceFile', e.target.value)}
-                                disabled={isStepDisabled('step4')}>
-                                 <option value="">Select Reference...</option>
-                                 {availableSequences.map(seq => ( <option key={seq} value={seq}>{seq}</option> ))}
-                             </select>
-                         </div>
-                         <div className="input-group">
-                            <label><FaListOl className="label-icon" />Query Sequences</label>
-                             <select multiple className="multi-select"
-                                value={step4_alignAssemblies.querySequences}
-                                onChange={(e) => handleMultiSelectChange(setStep4_alignAssemblies, 'querySequences', e)}
-                                disabled={isStepDisabled('step4')}>
-                                 {sourcesForStep4Queries.map(seq => ( <option key={seq} value={seq}>{seq}</option> ))}
-                             </select>
-                         </div>
-                          <div className="input-group">
-                             <label><FaPencilAlt className="label-icon" />Output Files Prefix</label>
-                              <input type="text" placeholder="e.g., aligned_run" value={step4_alignAssemblies.outputPrefix}
-                                onChange={(e) => handleStepChange(setStep4_alignAssemblies, 'outputPrefix', e.target.value)}
-                                disabled={isStepDisabled('step4')} required/>
-                         </div>
-                          {renderStatus(step4_alignAssemblies.status, step4_alignAssemblies.message, null, step4_alignAssemblies.downloadLinks)}
-                          <button className="process-btn primary-btn"
-                            onClick={() => handleProcessStep('step4', setStep4_alignAssemblies, step4_alignAssemblies)}
-                            disabled={isStepDisabled('step4') || !step4_alignAssemblies.referenceFile || !step4_alignAssemblies.gffFile || step4_alignAssemblies.querySequences.length === 0 || !step4_alignAssemblies.outputPrefix}>
-                             {isProcessing['step4'] ? <><span className="spinner small-spinner"></span> Aligning...</> : <><FaArrowRight className="btn-icon" /> Run Alignment</>}
-                          </button>
-                    </div>
+            <div className="phg-card pipeline-form-card">
+                 <div className="phg-card-header">
+                     <h2 className="phg-card-title">Run Pipeline</h2>
                  </div>
+                 <div className="phg-card-content">
+                     <form onSubmit={handleSubmitPipeline} className="pipeline-form">
+                         {/* Project Selection */}
+                         <div className="phg-form-group" onBlur={(e) => handleDropdownBlur(e, setShowProjectDropdown)}>
+                            <label htmlFor="project" className="phg-label">Target Project</label>
+                            <div className="phg-dropdown-container" >
+                                <button
+                                    type="button" id="project"
+                                    // *** FIXED onClick ***
+                                    onClick={() => toggleDropdown(setShowProjectDropdown, showProjectDropdown)}
+                                    className="phg-select phg-dropdown-trigger" aria-haspopup="listbox" aria-expanded={showProjectDropdown}
+                                >
+                                    <span>{formData.project || "Select a Project..."}</span>
+                                    <ChevronDownIcon className="phg-dropdown-icon" open={showProjectDropdown} />
+                                </button>
+                                {showProjectDropdown && (
+                                    <div className="phg-dropdown-menu" role="listbox">
+                                        {projects.map((project) => ( <button key={project} type="button" role="option" aria-selected={formData.project === project} onClick={() => handleSelect('project', project, setShowProjectDropdown)} className="phg-dropdown-item" > {project} </button> ))}
+                                        {projects.length === 0 && <div className="phg-dropdown-item-disabled">No projects available</div>}
+                                    </div>
+                                )}
+                            </div>
+                            {errors.project && <span className="phg-error-text">{errors.project}</span>}
+                         </div>
 
-                {/* Card 5: Create VCF */}
-                 <div className="styled-card pipeline-card">
-                     <div className="card-header"><h2><FaVial className="card-icon" /> 5. Create VCF</h2></div>
-                     <div className="card-content">
-                          <div className="toggle-group">
-                             <label><FaTags className="label-icon"/>Format</label>
-                             <div className="toggle-container">
-                                 <button className={`toggle-btn ${step5_createVcf.vcfType === 'ref' ? 'active' : ''}`}
-                                     onClick={() => handleToggleChange(setStep5_createVcf, 'vcfType', 'ref')}
-                                     disabled={isStepDisabled('step5')}>Ref VCF</button>
-                                  <button className={`toggle-btn ${step5_createVcf.vcfType === 'maf' ? 'active' : ''}`}
-                                     onClick={() => handleToggleChange(setStep5_createVcf, 'vcfType', 'maf')}
-                                     disabled={isStepDisabled('step5')}>MAF</button>
+                         {/* Sequences Multi-select */}
+                         <div className="phg-form-group" onBlur={(e) => handleDropdownBlur(e, setShowSequencesDropdown)}>
+                            <label htmlFor="selectedSequences" className="phg-label">Input Sequences</label>
+                            <div className="phg-dropdown-container">
+                                <button
+                                    type="button" id="selectedSequences"
+                                    // *** FIXED onClick ***
+                                    onClick={() => toggleDropdown(setShowSequencesDropdown, showSequencesDropdown)}
+                                    className="phg-select phg-dropdown-trigger" aria-haspopup="listbox" aria-expanded={showSequencesDropdown}
+                                >
+                                    <span> {formData.selectedSequences.length === 0 ? "Select Sequences..." : formData.selectedSequences.length === 1 ? formData.selectedSequences[0] : `${formData.selectedSequences.length} sequences selected`} </span>
+                                    <ChevronDownIcon className="phg-dropdown-icon" open={showSequencesDropdown} />
+                                </button>
+                                {showSequencesDropdown && (
+                                    <div className="phg-dropdown-menu phg-dropdown-menu-multi" role="listbox">
+                                        {sequenceOptions.map((option) => ( <label key={option.value} className="phg-dropdown-item phg-dropdown-item-multi"> <input type="checkbox" checked={formData.selectedSequences.includes(option.value)} onChange={() => handleSequenceSelect(option.value)} className="phg-checkbox" /> {option.label} </label> ))}
+                                    </div>
+                                )}
+                            </div>
+                            {errors.selectedSequences && <span className="phg-error-text">{errors.selectedSequences}</span>}
+                         </div>
+
+                         {/* GFF File Selection */}
+                         <div className="phg-form-group" onBlur={(e) => handleDropdownBlur(e, setShowGffDropdown)}>
+                             <label htmlFor="gff" className="phg-label">GFF File</label>
+                             <div className="phg-dropdown-container">
+                                 <button
+                                     type="button" id="gff"
+                                     // *** FIXED onClick ***
+                                     onClick={() => toggleDropdown(setShowGffDropdown, showGffDropdown)}
+                                     className="phg-select phg-dropdown-trigger" aria-haspopup="listbox" aria-expanded={showGffDropdown}>
+                                     <span>{formData.gff || "Select GFF File..."}</span>
+                                     <ChevronDownIcon className="phg-dropdown-icon" open={showGffDropdown} />
+                                 </button>
+                                 {showGffDropdown && (
+                                     <div className="phg-dropdown-menu" role="listbox">
+                                         {gffOptions.map((gff) => ( <button key={gff} type="button" role="option" aria-selected={formData.gff === gff} onClick={() => handleSelect('gff', gff, setShowGffDropdown)} className="phg-dropdown-item"> {gff} </button> ))}
+                                     </div>
+                                 )}
                              </div>
+                             {errors.gff && <span className="phg-error-text">{errors.gff}</span>}
                          </div>
-                         <div className="input-group">
-                             <label><FaFileAlt className="label-icon" />Reference FASTA</label>
-                             <select value={step5_createVcf.referenceFile}
-                                onChange={(e) => handleStepChange(setStep5_createVcf, 'referenceFile', e.target.value)}
-                                disabled={isStepDisabled('step5')}>
-                                 <option value="">Select Reference...</option>
-                                 {availableSequences.map(seq => ( <option key={seq} value={seq}>{seq}</option> ))}
-                             </select>
-                         </div>
-                         <div className="input-group">
-                             {/* Corrected Icon Usage */}
-                             <label><FaFileCode className="label-icon" />Input BED File/Regions</label>
-                             <select value={step5_createVcf.bedFile}
-                                onChange={(e) => handleStepChange(setStep5_createVcf, 'bedFile', e.target.value)}
-                                disabled={isStepDisabled('step5')}>
-                                 <option value="">Select Input Ranges...</option>
-                                 {availableBeds.map(bed => ( <option key={bed} value={bed}>{bed}</option> ))}
-                             </select>
-                         </div>
-                           <div className="input-group">
-                             <label><FaPencilAlt className="label-icon" />Output Name Prefix</label>
-                              <input type="text" placeholder="e.g., variants_set" value={step5_createVcf.outputName}
-                                onChange={(e) => handleStepChange(setStep5_createVcf, 'outputName', e.target.value)}
-                                disabled={isStepDisabled('step5')} required/>
-                         </div>
-                          {renderStatus(step5_createVcf.status, step5_createVcf.message, step5_createVcf.downloadLink)}
-                          <button className="process-btn primary-btn"
-                            onClick={() => handleProcessStep('step5', setStep5_createVcf, step5_createVcf)}
-                            disabled={isStepDisabled('step5') || !step5_createVcf.referenceFile || !step5_createVcf.bedFile || !step5_createVcf.outputName}>
-                             {isProcessing['step5'] ? <><span className="spinner small-spinner"></span> Generating...</> : <><FaArrowRight className="btn-icon" /> Create VCF</>}
-                          </button>
-                    </div>
-                 </div>
 
-                {/* Card 6: Load VCF */}
-                 <div className="styled-card pipeline-card">
-                     <div className="card-header"><h2><FaDatabase className="card-icon" /> 6. Load VCF</h2></div>
-                     <div className="card-content">
-                         <div className="input-group">
-                             <label><FaFileAlt className="label-icon" />VCF File Source</label>
-                             <select value={step6_loadVcf.vcfFileSource}
-                                onChange={(e) => handleStepChange(setStep6_loadVcf, 'vcfFileSource', e.target.value)}
-                                disabled={isStepDisabled('step6')}>
-                                 <option value="">Select VCF Source...</option>
-                                 {sourcesForStep6Load.map(src => (<option key={src} value={src}>{src}</option>))}
-                             </select>
+                         {/* Reference File Selection */}
+                         <div className="phg-form-group" onBlur={(e) => handleDropdownBlur(e, setShowReferenceDropdown)}>
+                             <label htmlFor="reference" className="phg-label">Reference Sequence File</label>
+                             <div className="phg-dropdown-container">
+                                 <button
+                                     type="button" id="reference"
+                                     // *** FIXED onClick ***
+                                     onClick={() => toggleDropdown(setShowReferenceDropdown, showReferenceDropdown)}
+                                     className="phg-select phg-dropdown-trigger" aria-haspopup="listbox" aria-expanded={showReferenceDropdown}>
+                                     <span>{formData.reference || "Select Reference File..."}</span>
+                                     <ChevronDownIcon className="phg-dropdown-icon" open={showReferenceDropdown} />
+                                 </button>
+                                 {showReferenceDropdown && (
+                                     <div className="phg-dropdown-menu" role="listbox">
+                                         {sequenceOptions .filter(seq => formData.selectedSequences.includes(seq.value)) .map((seq) => ( <button key={seq.value} type="button" role="option" aria-selected={formData.reference === seq.value} onClick={() => handleSelect('reference', seq.value, setShowReferenceDropdown)} className="phg-dropdown-item"> {seq.label} </button> ))}
+                                         {sequenceOptions.filter(seq => formData.selectedSequences.includes(seq.value)).length === 0 && <div className="phg-dropdown-item-disabled">Select sequences first</div> }
+                                     </div>
+                                 )}
+                             </div>
+                             {errors.reference && <span className="phg-error-text">{errors.reference}</span>}
                          </div>
-                          {renderStatus(step6_loadVcf.status, step6_loadVcf.message)}
-                          <button className="process-btn primary-btn"
-                            onClick={() => handleProcessStep('step6', setStep6_loadVcf, step6_loadVcf)}
-                            disabled={isStepDisabled('step6') || !step6_loadVcf.vcfFileSource}>
-                            {isProcessing['step6'] ? <><span className="spinner small-spinner"></span> Loading...</> : <><FaArrowRight className="btn-icon" /> Load Data</>}
-                          </button>
-                    </div>
-                 </div>
 
-            </div> {/* End Pipeline Cards Grid */}
+                         {/* Boundary Selection */}
+                         <div className="phg-form-group" onBlur={(e) => handleDropdownBlur(e, setShowBoundaryDropdown)}>
+                             <label htmlFor="boundary" className="phg-label">Boundary Type</label>
+                             <div className="phg-dropdown-container">
+                                 <button
+                                     type="button" id="boundary"
+                                     // *** FIXED onClick ***
+                                     onClick={() => toggleDropdown(setShowBoundaryDropdown, showBoundaryDropdown)}
+                                     className="phg-select phg-dropdown-trigger" aria-haspopup="listbox" aria-expanded={showBoundaryDropdown}>
+                                     <span>{formData.boundary || "Select Boundary..."}</span>
+                                     <ChevronDownIcon className="phg-dropdown-icon" open={showBoundaryDropdown} />
+                                 </button>
+                                 {showBoundaryDropdown && (
+                                     <div className="phg-dropdown-menu" role="listbox">
+                                         {boundaryOptions.map((bound) => ( <button key={bound} type="button" role="option" aria-selected={formData.boundary === bound} onClick={() => handleSelect('boundary', bound, setShowBoundaryDropdown)} className="phg-dropdown-item"> {bound} </button> ))}
+                                     </div>
+                                 )}
+                             </div>
+                             {errors.boundary && <span className="phg-error-text">{errors.boundary}</span>}
+                         </div>
 
-        </div> // End page-container
+                         {/* Pad Input */}
+                         <div className="phg-form-group">
+                             <label htmlFor="pad" className="phg-label">Pad Size</label>
+                             <input type="number" id="pad" name="pad" value={formData.pad} onChange={handleChange} min={0} className="phg-input" placeholder="e.g., 1000" />
+                             {errors.pad && <span className="phg-error-text">{errors.pad}</span>}
+                         </div>
+
+                         {/* Min Range Size Input */}
+                         <div className="phg-form-group">
+                             <label htmlFor="minRangeSize" className="phg-label">Minimum Range Size</label>
+                             <input type="number" id="minRangeSize" name="minRangeSize" value={formData.minRangeSize} onChange={handleChange} min={1} className="phg-input" placeholder="e.g., 500" />
+                             {errors.minRangeSize && <span className="phg-error-text">{errors.minRangeSize}</span>}
+                         </div>
+
+                         {/* Submit Button */}
+                         <div className="pipeline-form-submit">
+                             <button type="submit" className="phg-button phg-button-primary" disabled={isSubmittingPipeline} >
+                                 {isSubmittingPipeline && <span className="phg-spinner"></span>}
+                                 {isSubmittingPipeline ? "Processing Pipeline..." : "Run Full Pipeline"}
+                             </button>
+                         </div>
+                     </form>
+                 </div> {/* End Card Content */}
+            </div> {/* End Card */}
+
+            <div style={{ height: '2rem' }}></div>
+
+        </div> // End pipeline-container
     );
 };
 
