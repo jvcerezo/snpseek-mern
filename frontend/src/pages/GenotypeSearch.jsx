@@ -308,7 +308,7 @@ const GenotypeSearch = () => {
         <div className="page-wrapper">
             <div className="genotype-search-container">
                 <div className="search-card">
-                    <h2>Genotype Search Criteria</h2>
+                    <h2>Search by Genotype</h2>
 
                     {optionsError && (
                         <div className="error-message options-error">
