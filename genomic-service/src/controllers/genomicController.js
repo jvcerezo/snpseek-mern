@@ -10,15 +10,15 @@ import ReferenceGenomePos from "../models/referenceGenomePos.js";
  */
 export const getVarietySets = async (req, res) => {
     try {
-        console.log("CONTROLLER: Attempting Variety.distinct('varietySet')"); // Log start
-        const varietySetsRaw = await Variety.distinct("varietySet"); // Get raw result
-        console.log("CONTROLLER: Raw distinct variety sets from DB:", varietySetsRaw); // Log raw result
+        console.log("CONTROLLER: Attempting Variety.distinct('varietySet')");
+        const varietySetsRaw = await Variety.distinct("varietySet");
+        console.log("CONTROLLER: Raw distinct variety sets from DB:", varietySetsRaw);
 
         const validSets = varietySetsRaw
             .filter(set => set && typeof set === 'string' && set.trim().length > 0)
             .sort();
 
-        console.log(`CONTROLLER: Filtered & sorted variety sets (${validSets.length}):`, validSets); // Log final result
+        console.log(`CONTROLLER: Filtered & sorted variety sets (${validSets.length}):`, validSets);
         res.status(200).json(validSets);
 
     } catch (error) {
@@ -33,15 +33,15 @@ export const getVarietySets = async (req, res) => {
  */
 export const getSnpSets = async (req, res) => {
     try {
-        console.log("CONTROLLER: Attempting Variety.distinct('snpSet')"); // Log start
+        console.log("CONTROLLER: Attempting Variety.distinct('snpSet')");
         const snpSetsRaw = await Variety.distinct("snpSet");
-        console.log("CONTROLLER: Raw distinct SNP sets from DB:", snpSetsRaw); // Log raw result
+        console.log("CONTROLLER: Raw distinct SNP sets from DB:", snpSetsRaw);
 
         const validSets = snpSetsRaw
             .filter(set => set && typeof set === 'string' && set.trim().length > 0)
             .sort();
 
-        console.log(`CONTROLLER: Filtered & sorted SNP sets (${validSets.length}):`, validSets); // Log final result
+        console.log(`CONTROLLER: Filtered & sorted SNP sets (${validSets.length}):`, validSets);
         res.status(200).json(validSets);
 
     } catch (error) {
@@ -56,15 +56,15 @@ export const getSnpSets = async (req, res) => {
  */
 export const getVarietySubpopulations = async (req, res) => {
     try {
-        console.log("CONTROLLER: Attempting Variety.distinct('subpopulation')"); // Log start
+        console.log("CONTROLLER: Attempting Variety.distinct('subpopulation')");
         const subpopulationsRaw = await Variety.distinct("subpopulation");
-        console.log("CONTROLLER: Raw distinct subpopulations from DB:", subpopulationsRaw); // Log raw result
+        console.log("CONTROLLER: Raw distinct subpopulations from DB:", subpopulationsRaw);
 
         const validSubpopulations = subpopulationsRaw
             .filter(sub => sub && typeof sub === 'string' && sub.trim().length > 0)
             .sort();
 
-        console.log(`CONTROLLER: Filtered & sorted subpopulations (${validSubpopulations.length}):`, validSubpopulations); // Log final result
+        console.log(`CONTROLLER: Filtered & sorted subpopulations (${validSubpopulations.length}):`, validSubpopulations);
         res.status(200).json(validSubpopulations);
 
     } catch (error) {
@@ -79,9 +79,9 @@ export const getVarietySubpopulations = async (req, res) => {
  */
 export const getChromosomes = async (req, res) => {
     try {
-        console.log("CONTROLLER: Attempting VarietiesPos.distinct('contig')"); // Log start
+        console.log("CONTROLLER: Attempting VarietiesPos.distinct('contig')");
         const chromosomesRaw = await VarietiesPos.distinct("contig");
-        console.log("CONTROLLER: Raw distinct chromosomes/contigs from DB:", chromosomesRaw); // Log raw result
+        console.log("CONTROLLER: Raw distinct chromosomes/contigs from DB:", chromosomesRaw);
 
         const validChromosomes = chromosomesRaw
             .filter(chr => chr && typeof chr === 'string' && chr.trim().length > 0)
@@ -94,7 +94,7 @@ export const getChromosomes = async (req, res) => {
                  return a.localeCompare(b);
             });
 
-        console.log(`CONTROLLER: Filtered & sorted chromosomes (${validChromosomes.length}):`, validChromosomes); // Log final result
+        console.log(`CONTROLLER: Filtered & sorted chromosomes (${validChromosomes.length}):`, validChromosomes);
         res.status(200).json(validChromosomes);
 
     } catch (error) {
@@ -103,24 +103,40 @@ export const getChromosomes = async (req, res) => {
     }
 };
 
-// --- Helper: getReferencePositionsAndAllelesInRange ---
-// Assumed working correctly based on feedback (returns { positions: number[], referenceAlleles: Map<number, string> })
-const getReferencePositionsAndAllelesInRange = async (referenceIdStr, contig, startPos, endPos) => {
+// --- Helper: getReferencePositionsAndAlleles (Modified for optional range) ---
+const getReferencePositionsAndAlleles = async (referenceIdStr, contig, startPos, endPos) => {
     const refPosFilter = { referenceId: referenceIdStr };
-    if (contig) refPosFilter.contig = contig;
-    refPosFilter.start = { $lte: endPos }; refPosFilter.end = { $gte: startPos };
+    // Only apply contig filter if a specific chromosome is provided
+    if (contig && typeof contig === 'string' && contig.trim() !== '') {
+        refPosFilter.contig = contig;
+    }
+    // Only apply position range filter if BOTH start and end are valid numbers
+    if (typeof startPos === 'number' && typeof endPos === 'number' && !isNaN(startPos) && !isNaN(endPos)) {
+        refPosFilter.start = { $lte: endPos };
+        refPosFilter.end = { $gte: startPos };
+        console.log(`HELPER (getRefPosAndAlleles): Applying range filter: ${startPos}-${endPos}`);
+    } else {
+         console.log("HELPER (getRefPosAndAlleles): No range filter applied.");
+    }
+
     console.log("HELPER (getRefPosAndAlleles): Finding reference position docs matching:", refPosFilter);
-    const refPositionDocs = await ReferenceGenomePos.find(refPosFilter).select("positions");
+    const refPositionDocs = await ReferenceGenomePos.find(refPosFilter).select("positions start end"); // Removed contig select for now
     console.log(`HELPER (getRefPosAndAlleles): Found ${refPositionDocs.length} reference position document(s).`);
+
     const includedPositions = new Set();
     const referenceAlleleMap = new Map();
+
     for (const doc of refPositionDocs) {
         if (doc.positions && typeof doc.positions === 'object') {
             for (const posStr in doc.positions) {
                 const position = parseInt(posStr, 10);
-                if (!isNaN(position) && position >= startPos && position <= endPos) {
-                    includedPositions.add(position);
-                    referenceAlleleMap.set(position, typeof doc.positions[posStr] === 'string' ? doc.positions[posStr] : '?');
+                if (!isNaN(position)) {
+                    // If range was specified (startPos is not null), check bounds.
+                    // If no range was specified (startPos is null), include all positions found for matched docs.
+                    if (startPos === null || (position >= startPos && position <= endPos)) {
+                        includedPositions.add(position);
+                        referenceAlleleMap.set(position, typeof doc.positions[posStr] === 'string' ? doc.positions[posStr] : '?');
+                    }
                 }
             }
         }
@@ -131,25 +147,45 @@ const getReferencePositionsAndAllelesInRange = async (referenceIdStr, contig, st
 };
 // --- End Helper ---
 
+
 /**
- * @desc    Search for genotypes based on multiple criteria (Displays irisId as Assay)
+ * @desc    Search for genotypes based on multiple criteria (Handles 'Any Chromosome')
  * @route   POST /genomic/search
- * @access  Public (or Protected)
  */
 export const searchGenotypes = async (req, res) => {
     const {
         referenceGenome: referenceGenomeName,
         varietySet, snpSet, varietySubpopulation,
-        regionChromosome, regionStart, regionEnd,
+        regionChromosome, // Can be ''
+        regionStart, regionEnd,
+        // Add other region types if needed: regionType, regionGeneLocus, snpList, locusList
     } = req.body;
 
     console.log("CONTROLLER: Received genotype search request criteria:", req.body);
 
-    // --- Validation ---
-    if (!referenceGenomeName || !varietySet || !snpSet || !regionStart || !regionEnd) { return res.status(400).json({ message: "Reference Genome, Variety Set, SNP Set, Start Position, and End Position are required." }); }
-    const startPos = parseInt(regionStart, 10);
-    const endPos = parseInt(regionEnd, 10);
-    if (isNaN(startPos) || isNaN(endPos) || startPos > endPos || startPos < 0) { return res.status(400).json({ message: "Invalid Start/End position provided." }); }
+    // --- Adjusted Validation ---
+    if (!referenceGenomeName || !varietySet || !snpSet) {
+        return res.status(400).json({ message: "Reference Genome, Variety Set, and SNP Set are required." });
+    }
+
+    let startPos = null;
+    let endPos = null;
+    const specificChromosomeSearch = regionChromosome && typeof regionChromosome === 'string' && regionChromosome.trim() !== '';
+
+    if (specificChromosomeSearch) { // Validate start/end ONLY if a specific chromosome is chosen
+        if (regionStart === undefined || regionStart === '' || regionEnd === undefined || regionEnd === '') {
+             return res.status(400).json({ message: "Start Position and End Position are required when a specific Chromosome is selected." });
+        }
+        startPos = parseInt(regionStart, 10);
+        endPos = parseInt(regionEnd, 10);
+        if (isNaN(startPos) || isNaN(endPos) || startPos > endPos || startPos < 0) {
+             return res.status(400).json({ message: "Invalid Start/End position provided for chromosome search." });
+        }
+        console.log(`CONTROLLER: Specific chromosome search on ${regionChromosome} from ${startPos} to ${endPos}`);
+    } else {
+        console.log("CONTROLLER: No specific chromosome selected, searching across all contigs.");
+        // startPos and endPos remain null
+    }
     // --- End Validation ---
 
     try {
@@ -157,81 +193,99 @@ export const searchGenotypes = async (req, res) => {
         const refGenomeDoc = await ReferenceGenome.findOne({ name: referenceGenomeName }).select("_id id");
         if (!refGenomeDoc) { return res.status(404).json({ message: `Reference Genome '${referenceGenomeName}' not found.` }); }
         const referenceIdStr = refGenomeDoc._id.toString();
-        console.log(`CONTROLLER: Found referenceGenome ObjectId: ${refGenomeDoc._id}`);
+        console.log(`CONTROLLER: Found referenceGenome ObjectId: ${referenceIdStr}`);
 
-        // --- Step 2: Determine Target Positions AND Get Reference Alleles ---
-        const { positions: finalPositions, referenceAlleles } = await getReferencePositionsAndAllelesInRange(
+        // --- Step 2: Get Reference Alleles (respecting range ONLY if specified) ---
+        const { positions: refPositionsInRange, referenceAlleles } = await getReferencePositionsAndAlleles(
             referenceIdStr, regionChromosome, startPos, endPos
         );
-        if (finalPositions.length === 0) {
-             console.log("CONTROLLER: No reference positions found within the specified required range.");
+        // If specific chromosome range search yields no ref positions, result is empty
+        if (specificChromosomeSearch && refPositionsInRange.length === 0) {
+             console.log("CONTROLLER: No reference positions found within the specified range for the selected chromosome.");
              return res.status(200).json({ referenceGenomeName: referenceGenomeName, positions: [], varieties: [] });
         }
-        console.log(`CONTROLLER: Target positions determined (${finalPositions.length})`);
-        const targetPositionsSet = new Set(finalPositions);
 
-        // --- Step 3: Filter Varieties (Include irisId) ---
+        // --- Step 3: Filter Varieties ---
         const varietyFilter = { varietySet, snpSet };
         if (varietySubpopulation) varietyFilter.subpopulation = varietySubpopulation;
         console.log("CONTROLLER: Finding matching varieties with filter:", varietyFilter);
-        // MODIFICATION: Added 'irisId' to the select statement
-        const matchingVarieties = await Variety.find(varietyFilter)
-            .select("_id id name accession subpopulation varietySet irisId") // <-- Added irisId
-            .lean();
+        const matchingVarieties = await Variety.find(varietyFilter).select("_id id name accession subpopulation varietySet irisId").lean();
         if (!matchingVarieties || matchingVarieties.length === 0) {
              console.log("CONTROLLER: No varieties found matching criteria.");
-             return res.status(200).json({ referenceGenomeName: referenceGenomeName, positions: finalPositions, varieties: [] });
+             // Return positions found in reference even if no varieties match? Or empty? Empty seems safer.
+             // return res.status(200).json({ referenceGenomeName: referenceGenomeName, positions: refPositionsInRange, varieties: [] });
+             return res.status(200).json({ referenceGenomeName: referenceGenomeName, positions: [], varieties: [] });
+
         }
-        const matchingVarietyObjectIdStrings = matchingVarieties.map(v => v._id.toString()); // Use _id string
-        const matchingVarietyIdMap = new Map(matchingVarieties.map(v => [v._id.toString(), v])); // Key map by _id string
+        const matchingVarietyObjectIdStrings = matchingVarieties.map(v => v._id.toString());
+        const matchingVarietyIdMap = new Map(matchingVarieties.map(v => [v._id.toString(), v]));
         console.log(`CONTROLLER: Found ${matchingVarieties.length} matching varieties.`);
 
-
-        // --- Step 4: Fetch Variety Allele Data (Query uses Variety _ids in referenceId field) ---
-        const varietyPosFilter = {
-            referenceId: { $in: matchingVarietyObjectIdStrings } // Filter by the Array of Variety _ID strings
-        };
-        if (regionChromosome) varietyPosFilter.contig = regionChromosome;
-        const minPos = finalPositions[0];
-        const maxPos = finalPositions[finalPositions.length - 1];
-        varietyPosFilter.start = { $lte: maxPos };
-        varietyPosFilter.end = { $gte: minPos };
-        console.log("CONTROLLER: Finding variety position data with filter (using Variety _IDs in referenceId):", varietyPosFilter);
+        // --- Step 4: Fetch Variety Allele Data (Conditional Filters) ---
+        const varietyPosFilter = { referenceId: { $in: matchingVarietyObjectIdStrings } };
+        if (specificChromosomeSearch) { // Only filter by contig if provided
+             varietyPosFilter.contig = regionChromosome;
+        }
+        if (specificChromosomeSearch && startPos !== null && endPos !== null) { // Only filter by range if specific chromosome was chosen
+             varietyPosFilter.start = { $lte: endPos };
+             varietyPosFilter.end = { $gte: startPos };
+        }
+        console.log("CONTROLLER: Finding variety position data with filter:", varietyPosFilter);
         const varietyPositionDocs = await VarietiesPos.find(varietyPosFilter).select("positions referenceId");
         console.log(`CONTROLLER: Found ${varietyPositionDocs.length} relevant variety position document(s).`);
 
 
-        // --- Step 5: Build Allele Map ---
-        // Map structure: Map<varietyId_string (from doc.referenceId), Map<position_number, allele_string>>
-        const alleleMap = new Map();
+        // --- Step 5: Aggregate ALL unique positions and build Allele Map ---
+        const allVarietyPositions = new Set();
+        const alleleMap = new Map(); // Map<varietyId_string, Map<position_number, allele_string>>
         console.log("CONTROLLER: Building Allele Map...");
+
         for (const doc of varietyPositionDocs) {
-            const varietyIdStr = doc.referenceId; // This is the Variety._id string from the doc
-            if (!varietyIdStr || !doc.positions || typeof doc.positions !== 'object') continue;
-            // Ensure this doc belongs to a variety we originally filtered
-            if (matchingVarietyIdMap.has(varietyIdStr)) {
-                 if (!alleleMap.has(varietyIdStr)) alleleMap.set(varietyIdStr, new Map());
-                 const varietyAlleleData = alleleMap.get(varietyIdStr);
-                 for (const posStr in doc.positions) {
-                     const position = parseInt(posStr, 10);
-                     if (!isNaN(position) && targetPositionsSet.has(position)) {
-                          if (typeof doc.positions[posStr] === 'string') {
-                             varietyAlleleData.set(position, doc.positions[posStr]);
-                          } else { varietyAlleleData.set(position, 'ERR'); }
-                     }
-                 }
-             }
+            const varietyIdStr = doc.referenceId;
+            if (!varietyIdStr || !doc.positions || typeof doc.positions !== 'object' || !matchingVarietyIdMap.has(varietyIdStr)) continue;
+
+            if (!alleleMap.has(varietyIdStr)) alleleMap.set(varietyIdStr, new Map());
+            const varietyAlleleData = alleleMap.get(varietyIdStr);
+
+            for (const posStr in doc.positions) {
+                const position = parseInt(posStr, 10);
+                if (!isNaN(position)) {
+                    // If a range was specified (startPos is not null), only include positions within that range.
+                    // If no range (startPos is null - Any Chromosome), include all positions found for matched varieties.
+                    if (startPos === null || (position >= startPos && position <= endPos)) {
+                         allVarietyPositions.add(position);
+                         varietyAlleleData.set(position, typeof doc.positions[posStr] === 'string' ? doc.positions[posStr] : 'ERR');
+                    }
+                }
+            }
         }
-        console.log(`CONTROLLER: Built allele map covering ${alleleMap.size} varieties.`);
+        console.log(`CONTROLLER: Built allele map covering ${alleleMap.size} varieties and ${allVarietyPositions.size} unique positions.`);
+
+        // --- Step 6: Format Final Response ---
+        const finalPositions = Array.from(allVarietyPositions).sort((a, b) => a - b);
+
+        // If the search was for a specific range but no variety positions were found *within that range*
+        // (even if reference positions existed), return empty results for varieties.
+         if (specificChromosomeSearch && finalPositions.length === 0 && refPositionsInRange.length > 0) {
+             console.log("CONTROLLER: Reference positions found, but no variety positions match the specified range.");
+             // Include the reference row with its alleles in the specified range
+              const referenceGenomeRowData = { name: referenceGenomeName, assay: 'Reference', accession: refGenomeDoc.id || '-', subpop: '-', dataset: '-', mismatch: 0, alleles: {} };
+              for (const pos of refPositionsInRange) { referenceGenomeRowData.alleles[pos] = referenceAlleles.get(pos) ?? '?'; }
+             return res.status(200).json({ referenceGenomeName: referenceGenomeName, positions: refPositionsInRange, varieties: [referenceGenomeRowData] });
+         }
+          if (finalPositions.length === 0) {
+             console.log("CONTROLLER: No relevant positions found in reference or varieties for the given criteria.");
+             return res.status(200).json({ referenceGenomeName: referenceGenomeName, positions: [], varieties: [] });
+         }
 
 
-        // --- Step 6: Format Final Response (Assign irisId to assay, calculate mismatch) ---
         const finalResults = {
             referenceGenomeName: referenceGenomeName,
             positions: finalPositions,
             varieties: []
         };
-        // Add Reference Row
+
+        // Add Reference Row (using all final positions)
         const referenceGenomeRowData = {
             name: referenceGenomeName, assay: 'Reference', accession: refGenomeDoc.id || '-',
             subpop: '-', dataset: '-', mismatch: 0, alleles: {}
@@ -240,31 +294,26 @@ export const searchGenotypes = async (req, res) => {
         finalResults.varieties.push(referenceGenomeRowData);
 
         // Add Variety Rows
-        for (const variety of matchingVarieties) { // Iterate original variety docs from Step 3
-            const varietyIdStr = variety._id.toString(); // Key for alleleMap lookup
+        for (const variety of matchingVarieties) {
+            const varietyIdStr = variety._id.toString();
             const varietyAllelesData = alleleMap.get(varietyIdStr);
             const formattedAlleles = {};
             let mismatchCount = 0;
 
             for (const pos of finalPositions) {
                 const varAllele = varietyAllelesData?.get(pos);
-                const refAllele = referenceAlleles.get(pos);
+                const refAllele = referenceAlleles.get(pos); // Get ref allele for this specific position
                 formattedAlleles[pos] = varAllele ?? '-';
                 // Mismatch Calculation
                  if (varAllele && varAllele !== '-' && refAllele && refAllele !== '?' && varAllele !== refAllele) {
-                    if (varAllele.includes('/') || refAllele.includes('/')) { if (varAllele !== refAllele) mismatchCount++; }
-                    else if (varAllele !== refAllele) { mismatchCount++; }
+                    // Basic mismatch check
+                    mismatchCount++;
                  }
             }
-
-            finalResults.varieties.push({
-                 name: variety.name,
-                 accession: variety.accession,
-                 assay: variety.irisId ?? 'N/A', // <-- MODIFICATION: Use irisId here
-                 subpop: variety.subpopulation,
-                 dataset: variety.varietySet,
-                 mismatch: mismatchCount, // Use calculated count
-                 alleles: formattedAlleles
+             finalResults.varieties.push({
+                 name: variety.name, accession: variety.accession, assay: variety.irisId ?? 'N/A',
+                 subpop: variety.subpopulation, dataset: variety.varietySet,
+                 mismatch: mismatchCount, alleles: formattedAlleles
              });
         }
         console.log(`CONTROLLER: Formatted ${finalResults.varieties.length} total rows for response.`);
@@ -279,7 +328,6 @@ export const searchGenotypes = async (req, res) => {
 /**
  * @desc    Get the min start and max end position for a specific chromosome/contig within a reference genome
  * @route   GET /genomic/chromosome-range?contig=<contig_name>&referenceGenome=<genome_name>
- * @access  Public (or Protected)
  */
 export const getChromosomeRange = async (req, res) => {
     const { contig, referenceGenome: referenceGenomeName } = req.query;
@@ -287,46 +335,22 @@ export const getChromosomeRange = async (req, res) => {
     if (!contig || !referenceGenomeName) {
         return res.status(400).json({ message: "Contig (Chromosome) and Reference Genome query parameters are required." });
     }
-
     console.log(`CONTROLLER: Getting range for Contig: ${contig}, RefGenome: ${referenceGenomeName}`);
-
     try {
-        // 1. Find the Reference Genome ID
         const refGenomeDoc = await ReferenceGenome.findOne({ name: referenceGenomeName }).select("_id");
-        if (!refGenomeDoc) {
-            return res.status(404).json({ message: `Reference Genome '${referenceGenomeName}' not found.` });
-        }
-        const referenceGenomeObjectId = refGenomeDoc._id;
+        if (!refGenomeDoc) { return res.status(404).json({ message: `Reference Genome '${referenceGenomeName}' not found.` }); }
+        const referenceGenomeObjectId = refGenomeDoc._id; // Use ObjectId directly if possible in aggregation
 
-        // 2. Use Aggregation pipeline to find Min Start and Max End efficiently
         const rangeResult = await ReferenceGenomePos.aggregate([
-            {
-                $match: {
-                    referenceId: referenceGenomeObjectId.toString(), // Match the reference genome
-                    contig: contig             // Match the specific chromosome/contig
-                }
-            },
-            {
-                $group: {
-                    _id: null, // Group all matching documents together
-                    minPosition: { $min: "$start" }, // Find the minimum value of the 'start' field
-                    maxPosition: { $max: "$end" }    // Find the maximum value of the 'end' field
-                }
-            }
+            { $match: { referenceId: referenceGenomeObjectId.toString(), contig: contig } }, // Ensure referenceId is string if needed
+            { $group: { _id: null, minPosition: { $min: "$start" }, maxPosition: { $max: "$end" } } }
         ]);
 
         if (!rangeResult || rangeResult.length === 0 || rangeResult[0].minPosition === null || rangeResult[0].maxPosition === null) {
             console.log(`CONTROLLER: No position data found for Contig: ${contig}, RefGenome: ${referenceGenomeName}`);
-            // Return nulls or a specific message if no data found for that contig/refGenome combo
-            return res.status(404).json({ message: `No position range data found for chromosome '${contig}' in reference genome '${referenceGenomeName}'.` });
-            // Alternatively, send 200 with nulls:
-            // return res.status(200).json({ minPosition: null, maxPosition: null });
+             return res.status(404).json({ message: `No position range data found for chromosome '${contig}' in reference genome '${referenceGenomeName}'.` });
         }
-
-        const range = {
-            minPosition: rangeResult[0].minPosition,
-            maxPosition: rangeResult[0].maxPosition
-        };
+        const range = { minPosition: rangeResult[0].minPosition, maxPosition: rangeResult[0].maxPosition };
         console.log(`CONTROLLER: Found range for Contig ${contig}:`, range);
         res.status(200).json(range);
 
@@ -335,3 +359,20 @@ export const getChromosomeRange = async (req, res) => {
         res.status(500).json({ message: "Server Error fetching chromosome range." });
     }
 };
+
+// Add other controllers like getReferenceGenomes if they belong in this file
+export const getReferenceGenomes = async (req, res) => {
+     try {
+         console.log("CONTROLLER: Attempting ReferenceGenome.find()");
+         // Fetch name and maybe description or other identifiers?
+         const genomes = await ReferenceGenome.find({}, "name description").sort({ name: 1 });
+         console.log(`CONTROLLER: Found ${genomes.length} reference genomes.`);
+         // Return just the names, or the full objects if needed for display
+         const genomeNames = genomes.map(g => g.name);
+         res.status(200).json(genomeNames);
+         // Or: res.status(200).json(genomes);
+     } catch (error) {
+         console.error("❌ Error fetching reference genomes:", error);
+         res.status(500).json({ message: "Server Error fetching reference genomes." });
+     }
+ };
