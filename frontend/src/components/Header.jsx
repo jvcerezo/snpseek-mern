@@ -89,7 +89,7 @@ const Header = () => {
                         {isAuthenticated ? (
                             <>
                                 <span className="user-greeting">
-                                    <FaUserCircle className="user-icon"/> Hello, {user?.firstName || 'User'}!
+                                    <FaUserCircle className="user-icon"/> Hello, {user?.firstName + " " + user?.lastName || 'User'}!
                                 </span>
                                 <button onClick={handleLogout} className="nav-button logout-btn">
                                     <FaSignOutAlt /><span>Logout</span>
