@@ -357,4 +357,30 @@ export const fetchFeaturesByRegion = async (referenceGenome, chromosome, start, 
     }
 };
 
+/**
+ * Fetches the CONSOLIDATED min/max position range across ALL chromosomes for a reference genome.
+ */
+export const fetchConsolidatedChromosomeRange = async (referenceGenome) => {
+    // This function correctly checks only for referenceGenome
+    if (!referenceGenome) {
+       console.warn("API (fetchConsolidatedChromosomeRange): Missing referenceGenome parameter."); // Corrected Message
+       return { minPosition: null, maxPosition: null };
+   }
+   // If referenceGenome IS provided, this log should now execute correctly:
+   console.log(`API: Fetching consolidated range for Genome: ${referenceGenome}`);
+    try {
+       const response = await API.get('/api/genomic/consolidated-range', {
+           params: { referenceGenome } // Correctly passes only referenceGenome
+       });
+       console.log(`API: Received consolidated range for ${referenceGenome}:`, response.data);
+       return {
+           minPosition: response.data?.minPosition ?? null,
+           maxPosition: response.data?.maxPosition ?? null
+       };
+   } catch (error) {
+       console.error(`API Error fetching consolidated chromosome range for ${referenceGenome}:`, error.response?.data || error.message);
+       return { minPosition: null, maxPosition: null };
+   }
+};
+
 export default API;

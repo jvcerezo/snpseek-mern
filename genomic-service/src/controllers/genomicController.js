@@ -376,3 +376,79 @@ export const getReferenceGenomes = async (req, res) => {
          res.status(500).json({ message: "Server Error fetching reference genomes." });
      }
  };
+
+/**
+ * @desc    Get the CONSOLIDATED min start and max end position across ALL chromosomes/contigs for a reference genome
+ * @route   GET /genomic/consolidated-range?referenceGenome=<genome_name>
+ * @METHOD  Fetch all relevant position documents and calculate min/max in code.
+ */
+export const getConsolidatedChromosomeRange = async (req, res) => {
+    const { referenceGenome: referenceGenomeName } = req.query;
+
+    if (!referenceGenomeName) {
+        return res.status(400).json({ message: "Reference Genome query parameter is required." });
+    }
+    console.log(`CONTROLLER (getConsolidatedRange - Fetch Method): Getting consolidated range for RefGenome: ${referenceGenomeName}`);
+
+    try {
+        // 1. Find the Reference Genome Document ID
+        const refGenomeDoc = await ReferenceGenome.findOne({ name: referenceGenomeName }).select("_id");
+        if (!refGenomeDoc) {
+             console.log(`CONTROLLER (getConsolidatedRange - Fetch Method): Reference Genome '${referenceGenomeName}' not found.`);
+            return res.status(404).json({ message: `Reference Genome '${referenceGenomeName}' not found.` });
+        }
+        const referenceGenomeIdString = refGenomeDoc._id.toString(); // Use String ID for matching
+        console.log(`CONTROLLER (getConsolidatedRange - Fetch Method): Found RefGenome ID: ${referenceGenomeIdString}`);
+
+        // 2. Fetch ALL ReferenceGenomePos documents for this reference genome
+        //    Select only the 'start' and 'end' fields to minimize data transfer
+        const positionDocs = await ReferenceGenomePos.find(
+            { referenceId: referenceGenomeIdString }, // Match by the reference ID
+            'start end' // Select only start and end fields
+        ).lean(); // Use .lean() for performance if we only need plain JS objects
+
+        console.log(`CONTROLLER (getConsolidatedRange - Fetch Method): Found ${positionDocs.length} position documents for RefGenome ID ${referenceGenomeIdString}.`);
+
+        // 3. Check if any documents were found
+        if (!positionDocs || positionDocs.length === 0) {
+            console.log(`CONTROLLER (getConsolidatedRange - Fetch Method): No position documents found for RefGenome: ${referenceGenomeName}`);
+            // Return a consistent response indicating no data
+            return res.status(200).json({ minPosition: null, maxPosition: null, message: `No position data found for reference genome '${referenceGenomeName}'.` });
+        }
+
+        // 4. Calculate min start and max end from the fetched documents
+        let minStart = Infinity;
+        let maxEnd = -Infinity;
+        let validDataFound = false;
+
+        for (const doc of positionDocs) {
+            // Check if start and end are valid numbers in the current document
+            const start = doc.start;
+            const end = doc.end;
+
+            if (typeof start === 'number' && !isNaN(start)) {
+                minStart = Math.min(minStart, start);
+                validDataFound = true; // Mark that we found at least one valid start/end
+            }
+            if (typeof end === 'number' && !isNaN(end)) {
+                maxEnd = Math.max(maxEnd, end);
+                 validDataFound = true; // Mark that we found at least one valid start/end
+            }
+        }
+
+        // 5. Handle case where documents existed but none had valid numbers
+        if (!validDataFound) {
+             console.log(`CONTROLLER (getConsolidatedRange - Fetch Method): Documents found, but no valid numeric start/end positions for RefGenome: ${referenceGenomeName}`);
+            return res.status(200).json({ minPosition: null, maxPosition: null, message: `Position documents found, but contain no valid numeric range data for '${referenceGenomeName}'.` });
+        }
+
+        // 6. Return the calculated range
+        const range = { minPosition: minStart, maxPosition: maxEnd };
+        console.log(`CONTROLLER (getConsolidatedRange - Fetch Method): Calculated consolidated range for RefGenome ${referenceGenomeName}:`, range);
+        res.status(200).json(range);
+
+    } catch (error) {
+        console.error(`❌ Error fetching/calculating consolidated chromosome range for ${referenceGenomeName}:`, error);
+        res.status(500).json({ message: "Server Error fetching consolidated chromosome range." });
+    }
+};
