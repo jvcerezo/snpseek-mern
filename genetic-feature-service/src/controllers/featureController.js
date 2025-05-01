@@ -1,5 +1,6 @@
 import Feature from "../models/Feature.js";
 import Trait from "../models/Traits.js"; 
+import mongoose from "mongoose";
 
 /**
  * @desc    Search features by text query in specified field with different match types
@@ -353,3 +354,98 @@ export const getFeaturesByRegion = async (req, res) => {
     }
 };
 
+/**
+ * @desc    Lookup multiple Feature (Locus) documents by their IDs
+ * @route   GET /features/lookup
+ * @access  Public or Private
+ * @query   ids=id1,id2,id3... (comma-separated string of _id values)
+ */
+export const lookupFeaturesByIds = async (req, res) => {
+    const { ids } = req.query;
+
+    if (!ids) {
+        return res.status(400).json({ message: "Query parameter 'ids' is required." });
+    }
+
+    const idArray = ids.split(',')
+                       .map(id => id.trim())
+                       .filter(id => mongoose.Types.ObjectId.isValid(id)); // Validate ObjectId format
+
+    if (idArray.length === 0) {
+        return res.status(200).json([]);
+    }
+
+    console.log(`FEATURE Controller: Looking up ${idArray.length} feature IDs.`);
+
+    try {
+        // Find features where standard MongoDB '_id' field matches
+        // Adjust selected fields ('_id', 'geneName') if your display logic needs something else
+        const results = await Feature.find({ _id: { $in: idArray } })
+                                     .select('_id geneName') // Select standard ID and name
+                                     .lean();
+
+        console.log(`FEATURE Controller: Found ${results.length} matching features.`);
+         // Returns array like [{ _id: '...', geneName: '...' }]
+        res.status(200).json(results);
+
+    } catch (error) {
+        console.error("❌ Error looking up features by ID:", error);
+        res.status(500).json({ message: 'Server error looking up features.' });
+    }
+};
+
+/**
+ * @desc    Autocomplete Features (Loci) by name/ID for list creation
+ * @route   GET /features/autocomplete
+ * @access  Public (or Private, as needed)
+ * @query   queryTerm=searchString, referenceGenome=refGenomeName
+ */
+export const autocompleteFeatures = async (req, res) => {
+    const { queryTerm, referenceGenome } = req.query;
+
+    // --- Validation ---
+    if (!queryTerm || queryTerm.trim().length < 2) {
+        // Return empty for short/empty queries, including default load (queryTerm="")
+        return res.status(200).json([]);
+    }
+    if (!referenceGenome) {
+        // Autocomplete needs context
+        return res.status(400).json({ message: "Reference genome is required for locus autocomplete." });
+    }
+    // --- End Validation ---
+
+    try {
+        const searchTerm = queryTerm.trim();
+        // Escape regex special characters for safety
+        const escapedSearchTerm = searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = new RegExp(escapedSearchTerm, 'i'); // Case-insensitive substring search
+
+        // Build the query
+        const query = {
+            referenceGenome: referenceGenome,
+            // Search in relevant fields - primarily geneName, maybe custom ID if useful
+            // Adjust fields based on your Feature model and search needs
+            $or: [
+                { geneName: { $regex: regex } },
+                // { id: { $regex: regex } } // Optional: search custom ID field too?
+                // { description: { $regex: regex } } // Optional: search description?
+            ]
+        };
+
+        console.log(`FEATURE Controller (Autocomplete): Searching Features with query:`, query);
+
+        // Find features, select ONLY _id and geneName, limit results
+        const results = await Feature.find(query)
+                                     .select('_id geneName') // Select standard ID and display name
+                                     .limit(20) // Limit autocomplete results
+                                     .lean();
+
+        console.log(`FEATURE Controller (Autocomplete): Found ${results.length} features for term "${searchTerm}".`);
+        // Return array like [{ _id: "...", geneName: "..." }]
+        res.status(200).json(results);
+
+    } catch (error) {
+        console.error(`❌ Error during feature autocomplete for term "${queryTerm}":`, error);
+        res.status(500).json({ message: "Server error during feature autocomplete." });
+    }
+};

@@ -383,4 +383,173 @@ export const fetchConsolidatedChromosomeRange = async (referenceGenome) => {
    }
 };
 
+/**
+ * Fetches all lists belonging to the authenticated user.
+ * Assumes authentication token is handled by the apiClient setup (e.g., interceptors).
+ * @returns {Promise<Array<object>>} A promise resolving to an array of user list objects.
+ */
+export const fetchUserLists = async () => {
+    console.log("API: Fetching user lists from /lists/mine");
+    try {
+        // Make GET request to the specific route for user's lists
+        const response = await API.get('/api/lists/mine');
+        console.log("API: Received user lists data:", response.data);
+        return response.data; // The backend should return the array of lists
+    } catch (error) {
+        console.error("API Error fetching user lists:", error.response?.data || error.message);
+        // Re-throw the error so the component's catch block can handle it
+        throw error;
+    }
+};
+
+export const createListAPI = async (listData) => {
+    console.log("API: Calling POST /lists with data:", listData);
+    try {
+        const response = await API.post('/api/lists/create-list', listData); // POST to base /lists route
+        console.log("API: Received created list data:", response.data);
+        return response.data;
+    } catch (error) {
+        console.error("API Error creating list:", error.response?.data || error.message);
+        throw error;
+    }
+};
+
+/**
+ * Searches for Varieties based on a query string and optional varietySet.
+ * Assumes a backend endpoint exists at /api/genomic/varieties/search (proxied).
+ * @param {string} query - The search term entered by the user.
+ * @param {string} [varietySet] - Optional variety set context.
+ * @returns {Promise<Array<object>>} Promise resolving to an array of variety objects (e.g., [{ _id: '...', name: '...' }]).
+ */
+export const searchVarietiesAPI = async (query, varietySet) => {
+    if (!query || query.trim().length < 2) { // Don't search on empty or very short strings
+        return [];
+    }
+    try {
+        console.log(`API: Searching Varieties - q: ${query}, varietySet: ${varietySet}`);
+        // Assumes GET /api/genomic/varieties/search?q=...&varietySet=...
+        const response = await API.get("/api/genomic/varieties/search", {
+            params: {
+                q: query,
+                // Only send varietySet if it has a value
+                ...(varietySet && { varietySet: varietySet })
+            }
+        });
+        // Ensure response.data is an array
+        return Array.isArray(response.data) ? response.data : [];
+    } catch (error) {
+        console.error("API Error searching varieties:", error.response?.data || error.message);
+        return []; // Return empty array on error for autocomplete
+    }
+};
+
+/**
+ * Searches for distinct Contig names from VarietiesPos collection.
+ * Calls the backend endpoint at /api/genomic/contigs/search (proxied).
+ * @param {string} query - The search term entered by the user.
+ * @param {string} [snpSet] - Optional SNP set context (if backend supports it).
+ * @returns {Promise<Array<string>>} Promise resolving to an array of matching contig strings.
+ */
+export const searchContigsAPI = async (query, snpSet) => { // Renamed function
+    if (!query || query.trim().length < 1) { // Allow 1 char search
+        return [];
+    }
+    try {
+        console.log(`API: Searching Contigs - q: ${query}, snpSet: ${snpSet}`);
+        // Call the NEW backend route via the gateway
+        const response = await API.get("/api/genomic/contigs/search", {
+             params: {
+                 q: query,
+                 ...(snpSet && { snpSet: snpSet }) // Only send if snpSet has value
+             }
+         });
+         // Expecting an array of strings from the backend's distinct query
+         return Array.isArray(response.data) ? response.data : [];
+
+    } catch (error) {
+        console.error("API Error searching contigs:", error.response?.data || error.message);
+        return []; // Return empty array on error
+    }
+};
+
+/**
+ * Searches for Loci (Features) specifically for autocomplete suggestions.
+ * @param {string} queryTerm - The search string.
+ * @param {string} referenceGenome - The selected reference genome.
+ * @returns {Promise<Array<object>>} Promise resolving to an array like [{ _id: '...', geneName: '...' }]
+ */
+export const autocompleteLocusAPI = async (queryTerm, referenceGenome) => {
+    // Handle empty query for default options trigger from react-select
+    const query = queryTerm || "";
+
+    // Reference genome is required by the backend for this specific endpoint
+    if (!referenceGenome) {
+        console.warn("autocompleteLocusAPI: referenceGenome parameter is required.");
+        return []; // Return empty array if required context is missing
+    }
+     // Don't search on very short strings UNLESS it's the default empty query
+     if (query && query.trim().length < 2) {
+        return [];
+    }
+
+    try {
+        console.log(`API: Autocompleting Loci - q: ${query}, ref: ${referenceGenome}`);
+        // Call the NEW backend route via the gateway
+        const response = await API.get("/api/genetic-features/autocomplete", {
+            params: {
+                queryTerm: query, // Use 'queryTerm' as expected by controller
+                referenceGenome
+            }
+        });
+        // Expecting array like [{ _id: '...', geneName: '...' }]
+        return Array.isArray(response.data) ? response.data : [];
+    } catch (error) {
+        console.error("API Error during locus autocomplete:", error.response?.data || error.message);
+        return []; // Return empty array on error
+    }
+};
+
+/**
+ * Resolves multiple item IDs (variety, locus) to their display names
+ * by calling the backend batch endpoint IN THE LIST SERVICE.
+ * @param {object} idsByType - Object like { varietyIds: string[], locusIds: string[] }.
+ * @returns {Promise<object>} A promise resolving to an object mapping ID to Name: { "id1": "Name1", ... }
+ */
+export const resolveItemIdsAPI = async (idsByType) => {
+    // Prepare payload, ensuring arrays exist
+    const payload = {
+        varietyIds: idsByType.varietyIds || [],
+        locusIds: idsByType.locusIds || [],
+        // snpIds: [], // Excluded as we display contig names directly
+    };
+
+    // Don't make an unnecessary call if there are no IDs to resolve
+    if (payload.varietyIds.length === 0 && payload.locusIds.length === 0) {
+        console.log("API (resolveItemIdsAPI): No variety or locus IDs provided for resolution.");
+        return {}; // Return empty map immediately
+    }
+
+    // --- Ensure this path matches your Gateway route to the List Service's resolveIds endpoint ---
+    const apiUrl = '/api/lists/resolve-ids';
+    // --- ----------------------------------------------------------------------------------- ---
+
+    console.log(`API: Calling POST ${apiUrl} with payload:`, payload);
+    try {
+        const response = await API.post(apiUrl, payload);
+        console.log("API: Received resolved names data:", response.data);
+
+        // Expecting backend to return { resolved: { id: name, ... } }
+        if (response.data && typeof response.data.resolved === 'object') {
+            return response.data.resolved; // Return the map
+        } else {
+            console.warn("API (resolveItemIdsAPI): Received unexpected response format.", response.data);
+            return {}; // Return empty map on unexpected format
+        }
+    } catch (error) {
+        console.error("API Error resolving item IDs:", error.response?.data || error.message);
+        // Don't throw here for name resolution; component will show IDs for failed items.
+        return {}; // Return empty map on error
+    }
+};
+
 export default API;

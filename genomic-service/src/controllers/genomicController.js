@@ -3,6 +3,7 @@ import Variety from "../models/varieties.js";
 import VarietiesPos from "../models/varietiesPos.js";
 import ReferenceGenome from "../models/referenceGenome.js";
 import ReferenceGenomePos from "../models/referenceGenomePos.js";
+import mongoose from "mongoose";
 
 /**
  * @desc    Get distinct variety set names
@@ -450,5 +451,139 @@ export const getConsolidatedChromosomeRange = async (req, res) => {
     } catch (error) {
         console.error(`❌ Error fetching/calculating consolidated chromosome range for ${referenceGenomeName}:`, error);
         res.status(500).json({ message: "Server Error fetching consolidated chromosome range." });
+    }
+};
+
+/**
+ * @desc    Search distinct Contig names from VarietiesPos for autocomplete
+ * @route   GET /genotype/contigs/search
+ * @access  Public (usually)
+ * @query   q=searchTerm, snpSet=setName (optional, if VarietiesPos has snpSet field)
+ */
+export const searchContigs = async (req, res) => {
+    const { q: searchTerm, snpSet } = req.query;
+
+    // Basic validation
+    if (!searchTerm || searchTerm.trim().length < 1) { // Allow searching even on 1 character for contigs
+        return res.status(200).json([]);
+    }
+
+    try {
+        // --- Build Query for distinct ---
+        const query = {
+            // Match contig field containing the searchTerm (case-insensitive)
+            contig: { $regex: searchTerm.trim(), $options: 'i' }
+        };
+
+        // ** Optional: Filter by snpSet **
+        // If your VarietiesPos model has an 'snpSet' field you want to filter by:
+        // if (snpSet) {
+        //     query.snpSet = snpSet;
+        // }
+        // --- End Optional Filter ---
+
+        console.log(`CONTROLLER: Searching distinct Contigs with query:`, query);
+
+        // Use distinct() to find unique contig values matching the query
+        const distinctContigs = await VarietiesPos.distinct("contig", query);
+
+        // Limit the number of results returned for autocomplete
+        const limit = 20;
+        const results = distinctContigs.slice(0, limit);
+
+        console.log(`CONTROLLER: Found ${results.length} distinct contigs matching "${searchTerm}" (limit ${limit}).`);
+
+        // Distinct returns an array of strings directly
+        res.status(200).json(results);
+
+    } catch (error) {
+        console.error(`❌ Error searching contigs for term "${searchTerm}":`, error);
+        res.status(500).json({ message: 'Server error searching contigs.' });
+    }
+};
+
+/**
+ * @desc    Search Varieties by name for autocomplete
+ * @route   GET /genotype/varieties/search  (Example route)
+ * @access  Public (usually)
+ * @query   q=searchTerm, varietySet=setName (optional)
+ */
+export const searchVarietiesByName = async (req, res) => {
+    // Use empty string default if 'q' is not provided
+    const { q: searchTerm = "", varietySet } = req.query;
+    const limit = 20; // Define limit for both search and default list
+
+    try {
+        const query = {}; // Start with empty query
+
+        // Add varietySet filter if provided (Applies to both search and default list)
+        if (varietySet) {
+            query.varietySet = varietySet;
+        }
+
+        // If searchTerm is provided (and long enough), add the regex filter
+        if (searchTerm && searchTerm.trim().length >= 2) {
+            query.name = { $regex: searchTerm.trim(), $options: 'i' };
+            console.log(`CONTROLLER: Searching Varieties with query:`, query);
+        } else {
+            // If no search term (or too short), we fetch the default list
+            console.log(`CONTROLLER: Fetching default Variety list with query:`, query);
+        }
+
+        // Execute query - fetches default list if 'name' filter wasn't added
+        const results = await Variety.find(query)
+                                     .select('_id name')
+                                     .limit(limit) // Apply limit always
+                                     .sort({ name: 1 }) // Optional: Sort default list alphabetically
+                                     .lean();
+
+        console.log(`CONTROLLER: Found ${results.length} varieties for term "${searchTerm || '(default)'}".`);
+        res.status(200).json(results);
+
+    } catch (error) {
+        console.error(`❌ Error searching varieties for term "${searchTerm || '(default)'}":`, error);
+        res.status(500).json({ message: 'Server error searching varieties.' });
+    }
+};
+
+/**
+ * @desc    Lookup multiple Variety documents by their IDs
+ * @route   GET /genotype/varieties/lookup
+ * @access  Public or Private (as needed)
+ * @query   ids=id1,id2,id3... (comma-separated string of _id values)
+ */
+export const lookupVarietiesByIds = async (req, res) => {
+    const { ids } = req.query;
+
+    if (!ids) {
+        return res.status(400).json({ message: "Query parameter 'ids' is required." });
+    }
+
+    // Split the comma-separated string into an array, trim whitespace, filter empty
+    // Also filter for potentially valid MongoDB ObjectId format before querying
+    const idArray = ids.split(',')
+                       .map(id => id.trim())
+                       .filter(id => mongoose.Types.ObjectId.isValid(id)); // Check if IDs are valid format
+
+    if (idArray.length === 0) {
+        // Return empty if no valid IDs provided after filtering
+        return res.status(200).json([]);
+    }
+
+    console.log(`GENOMIC Controller: Looking up ${idArray.length} variety IDs.`);
+
+    try {
+        // Find varieties where _id is in the array
+        const results = await Variety.find({ _id: { $in: idArray } })
+                                     .select('_id name') // Select ID and name
+                                     .lean();
+
+        console.log(`GENOMIC Controller: Found ${results.length} matching varieties.`);
+        // Returns array like [{ _id: '...', name: '...' }]
+        res.status(200).json(results);
+
+    } catch (error) {
+        console.error("❌ Error looking up varieties by ID:", error);
+        res.status(500).json({ message: 'Server error looking up varieties.' });
     }
 };

@@ -1,176 +1,571 @@
-/* MyLists.css - Styles specific to the MyLists component */
+/* MyLists.css */
 
-/* --- Assumes theme variables are defined globally or in an imported base CSS file --- */
-/* Reference Variables (from PHGVisualization.css dark theme):
-:root { ... }
-*/
-
-/* --- Container and Layout --- */
+/* --- Base Container --- */
 .my-lists-container {
-    padding: 2rem; /* Consistent padding */
+    padding: clamp(1rem, 3vw, 2rem); /* Responsive padding */
     width: 100%;
     max-width: 1600px;
     margin: 0 auto;
-    color: var(--phg-color-text-primary); /* Ensure default text color */
+    color: var(--phg-color-text-primary);
 }
 
-.phg-page-title { /* Reusing class from Pipeline.css for consistency */
+/* --- Header --- */
+.my-lists-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap; /* Allow wrapping on small screens */
+    gap: 1rem; /* Space between title and button */
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--phg-color-border);
+}
+
+.phg-page-title {
     font-family: var(--phg-font-primary);
     color: var(--phg-color-accent-primary);
-    font-size: 2rem;
+    font-size: clamp(1.6rem, 4vw, 2rem); /* Responsive font size */
     font-weight: 700;
-    margin: 0 0 2.5rem 0; /* Add bottom margin */
-    border-bottom: 1px solid var(--phg-color-border);
-    padding-bottom: 1rem;
+    margin: 0; /* Remove default margins */
+    border-bottom: none; /* Remove underline here, use header border */
+    padding-bottom: 0;
 }
 
+.create-list-button {
+    /* Uses phg-button styles */
+    flex-shrink: 0; /* Prevent shrinking */
+}
+
+/* --- Centered Messages (Loading, Error, No Lists) --- */
+.centered-message {
+    text-align: center;
+    padding: 3rem 1rem;
+    margin-top: 2rem;
+    background-color: var(--phg-color-background-secondary); /* Subtle background */
+    border-radius: var(--phg-border-radius-large);
+    color: var(--phg-color-text-secondary);
+    border: 1px dashed var(--phg-color-border-light); /* Dashed border */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+}
+.loading-indicator .spinner {
+    /* Assuming you have spinner CSS elsewhere */
+    /* Example inline spinner styles if needed */
+    display: inline-block;
+    width: 40px;
+    height: 40px;
+    border: 4px solid var(--phg-color-border-light); /* Light border */
+    border-top-color: var(--phg-color-primary); /* Accent color for spinner top */
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.loading-indicator p {
+    margin: 0;
+    font-weight: 500;
+    font-size: 1.1rem;
+}
+.fetch-error-message .error-icon { /* Style for FontAwesome or SVG icon */
+    color: var(--phg-error-color);
+    font-size: 1.8rem; /* Make icon bigger */
+    margin-bottom: 0.5rem;
+    /* If using SVG as component, target its path */
+    /* path { stroke: var(--phg-error-color); } */
+}
+.fetch-error-message p {
+    margin-bottom: 0.25rem;
+    font-size: 1.1rem;
+}
+.fetch-error-message i { /* Style for error message details */
+    color: var(--phg-color-text-muted);
+    font-size: 0.9rem;
+    display: block; /* Put error details on new line */
+    margin-top: 0.25rem;
+}
+.no-lists-message {
+    font-size: 1.1rem;
+    font-weight: 500;
+    color: var(--phg-color-text-secondary);
+}
+.no-lists-message p {
+    margin-bottom: 1.5rem; /* Space above button */
+}
+.no-lists-message .phg-button {
+    margin-top: 0.5rem; /* Space above button */
+}
+
+
+/* --- Tab Display Area --- */
+.lists-display-area {
+    margin-top: 1.5rem;
+}
+
+/* --- Tab Navigation --- */
+.list-type-navigation {
+    display: flex;
+    border-bottom: 2px solid var(--phg-color-border); /* Underline for the whole tab bar */
+    margin-bottom: -2px; /* Overlap with content border */
+    overflow-x: auto; /* Allow horizontal scrolling on small screens */
+    padding-bottom: 2px; /* Prevent scrollbar overlap */
+    scrollbar-width: thin; /* Firefox */
+    scrollbar-color: var(--phg-color-border-light) var(--phg-color-background-primary); /* Firefox */
+}
+/* Webkit scrollbar styles */
+.list-type-navigation::-webkit-scrollbar { height: 6px; }
+.list-type-navigation::-webkit-scrollbar-track { background: var(--phg-color-background-primary); }
+.list-type-navigation::-webkit-scrollbar-thumb { background-color: var(--phg-color-border-light); border-radius: 10px; border: 2px solid var(--phg-color-background-primary); }
+
+
+.list-type-tab {
+    /* Reset button defaults */
+    background: none;
+    border: none;
+    border-bottom: 3px solid transparent; /* Thicker inactive border */
+    padding: 0.8rem 1.5rem;
+    cursor: pointer;
+    font-size: 1.05rem; /* Slightly larger */
+    font-weight: 500;
+    color: var(--phg-color-text-secondary);
+    transition: color 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
+    margin-bottom: -2px; /* Align with the container border */
+    white-space: nowrap; /* Prevent text wrapping */
+    display: inline-flex; /* Align count span */
+    align-items: center;
+    gap: 0.5em; /* Space between title and count */
+    position: relative;
+}
+
+.list-type-tab:hover:not(.active):not(:disabled) {
+    color: var(--phg-color-text-primary);
+    background-color: var(--phg-color-background-tertiary); /* Subtle bg hover */
+    border-bottom-color: var(--phg-color-border-light);
+}
+
+.list-type-tab.active {
+    color: var(--phg-color-accent-primary);
+    font-weight: 600;
+    border-bottom-color: var(--phg-color-accent-primary); /* Highlight active tab */
+}
+
+.list-type-tab:disabled {
+    color: var(--phg-color-text-muted);
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+.tab-count {
+    font-size: 0.8em;
+    font-weight: 400;
+    background-color: var(--phg-color-background-tertiary);
+    color: var(--phg-color-text-secondary);
+    padding: 0.1em 0.4em;
+    border-radius: var(--phg-border-radius-small);
+    min-width: 1.5em;
+    text-align: center;
+    line-height: 1.3; /* Adjust vertical alignment */
+}
+.list-type-tab.active .tab-count {
+    background-color: var(--phg-color-accent-secondary); /* Different count bg for active */
+    color: var(--phg-color-text-primary);
+    font-weight: 500;
+}
+
+/* --- Tab Content Area --- */
+.list-tab-content {
+    /* Add top border matching the navigation's bottom border */
+    border-top: 2px solid var(--phg-color-border);
+    padding-top: 2rem; /* More space below tabs */
+    margin-top: 0; /* Remove margin now border is here */
+}
+
+/* --- Lists Grid --- */
 .lists-grid {
     display: grid;
-    /* Create 3 columns, adjusting minmax for responsiveness */
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 2rem; /* Gap between list cards */
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); /* Slightly larger min */
+    gap: 1.5rem; /* Consistent gap */
 }
 
+/* --- Card Styles --- */
 .my-list-card {
-    /* Inherits base .phg-card styles */
-    display: flex; /* Allow content to grow */
-    flex-direction: column;
-}
-
-.my-list-card .phg-card-header {
-    /* Optional: specific header styles */
-    background-color: var(--phg-color-background-tertiary); /* Slightly different header */
-}
-
-.my-list-card .phg-card-title {
-    color: var(--phg-color-accent-primary); /* Use accent for list titles */
-    font-size: 1.2rem;
-}
-
-.my-list-card .phg-card-content {
     display: flex;
     flex-direction: column;
-    gap: 1.5rem; /* Space between add form and list */
-    flex-grow: 1; /* Allow content area to fill card height */
+    background-color: var(--phg-color-background-secondary);
+    border: 1px solid var(--phg-color-border-light);
+    border-radius: var(--phg-border-radius-medium);
+    overflow: hidden; /* Clip content */
+    transition: box-shadow 0.2s ease-in-out, border-color 0.2s ease-in-out;
+}
+.my-list-card:hover {
+     border-color: var(--phg-color-border);
+     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
-/* --- Add Item Form --- */
-.add-item-form {
+.list-card-header {
     display: flex;
-    gap: 0.75rem;
-    align-items: center;
+    justify-content: space-between;
+    align-items: flex-start; /* Align items top */
+    padding: 0.75rem 1rem;
+    background-color: var(--phg-color-background-tertiary);
+    border-bottom: 1px solid var(--phg-color-border-light);
+    gap: 0.5rem; /* Space between title block and actions */
 }
 
-.add-item-input {
-    flex-grow: 1; /* Allow input to take available space */
-    /* Inherits .phg-input styles */
+.list-title-group {
+    flex-grow: 1; /* Allow title group to take space */
+    min-width: 0; /* Prevent overflow issues with flex */
 }
 
-.add-item-button {
-    flex-shrink: 0; /* Prevent button from shrinking */
-    padding: 0.6rem 1rem; /* Adjust padding if needed */
-    /* Inherits .phg-button, .phg-button-primary */
+.list-title {
+    font-size: 1.15rem; /* Slightly larger */
+    font-weight: 600;
+    color: var(--phg-color-text-primary);
+    margin: 0 0 0.2rem 0; /* Space below title */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.list-header-item-count {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--phg-color-text-muted);
+    display: block; /* Put on new line */
 }
 
-.add-item-button .button-icon {
+.list-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-shrink: 0; /* Prevent shrinking */
+}
+
+.list-action-button {
+    padding: 0.3rem;
+    line-height: 1;
+    color: var(--phg-color-text-secondary);
+    background: none;
+    border: none;
+    cursor: pointer;
+    border-radius: var(--phg-border-radius-small); /* Add radius for hover */
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+.list-action-button:hover:not(:disabled) {
+    color: var(--phg-color-text-primary);
+    background-color: var(--phg-color-background-interactive-hover); /* Use theme hover */
+}
+.list-action-button.remove-item-button:hover:not(:disabled) {
+     color: var(--phg-error-color);
+     background-color: rgba(239, 68, 68, 0.1); /* Use error color with alpha */
+}
+.list-action-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+.list-action-button .button-icon {
     width: 1.1em;
     height: 1.1em;
-    margin-right: 0.4em; /* Space between icon and text */
+    display: block; /* Ensure icon size is respected */
 }
 
-/* --- Item List --- */
+
+.phg-card-content {
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem; /* Adjust spacing */
+  flex-grow: 1; /* Allow content to fill card */
+}
+
+.list-description {
+    font-size: 0.9rem;
+    color: var(--phg-color-text-secondary);
+    margin-bottom: 0; /* Using gap now */
+    line-height: 1.4;
+}
+
+.list-type {
+    font-size: 0.85rem;
+    color: var(--phg-color-text-secondary);
+    margin-bottom: 0.5rem; /* Space before item list */
+}
+.list-type-value {
+    font-weight: 500;
+    color: var(--phg-color-text-primary);
+    background-color: var(--phg-color-background-tertiary); /* Example chip bg */
+    padding: 0.15em 0.5em;
+    border-radius: var(--phg-border-radius-small);
+    margin-left: 0.4em;
+    text-transform: capitalize;
+    border: 1px solid var(--phg-color-border);
+}
+
+.item-list-container {
+    margin-top: 0.5rem;
+    border-top: 1px dashed var(--phg-color-border-light);
+    padding-top: 1rem;
+    flex-grow: 1; /* Allow this container to grow */
+    display: flex; /* To manage inner elements */
+    flex-direction: column;
+    min-height: 50px; /* Prevent collapsing when empty */
+}
+
+/* Item List Styling */
 .item-list {
     list-style: none;
-    padding: 0;
+    padding: 0.5rem;
     margin: 0;
-    flex-grow: 1; /* Allow list to take space */
-    overflow-y: auto; /* Add scroll if list gets long */
-    max-height: 400px; /* Example max height */
+    overflow-y: auto; /* This enables scrolling */
+    max-height: 200px; /* Your current max height - adjust if needed */
+    flex-grow: 1;
+    background-color: var(--phg-color-background-primary);
+    border: 1px solid var(--phg-color-border); /* Use regular border color */
+    border-radius: var(--phg-border-radius-small);
     display: flex;
     flex-direction: column;
-    gap: 0.5rem; /* Space between list items */
-    border-top: 1px solid var(--phg-color-border); /* Separator */
-    padding-top: 1rem; /* Space above list */
+    gap: 0.3rem;
+
+    /* --- ADD CUSTOM SCROLLBAR STYLES --- */
+    scrollbar-width: thin; /* Firefox */
+    scrollbar-color: var(--phg-color-border-light) var(--phg-color-background-primary); /* Firefox thumb/track */
+}
+
+/* Webkit (Chrome, Safari, Edge) scrollbar styles for item list */
+.item-list::-webkit-scrollbar {
+    width: 8px; /* Width of the scrollbar */
+}
+.item-list::-webkit-scrollbar-track {
+    background: var(--phg-color-background-primary); /* Match list background */
+    border-radius: 10px;
+    margin-block: 2px; /* Optional margin for the track */
+}
+.item-list::-webkit-scrollbar-thumb {
+    background-color: var(--phg-color-border-light); /* Color of the scroll thumb */
+    border-radius: 10px;
+    border: 2px solid var(--phg-color-background-primary); /* Creates padding around thumb */
+}
+.item-list::-webkit-scrollbar-thumb:hover {
+    background-color: var(--phg-color-border); /* Darker thumb on hover */
 }
 
 .list-item {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0.6rem 0.75rem; /* Padding inside item */
-    background-color: var(--phg-color-background-tertiary); /* Background for items */
-    border-radius: var(--phg-border-radius);
-    border: 1px solid var(--phg-color-border);
-    transition: background-color var(--phg-transition-speed) ease;
-}
-
-.list-item:hover {
-    background-color: var(--phg-color-border); /* Slightly darker on hover */
+    padding: 0.4rem 0.6rem;
+    font-size: 0.85rem; /* Slightly smaller */
+    background-color: var(--phg-color-background-secondary);
+    border-radius: var(--phg-border-radius-small);
+    border: 1px solid var(--phg-color-border-light); /* Subtle item border */
+    min-height: 2.2em;
 }
 
 .item-text {
+    font-family: var(--phg-font-mono); /* Use monospace for IDs */
     color: var(--phg-color-text-secondary);
-    font-size: 0.9rem;
-    word-break: break-all; /* Prevent long items from overflowing */
-    margin-right: 1rem; /* Space before remove button */
+    word-break: break-all;
+    margin-right: 0.5rem;
 }
 
-.remove-item-button {
-    padding: 0.3rem 0.5rem; /* Smaller padding for remove button */
-    background-color: transparent;
-    border-color: transparent;
-    color: var(--phg-color-text-muted);
-    flex-shrink: 0;
-}
-
-.remove-item-button:hover:not(:disabled) {
-    background-color: rgba(255, 123, 123, 0.1); /* Error background on hover */
-    color: var(--phg-error-color); /* Error color on hover */
-    border-color: transparent;
-}
-
-.remove-item-button .button-icon {
-    width: 1.1em;
-    height: 1.1em;
-}
-
-.list-item-empty {
+.list-item-empty, .list-item-more {
     text-align: center;
     color: var(--phg-color-text-muted);
     font-style: italic;
-    padding: 2rem 1rem;
+    padding: 0.5rem;
+    font-size: 0.85rem;
+}
+
+
+/* --- Modal Styles --- */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.75); /* Darker overlay */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000; /* Ensure modal is on top */
+  padding: 1rem;
+  backdrop-filter: blur(2px); /* Optional: blur background */
+}
+
+.modal-content {
+  background-color: var(--phg-color-background-secondary);
+  padding: clamp(1.5rem, 4vw, 2rem);
+  border-radius: var(--phg-border-radius-large);
+  border: 1px solid var(--phg-color-border);
+  box-shadow: 0 5px 25px rgba(0, 0, 0, 0.4); /* Softer shadow */
+  max-width: 650px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+  display: flex; /* Use flex for structure */
+  flex-direction: column;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--phg-color-border);
+  padding-bottom: 1rem;
+  margin-bottom: 1.5rem;
+  flex-shrink: 0; /* Prevent header shrinking */
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  color: var(--phg-color-accent-primary);
+}
+
+.modal-close-button {
+  background: none;
+  border: none;
+  color: var(--phg-color-text-secondary);
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0.25rem;
+  line-height: 1;
+  transition: color 0.2s ease;
+}
+.modal-close-button svg { width: 1.5em; height: 1.5em; }
+.modal-close-button:hover { color: var(--phg-color-text-primary); }
+
+.modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem; /* Increased gap */
+  overflow-y: auto; /* Allow form content to scroll if needed */
+  padding-right: 5px; /* Space for scrollbar */
+  margin-right: -5px;
+}
+
+.modal-form .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.modal-form label {
+  font-weight: 500;
+  color: var(--phg-color-text-secondary);
+  font-size: 0.9rem;
+}
+.modal-form label .required-indicator { color: var(--phg-error-color); margin-left: 0.25em; }
+.modal-form small { /* Helper text below inputs */
+    font-size: 0.8rem;
+    color: var(--phg-color-text-muted);
+    margin-top: -0.25rem; /* Pull closer to input */
+}
+.modal-form small.error-text { color: var(--phg-error-color); font-weight: 500; }
+
+/* Inputs/Textareas inherit .phg-input */
+.modal-form .phg-input { width: 100%; }
+.list-content-textarea { /* Already handled by react-select */ }
+
+.modal-form .form-row {
+    display: grid; /* Use grid for better alignment */
+    grid-template-columns: 1fr 1fr; /* Two equal columns */
+    gap: 1.5rem;
+}
+
+/* --- react-select Styles (Refined) --- */
+.react-select-container .react-select__control {
+  background-color: var(--phg-color-background-primary) !important;
+  border-color: var(--phg-color-border) !important;
+  border-radius: var(--phg-border-radius) !important;
+  min-height: 40px;
+  box-shadow: none !important;
+  transition: border-color var(--phg-transition-speed) ease;
+}
+.react-select-container .react-select__control--is-focused {
+  border-color: var(--phg-color-primary) !important;
+  box-shadow: 0 0 0 1px var(--phg-color-primary) !important;
+}
+.react-select-container .react-select__value-container { padding: 2px 8px !important; }
+.react-select-container .react-select__input-container { margin: 0 !important; padding: 0 !important; }
+.react-select-container .react-select__input { color: var(--phg-color-text-primary) !important; }
+.react-select-container .react-select__placeholder { color: var(--phg-color-text-muted) !important; }
+.react-select-container .react-select__indicator-separator { background-color: var(--phg-color-border-light) !important; }
+.react-select-container .react-select__indicator { color: var(--phg-color-text-secondary) !important; }
+.react-select-container .react-select__indicator:hover { color: var(--phg-color-text-primary) !important; }
+.react-select-container .react-select__menu {
+  background-color: var(--phg-color-background-secondary) !important;
+  border: 1px solid var(--phg-color-border) !important;
+  border-radius: var(--phg-border-radius-medium) !important;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.25) !important;
+  z-index: 10 !important; /* Ensure menu is above other modal content */
+  margin-top: 4px !important;
+}
+.react-select-container .react-select__menu-list { padding: 4px 0 !important; max-height: 200px !important; } /* Limit dropdown height */
+.react-select-container .react-select__option { background-color: transparent !important; color: var(--phg-color-text-primary) !important; cursor: pointer; transition: background-color 0.1s ease; }
+.react-select-container .react-select__option--is-focused { background-color: var(--phg-color-background-tertiary) !important; }
+.react-select-container .react-select__option--is-selected { background-color: var(--phg-color-primary) !important; color: var(--phg-button-text-color, white) !important; font-weight: 500; }
+.react-select-container .react-select__option--is-disabled { color: var(--phg-color-text-muted) !important; cursor: not-allowed; }
+.react-select-container .react-select__multi-value { background-color: var(--phg-color-background-tertiary) !important; border: 1px solid var(--phg-color-border-light) !important; border-radius: var(--phg-border-radius-small) !important; }
+.react-select-container .react-select__multi-value__label { color: var(--phg-color-text-secondary) !important; font-size: 0.85em !important; padding: 2px 6px !important; }
+.react-select-container .react-select__multi-value__remove { color: var(--phg-color-text-muted) !important; border-radius: 0 var(--phg-border-radius-small) var(--phg-border-radius-small) 0 !important; cursor: pointer; }
+.react-select-container .react-select__multi-value__remove:hover { background-color: var(--phg-error-color) !important; color: white !important; }
+.react-select-container .react-select__clear-indicator { color: var(--phg-color-text-secondary) !important; cursor: pointer; }
+.react-select-container .react-select__clear-indicator:hover { color: var(--phg-error-color) !important; }
+.react-select-container .react-select__loading-indicator span { background-color: var(--phg-color-text-secondary) !important; }
+.react-select-container .react-select__menu-notice--no-options,
+.react-select-container .react-select__menu-notice--loading { color: var(--phg-color-text-muted) !important; padding: 8px 12px !important; text-align: center; font-size: 0.9em; }
+
+.react-select__menu-list {
+    padding: 4px 0 !important;
+    max-height: 200px !important; /* Limit dropdown height */
+    /* Custom Scrollbar for react-select dropdown */
+    overflow-y: auto;
+    scrollbar-width: thin; /* Firefox */
+    scrollbar-color: var(--phg-color-border-light) var(--phg-color-background-secondary); /* Firefox thumb/track */
+ }
+ /* Webkit (Chrome, Safari, Edge) scrollbar styles for react-select dropdown */
+ .react-select__menu-list::-webkit-scrollbar {
+     width: 8px; /* Width of the scrollbar */
+ }
+ .react-select__menu-list::-webkit-scrollbar-track {
+     background: var(--phg-color-background-secondary); /* Background of the track */
+     border-radius: 10px;
+ }
+ .react-select__menu-list::-webkit-scrollbar-thumb {
+     background-color: var(--phg-color-border-light); /* Color of the scroll thumb */
+     border-radius: 10px;
+     border: 2px solid var(--phg-color-background-secondary); /* Creates padding around thumb */
+ }
+ .react-select__menu-list::-webkit-scrollbar-thumb:hover {
+     background-color: var(--phg-color-border); /* Darker thumb on hover */
+ }
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--phg-color-border);
+  flex-shrink: 0; /* Prevent actions shrinking */
 }
 
 /* --- Responsive Adjustments --- */
 @media (max-width: 768px) {
-    .my-lists-container {
-        padding: 1.5rem;
-    }
     .lists-grid {
-        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); /* Adjust minmax */
-        gap: 1.5rem;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1rem;
     }
-     .phg-page-title {
-        font-size: 1.8rem;
-        margin-bottom: 2rem;
-    }
+    .list-type-tab { padding: 0.7rem 1rem; font-size: 0.95rem; }
 }
 
-@media (max-width: 640px) {
-     .my-lists-container {
-        padding: 1rem;
-    }
-    .lists-grid {
-        grid-template-columns: 1fr; /* Stack cards */
-        gap: 1.5rem;
-    }
-     .phg-page-title {
-        font-size: 1.6rem;
-        margin-bottom: 1.5rem;
-    }
-    .add-item-form {
-        flex-direction: column; /* Stack input and button */
-        align-items: stretch; /* Make button full width */
-    }
+@media (max-width: 600px) {
+    .my-lists-header { flex-direction: column; align-items: stretch; }
+    .create-list-button { width: 100%; justify-content: center; }
+    .lists-grid { grid-template-columns: 1fr; }
+    .modal-form .form-row { grid-template-columns: 1fr; } /* Stack context fields */
 }
-

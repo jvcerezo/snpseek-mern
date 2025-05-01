@@ -47,6 +47,7 @@ const verifyToken = (req, res, next) => {
         }
         // Optional: Attach decoded payload to the request if needed downstream or by decorators
         req.user = decoded;
+        console.log(`Token verified. User ID: ${req.user.id}`); // Log user ID for debugging
         next(); // Token is valid, proceed
     });
 };
@@ -119,26 +120,47 @@ app.use(
     })
 );
 
-// PROTECTED: Simple proxies (These do NOT use /api prefix in your original code)
-// Apply verifyToken middleware HERE as well
-app.use("/tables", verifyToken, proxy(process.env.TABLE_SERVICE_URL, {
-     proxyErrorHandler: (err, res, next) => {
-            console.error('Proxy Error (Table Service):', err);
-            res.status(503).json({ message: 'Table service unavailable' });
+app.use(
+    `${API_BASE_URL}/lists`, // Path: /api/lists/...
+    verifyToken, // Apply authentication middleware FIRST
+    proxy(process.env.LIST_SERVICE_URL, {
+        proxyReqPathResolver: (req) => {
+            return `/mylists${req.url}`; // To Service: /lists/...
+        },
+        proxyReqOptDecorator: (proxyReqOpts, srcReq) => {
+            proxyReqOpts.headers["Content-Type"] = "application/json";
+
+            // --- UNCOMMENT AND VERIFY THIS SECTION ---
+            if (srcReq.user && srcReq.user.id) {
+                // Add the custom header for the downstream service
+                proxyReqOpts.headers['X-User-Id'] = srcReq.user.id;
+                console.log(`Gateway: Forwarding to List Service WITH X-User-Id: ${srcReq.user.id}`);
+            } else {
+                // Log if verifyToken ran but didn't attach user.id as expected
+                console.warn("Gateway: proxyReqOptDecorator - srcReq.user or srcReq.user.id is missing after verifyToken.");
+            }
+            // --- END SECTION ---
+
+            // Optional: Remove original Authorization header?
+            // delete proxyReqOpts.headers['authorization'];
+
+            return proxyReqOpts;
+        },
+        proxyReqBodyDecorator: (bodyContent, srcReq) => {
+            return bodyContent ? JSON.stringify(bodyContent) : '{}';
+        },
+        proxyErrorHandler: (err, res, next) => {
+            console.error('Proxy Error (List Service):', err);
+            // Check for ECONNREFUSED specifically
+            if (err.code === 'ECONNREFUSED') {
+                 res.status(503).json({ message: 'List service is unavailable or connection refused.' });
+            } else {
+                // Handle other proxy errors
+                 res.status(502).json({ message: 'Bad Gateway: Error communicating with List Service.' });
+            }
         }
-}));
-app.use("/varieties", verifyToken, proxy(process.env.VARIETY_SERVICE_URL, {
-     proxyErrorHandler: (err, res, next) => {
-            console.error('Proxy Error (Variety Service):', err);
-            res.status(503).json({ message: 'Variety service unavailable' });
-        }
-}));
-app.use("/phenotypes", verifyToken, proxy(process.env.PHENOTYPE_SERVICE_URL, {
-     proxyErrorHandler: (err, res, next) => {
-            console.error('Proxy Error (Phenotype Service):', err);
-            res.status(503).json({ message: 'Phenotype service unavailable' });
-        }
-}));
+    })
+);
 
 // ✅ API Gateway status check (remains public)
 app.get("/", (req, res) => {
