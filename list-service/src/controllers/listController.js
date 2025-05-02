@@ -173,3 +173,126 @@ export const resolveIds = async (req, res) => {
         res.status(500).json({ message: 'Server error resolving item IDs.' });
     }
 };
+
+/**
+ * @desc    Update a list belonging to the authenticated user
+ * @route   PUT /api/lists/:id  (Example route via Gateway -> /mylists/:id in List Service)
+ * @access  Private
+ * @body    { name: string, description?: string, content: string[] } // Type is generally not updated
+ */
+export const updateList = async (req, res) => {
+    const listId = req.params.id;
+    const userId = req.user.id; // From protect middleware
+
+    // Extract updatable fields from request body
+    const { name, description, content } = req.body;
+
+    // --- Basic Validation ---
+    if (!mongoose.Types.ObjectId.isValid(listId)) {
+        return res.status(400).json({ message: 'Invalid list ID format.' });
+    }
+    // Check required fields for update (name and content are likely always needed)
+    if (!name || !content) {
+        return res.status(400).json({ message: 'Missing required fields: name and content are required.' });
+    }
+     // Validate 'content' is a non-empty array of strings (basic check)
+     if (!Array.isArray(content) || content.length === 0 || !content.every(item => typeof item === 'string')) {
+        return res.status(400).json({ message: 'Content must be a non-empty array of strings.' });
+    }
+    // Trim content items and remove any empty ones resulting from trimming
+    const trimmedContent = content.map(item => item.trim()).filter(item => item.length > 0);
+    if (trimmedContent.length === 0) {
+         return res.status(400).json({ message: 'Content cannot be empty after trimming whitespace.' });
+    }
+    // --- End Validation ---
+
+    console.log(`CONTROLLER: Attempting to update list ID: ${listId} for user ${userId}`);
+
+    try {
+        // Find the list by ID
+        const list = await List.findById(listId);
+
+        // Check if list exists
+        if (!list) {
+            console.log(`CONTROLLER: List not found for update: ${listId}`);
+            return res.status(404).json({ message: 'List not found.' });
+        }
+
+        // Check ownership
+        if (list.userId.toString() !== userId.toString()) {
+            console.warn(`CONTROLLER: User ${userId} attempted to update list ${listId} owned by ${list.userId}.`);
+            return res.status(403).json({ message: 'Forbidden: You do not own this list.' });
+        }
+
+        // Update the list fields
+        list.name = name.trim();
+        list.description = description ? description.trim() : list.description; // Keep old if new is not provided
+        list.content = trimmedContent;
+        // list.type = type; // Generally, don't allow changing the type
+        // Do NOT update userId or timestamps manually
+
+        // Save the updated list
+        const updatedList = await list.save();
+
+        console.log(`CONTROLLER: Successfully updated list ID: ${listId}`);
+        res.status(200).json(updatedList); // Send back the updated list
+
+    } catch (error) {
+        console.error(`❌ Error updating list ${listId} for user ${userId}:`, error);
+        if (error.name === 'ValidationError') {
+            const messages = Object.values(error.errors).map(val => val.message);
+            return res.status(400).json({ message: "Validation failed.", errors: messages });
+        }
+        res.status(500).json({ message: 'Server error updating list.' });
+    }
+};
+
+/**
+ * @desc    Delete a list belonging to the authenticated user
+ * @route   DELETE /:id  (Relative to List Service base path, e.g., /api/lists/:id via gateway)
+ * @access  Private
+ */
+export const deleteList = async (req, res) => {
+    const listId = req.params.id;
+    const userId = req.user.id; // From protect middleware
+
+    // Validate if the provided ID is a valid MongoDB ObjectId
+    if (!mongoose.Types.ObjectId.isValid(listId)) {
+        console.log(`CONTROLLER: Invalid list ID format for delete: ${listId}`);
+        return res.status(400).json({ message: 'Invalid list ID format.' });
+    }
+
+    console.log(`CONTROLLER: Attempting to delete list ID: ${listId} for user ${userId}`);
+
+    try {
+        // Find the list by ID first
+        const list = await List.findById(listId);
+
+        // Check if the list exists
+        if (!list) {
+            console.log(`CONTROLLER: List not found for delete: ${listId}`);
+            // You could return 404, or maybe 200 if you want deletion to be idempotent
+            // Returning 404 is usually clearer if the resource genuinely doesn't exist
+            return res.status(404).json({ message: 'List not found.' });
+        }
+
+        // Check if the list belongs to the requesting user
+        if (list.userId.toString() !== userId.toString()) {
+            console.warn(`CONTROLLER: User ${userId} attempted to delete list ${listId} owned by ${list.userId}.`);
+            // Return 403 Forbidden - user is logged in, but doesn't own this specific list
+            return res.status(403).json({ message: 'Forbidden: You do not own this list.' });
+        }
+
+        // If checks pass, proceed with deletion using the instance method
+        await list.deleteOne();
+        // Or: await List.findByIdAndDelete(listId);
+
+        console.log(`CONTROLLER: Successfully deleted list ID: ${listId}`);
+        // Send success response
+        res.status(200).json({ message: 'List deleted successfully.' });
+
+    } catch (error) {
+        console.error(`❌ Error deleting list ${listId} for user ${userId}:`, error);
+        res.status(500).json({ message: 'Server error deleting list.' });
+    }
+};

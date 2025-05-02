@@ -553,4 +553,54 @@ export const resolveItemIdsAPI = async (idsByType) => {
     }
 };
 
+/**
+ * Updates an existing user list via the backend API.
+ * @param {string} listId - The ID (_id) of the list to update.
+ * @param {object} listData - Object containing the fields to update (e.g., { name, description, content }).
+ * @returns {Promise<object>} A promise resolving to the updated list object.
+ */
+export const updateListAPI = async (listId, listData) => {
+    console.log(`API: Calling PUT /api/lists/${listId} with data:`, listData); // Use correct Gateway path
+    if (!listId) {
+        console.error("API Error: listId is required for updateListAPI");
+        throw new Error("List ID is required to update.");
+    }
+    try {
+        // Make PUT request to the specific list's endpoint via Gateway
+        // Gateway proxies /api/lists/:id -> /mylists/:id on List Service (based on your gateway code)
+        // If list service route is PUT /:id relative to /mylists, use '/api/lists/:id'
+        const response = await API.put(`/api/lists/update-list/${listId}`, listData);
+        console.log("API: Received updated list data:", response.data);
+        return response.data; // Backend should return the updated list object
+    } catch (error) {
+        console.error(`API Error updating list ${listId}:`, error.response?.data || error.message);
+        throw error; // Re-throw for component handling
+    }
+};
+
+/**
+ * Deletes a user list via the backend API.
+ * @param {string} listId - The ID (_id) of the list to delete.
+ * @returns {Promise<object>} A promise resolving to the success message object from backend.
+ */
+export const deleteListAPI = async (listId) => {
+    console.log(`API: Calling DELETE /api/lists/${listId}`); // Correct Gateway path
+     if (!listId) {
+        console.error("API Error: listId is required for deleteListAPI");
+        throw new Error("List ID is required to delete.");
+    }
+    try {
+        // Make DELETE request to the specific list's endpoint via Gateway
+        // Gateway proxies /api/lists/:id -> /mylists/:id or just /:id depending on your proxy resolver
+        // Assuming /api/lists/:id is correct for the gateway path
+        const response = await API.delete(`/api/lists/delete-list/${listId}`);
+        console.log(`API: List ${listId} delete successful. Status:`, response.status, "Data:", response.data);
+        // Return response data which should include the success message from the backend
+        return response.data || { message: 'List deleted successfully.' };
+    } catch (error) {
+        console.error(`API Error deleting list ${listId}:`, error.response?.data || error.message);
+        throw error; // Re-throw for component handling
+    }
+};
+
 export default API;
