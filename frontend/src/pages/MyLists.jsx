@@ -12,7 +12,9 @@ import {
     searchContigsAPI,     // Use the correct function for SNP/Contig search
     autocompleteLocusAPI, // Dedicated autocomplete for 'locus' type list
     resolveItemIdsAPI,    // Real API function for name resolution
-    fetchReferenceGenomes // <-- Real function for fetching genome options
+    fetchReferenceGenomes, // Real function for fetching genome options
+    fetchChromosomes,      // Needed for SNP list creation
+    fetchChromosomeRange   // Needed for SNP list creation
 } from '../api'; // Adjust path as necessary
 
 import './MyLists.css'; // Ensure styles for component, modal, and react-select are included
@@ -50,12 +52,23 @@ const LoadingSpinnerIcon = ({ className = "w-4 h-4 animate-spin" }) => (
       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
     </svg>
 );
+const AddToListIcon = ({ className = "w-5 h-5" }) => ( // Icon for Add Range button
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v6m3-3H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+);
+const RemoveFromListIcon = ({ className = "w-4 h-4" }) => ( // Icon for Remove Range button
+     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+);
+
 
 // --- Configuration for List Types and Autocomplete ---
 // !! IMPORTANT: Adjust 'idField' and 'nameField' to match your actual API responses !!
 const LIST_TYPES = [
     { key: 'variety', title: 'Variety', searchFn: searchVarietiesAPI, idField: '_id', nameField: 'name' },
-    { key: 'snp', title: 'SNP (Contigs)', searchFn: searchContigsAPI, idField: null, nameField: null }, // Handled specially
+    { key: 'snp', title: 'SNP (Ranges)', searchFn: null, idField: null, nameField: null }, // Uses range input, not autocomplete searchFn
     { key: 'locus', title: 'Locus', searchFn: autocompleteLocusAPI, idField: '_id', nameField: 'geneName' }, // Using _id
 ];
 
@@ -75,8 +88,16 @@ const MyLists = () => {
     const [newListData, setNewListData] = useState({ ...defaultNewListData });
     const [referenceGenomeOptions, setReferenceGenomeOptions] = useState([]);
     const [isLoadingRefGenomes, setIsLoadingRefGenomes] = useState(false);
-    const [resolvedNames, setResolvedNames] = useState({});
-    const [fetchingItemIds, setFetchingItemIds] = useState(new Set());
+    const [chromosomeOptions, setChromosomeOptions] = useState([]); // For SNP modal
+    const [isLoadingChromosomes, setIsLoadingChromosomes] = useState(false);
+    const [modalSelectedChromosome, setModalSelectedChromosome] = useState(''); // For SNP modal
+    const [modalChromosomeRange, setModalChromosomeRange] = useState({ minPosition: null, maxPosition: null });
+    const [modalIsLoadingRange, setModalIsLoadingRange] = useState(false);
+    const [modalRangeError, setModalRangeError] = useState('');
+    const [modalSnpStart, setModalSnpStart] = useState('');     // User input for start
+    const [modalSnpEnd, setModalSnpEnd] = useState('');         // User input for end
+    const [resolvedNames, setResolvedNames] = useState({});    // For displaying item names
+    const [fetchingItemIds, setFetchingItemIds] = useState(new Set()); // For displaying item names
 
     // --- Effect to Fetch User Lists ---
     useEffect(() => {
@@ -91,33 +112,23 @@ const MyLists = () => {
         loadLists();
     }, []);
 
-    // --- Effect to Fetch Reference Genomes (Using real API call) ---
+    // --- Effect to Fetch Reference Genomes ---
     useEffect(() => {
         const loadReferenceGenomes = async () => {
-            if (referenceGenomeOptions.length > 0) return; // Don't refetch if already loaded
+            if (referenceGenomeOptions.length > 0 || isLoadingRefGenomes) return;
             setIsLoadingRefGenomes(true);
             console.log("Fetching reference genomes for modal context...");
             try {
-                // --- Use the imported API function ---
-                const genomes = await fetchReferenceGenomes();
-                // --- ----------------------------- ---
-
-                // Assuming the API returns an array of strings directly
+                const genomes = await fetchReferenceGenomes(); // Using real API call
                 setReferenceGenomeOptions(Array.isArray(genomes) ? genomes : []);
                 console.log("Loaded reference genomes:", genomes);
-            } catch (error) {
-                console.error("Error fetching reference genomes for modal:", error);
-                toast.error("Could not load reference genomes for context.");
-                setReferenceGenomeOptions([]); // Set empty on error
-            } finally {
-                 setIsLoadingRefGenomes(false);
-            }
+            } catch (error) { console.error("Error fetching reference genomes for modal:", error); toast.error("Could not load reference genomes."); setReferenceGenomeOptions([]); }
+            finally { setIsLoadingRefGenomes(false); }
         };
         loadReferenceGenomes();
-    // Add referenceGenomeOptions.length to dependencies to prevent refetch? Or keep empty [] is fine.
-    }, []); // Fetch only once on mount
+    }, [isLoadingRefGenomes, referenceGenomeOptions.length]); // Dependencies adjusted
 
-    // --- Effect: Fetch names for items in VISIBLE lists (Uses REAL API) ---
+    // --- Effect: Fetch names for items in VISIBLE lists ---
      useEffect(() => {
         if (isLoadingLists || userLists.length === 0) return;
         const listsToShow = userLists.filter(list => list.type === selectedType);
@@ -146,9 +157,8 @@ const MyLists = () => {
                  setFetchingItemIds(prev => new Set([...prev, ...allIdsBeingFetched]));
                  console.log(`Workspaceing names for ${allIdsBeingFetched.length} new IDs...`);
                  try {
-                     // --- Using the REAL API function ---
+                     // Using the REAL API function
                      const resolvedMap = await resolveItemIdsAPI(payload);
-                     // --- --------------------------- ---
                      if (resolvedMap && typeof resolvedMap === 'object') {
                          setResolvedNames(prev => ({ ...prev, ...resolvedMap }));
                      } else { console.warn("Received unexpected format from resolveItemIdsAPI"); }
@@ -161,17 +171,69 @@ const MyLists = () => {
         }
     }, [userLists, selectedType, isLoadingLists]); // Dependencies
 
+    // --- Effect to Fetch Chromosomes for SNP modal ---
+    useEffect(() => {
+        if (!showCreateModal || newListData.type !== 'snp' || !newListData.referenceGenome) {
+            setChromosomeOptions([]); setModalSelectedChromosome(''); return;
+        }
+        const loadChromosomes = async () => {
+            setIsLoadingChromosomes(true); setModalSelectedChromosome('');
+            try {
+                const chroms = await fetchChromosomes(/* newListData.referenceGenome */);
+                setChromosomeOptions(Array.isArray(chroms) ? chroms : []);
+            } catch (error) { console.error("Error fetching chromosomes:", error); toast.error("Could not load chromosomes."); setChromosomeOptions([]); }
+            finally { setIsLoadingChromosomes(false); }
+        };
+        loadChromosomes();
+    }, [newListData.referenceGenome, newListData.type, showCreateModal]);
+
+    // --- Effect to Fetch Chromosome Range for SNP modal ---
+    useEffect(() => {
+        if (!showCreateModal || newListData.type !== 'snp' || !newListData.referenceGenome || !modalSelectedChromosome) {
+            setModalChromosomeRange({ minPosition: null, maxPosition: null }); setModalRangeError(''); setModalIsLoadingRange(false); return;
+        }
+        const getRange = async () => {
+            setModalIsLoadingRange(true); setModalRangeError(''); setModalChromosomeRange({ minPosition: null, maxPosition: null });
+            try {
+                const rangeData = await fetchChromosomeRange(modalSelectedChromosome, newListData.referenceGenome);
+                if (rangeData && rangeData.minPosition !== null && rangeData.maxPosition !== null) { setModalChromosomeRange(rangeData); }
+                else { setModalRangeError(`No range data found.`); }
+            } catch (error) { console.error("Error fetching chromosome range:", error); setModalRangeError('Failed to fetch range.'); }
+            finally { setModalIsLoadingRange(false); }
+        };
+        getRange();
+    }, [modalSelectedChromosome, newListData.referenceGenome, newListData.type, showCreateModal]);
+
+
     // --- Action Handlers ---
-    const handleOpenCreateModal = () => { setNewListData({ ...defaultNewListData, type: selectedType }); setShowCreateModal(true); };
+    const handleOpenCreateModal = () => { setNewListData({ ...defaultNewListData, type: selectedType }); setModalSelectedChromosome(''); setModalChromosomeRange({ minPosition: null, maxPosition: null }); setModalRangeError(''); setModalSnpStart(''); setModalSnpEnd(''); setShowCreateModal(true); };
     const handleCloseCreateModal = () => { if (!isSubmitting) setShowCreateModal(false); };
     const handleNewListDataChange = (e) => { setNewListData(prev => ({ ...prev, [e.target.name]: e.target.value })); };
+    const handleModalChromosomeChange = (e) => { setModalSelectedChromosome(e.target.value); setModalChromosomeRange({ minPosition: null, maxPosition: null }); setModalRangeError(''); setModalSnpStart(''); setModalSnpEnd(''); };
+    const handleModalSnpStartChange = (e) => { setModalSnpStart(e.target.value); };
+    const handleModalSnpEndChange = (e) => { setModalSnpEnd(e.target.value); };
+    const handleAddRangeToList = () => {
+        const fullRange = modalChromosomeRange; const chr = modalSelectedChromosome; const startInput = modalSnpStart.trim(); const endInput = modalSnpEnd.trim();
+        if (!chr || fullRange.minPosition === null) { toast.error("Select chromosome and wait for range."); return; }
+        if (startInput === '' || endInput === '') { toast.error("Enter Start and End positions."); return; }
+        const startNum = parseInt(startInput, 10); const endNum = parseInt(endInput, 10);
+        if (isNaN(startNum) || isNaN(endNum)) { toast.error("Positions must be numbers."); return; }
+        if (startNum < 0) { toast.error("Start position cannot be negative."); return; }
+        if (startNum > endNum) { toast.error("Start cannot be greater than End."); return; }
+        if (startNum < fullRange.minPosition || endNum > fullRange.maxPosition) { toast.error(`Positions must be within available range (${fullRange.minPosition.toLocaleString()} - ${fullRange.maxPosition.toLocaleString()}).`); return; }
+        const rangeString = `${chr}:${startNum}-${endNum}`;
+        if (newListData.content.includes(rangeString)) { toast.warning(`Range already added.`); return; }
+        setNewListData(prev => ({ ...prev, content: [...prev.content, rangeString] }));
+        setModalSnpStart(''); setModalSnpEnd(''); toast.success(`Range added.`);
+    };
+     const handleRemoveRangeFromList = (rangeToRemove) => { setNewListData(prev => ({ ...prev, content: prev.content.filter(range => range !== rangeToRemove) })); };
     const handleCreateList = async (e) => {
         e.preventDefault(); setIsSubmitting(true);
         toast.promise(
              async () => {
                  if (!newListData.name || !newListData.type || newListData.content.length === 0 ) { throw new Error('List name and content are required.'); }
-                 const contentIds = newListData.content.map(option => option.value);
-                 const payload = { name: newListData.name.trim(), description: newListData.description.trim(), type: newListData.type, content: contentIds };
+                 let contentPayload = newListData.type === 'snp' ? newListData.content : newListData.content.map(option => option.value);
+                 const payload = { name: newListData.name.trim(), description: newListData.description.trim(), type: newListData.type, content: contentPayload };
                  const createdList = await createListAPI(payload);
                  return createdList;
              }, { loading: 'Creating list...', success: (createdList) => { setUserLists(prev => [createdList, ...prev]); setSelectedType(createdList.type); handleCloseCreateModal(); return `List "${createdList.name}" created.`; }, error: (err) => err?.response?.data?.message || err?.message || 'Failed to create list.', finally: () => { setIsSubmitting(false); }, }
@@ -180,7 +242,7 @@ const MyLists = () => {
     const handleUpdateList = async (listId, currentListData) => { toast.info("Edit functionality not yet implemented."); };
     const handleDeleteList = async (listId, listName) => { if (window.confirm(`Delete "${listName}"?`)) { toast.info("Delete functionality not yet implemented."); } };
 
-    // --- Render Helper for List Cards (Displays Names/IDs/Spinners) ---
+    // --- Render Helper for List Cards ---
      const renderSingleList = (list) => {
          if (!list) return null; const listContent = list.content || [];
          return (
@@ -190,10 +252,7 @@ const MyLists = () => {
                         <h3 className="phg-card-title list-title" title={list.name}>{list.name}</h3>
                         <span className="list-header-item-count">{listContent.length} Item{listContent.length !== 1 ? 's' : ''}</span>
                     </div>
-                    <div className="list-actions">
-                        <button className="phg-button list-action-button" onClick={() => handleUpdateList(list._id, list)} disabled={isSubmitting} title="Edit List"><PencilIcon className="button-icon" /></button>
-                        <button className="phg-button list-action-button remove-item-button" onClick={() => handleDeleteList(list._id, list.name)} disabled={isSubmitting} title="Delete List"><TrashIcon className="button-icon" /></button>
-                    </div>
+                    <div className="list-actions"> <button className="phg-button list-action-button" onClick={() => handleUpdateList(list._id, list)} disabled={isSubmitting} title="Edit List"><PencilIcon className="button-icon" /></button> <button className="phg-button list-action-button remove-item-button" onClick={() => handleDeleteList(list._id, list.name)} disabled={isSubmitting} title="Delete List"><TrashIcon className="button-icon" /></button> </div>
                  </div>
                  <div className="phg-card-content">
                      {list.description && <p className="list-description">{list.description}</p>}
@@ -208,14 +267,8 @@ const MyLists = () => {
                                         if (resolvedName) { contentToShow = resolvedName; nameFound = true; }
                                         else if (fetchingItemIds.has(itemId)) { isLoadingName = true; contentToShow = <LoadingSpinnerIcon />; }
                                     }
-                                    const titleAttribute = `ID: ${itemId}`;
-                                    return (
-                                        <li key={`${list._id}-item-${index}`} className="list-item" title={titleAttribute}>
-                                            <span className={`item-text ${isLoadingName ? 'item-text-loading' : ''}`}>
-                                                {contentToShow}
-                                            </span>
-                                        </li>
-                                    );
+                                    const titleAttribute = list.type === 'snp' ? `Range: ${itemId}` : `ID: ${itemId}`;
+                                    return ( <li key={`${list._id}-item-${index}`} className="list-item" title={titleAttribute}> <span className={`item-text ${isLoadingName ? 'item-text-loading' : ''}`}>{contentToShow}</span> </li> );
                                 })
                              )}
                              {listContent.length > 10 && ( <li className="list-item-more">... and {listContent.length - 10} more</li> )}
@@ -226,7 +279,7 @@ const MyLists = () => {
          );
       };
 
-    // --- Helper to Filter Lists by Selected Type ---
+    // --- Helper to Filter Lists ---
     const getFilteredLists = () => userLists.filter(list => list.type === selectedType);
 
     // --- Autocomplete Loader Function ---
@@ -237,14 +290,14 @@ const MyLists = () => {
             if (listTypeData.key === 'locus' && !referenceGenome && !query) { callback([]); return; }
             switch (listTypeData.key) {
                 case 'variety': results = await listTypeData.searchFn(query); break;
-                case 'snp': results = await listTypeData.searchFn(query); break;
+                case 'snp': results = []; break; // Not used for autocomplete
                 case 'locus':
                     if (!referenceGenome && query) toast.error("Select Reference Genome for Locus search.");
                     results = await listTypeData.searchFn( query, referenceGenome || undefined ); break;
                 default: results = [];
             }
             let options = [];
-            if (listTypeData.key === 'snp') { options = results.map(name => ({ value: name, label: name })); }
+            if (listTypeData.key === 'snp') { options = []; } // SNP doesn't use this mapping
             else { options = results.map(item => ({ value: item[listTypeData.idField], label: item[listTypeData.nameField] })).filter(opt => opt.value && opt.label); }
             callback(options);
         } catch (error) { console.error(`Error fetching options for ${listTypeData.key}:`, error); callback([]); }
@@ -264,9 +317,8 @@ const MyLists = () => {
                  <h1 className="phg-page-title">My Lists</h1>
                  <button className="phg-button phg-button-primary create-list-button" onClick={handleOpenCreateModal} disabled={isSubmitting || isLoadingLists}> <PlusIcon className="button-icon" /> Create New List </button>
             </div>
-            {/* Loading State */}
+            {/* Loading/Error States */}
             {isLoadingLists && <div className="loading-indicator centered-message"><div className="spinner"></div><p>Loading your lists...</p></div>}
-            {/* Error State */}
             {fetchError && !isLoadingLists && <div className="error-message fetch-error-message centered-message"><i className="fas fa-exclamation-triangle error-icon"></i><p>Error loading lists:</p><p><i>{fetchError}</i></p></div>}
 
             {/* Main Content Area */}
@@ -310,8 +362,8 @@ const MyLists = () => {
                                 <label htmlFor="list-description">Description</label>
                                 <textarea id="list-description" name="description" rows={2} className="phg-input" value={newListData.description} onChange={handleNewListDataChange} maxLength={500} disabled={isSubmitting}></textarea>
                             </div>
-                            {/* Reference Genome Context (Only show for Locus type) */}
-                            {newListData.type === 'locus' && (
+                            {/* Reference Genome Context (Show for Locus OR SNP) */}
+                            {(newListData.type === 'locus' || newListData.type === 'snp') && (
                                  <div className="form-group">
                                     <label htmlFor="list-referenceGenome">Reference Genome Context <span className="required-indicator">*</span></label>
                                     <select id="list-referenceGenome" name="referenceGenome" className="phg-input" value={newListData.referenceGenome || ''} onChange={handleNewListDataChange} required disabled={isSubmitting || isLoadingRefGenomes}>
@@ -319,27 +371,76 @@ const MyLists = () => {
                                          {referenceGenomeOptions.map(genome => ( <option key={genome} value={genome}>{genome}</option> ))}
                                     </select>
                                     {isLoadingRefGenomes && <small>Loading genomes...</small>}
-                                    {!newListData.referenceGenome && <small className="error-text">Required to search Locus items.</small>}
+                                    {!newListData.referenceGenome && <small className="error-text">Required for {newListData.type === 'locus' ? 'Locus search' : 'Chromosome selection'}.</small>}
                                  </div>
                             )}
-                            {/* Autocomplete Content Input */}
+                            {/* Content Input Area */}
                             <div className="form-group">
-                                <label htmlFor="list-content-select">List Content <span className="required-indicator">*</span></label>
-                                <AsyncSelect
-                                    defaultOptions={true}
-                                    id="list-content-select" inputId='list-content-select-input'
-                                    isMulti cacheOptions
-                                    key={newListData.type + newListData.referenceGenome}
-                                    loadOptions={(inputValue, callback) => { const typeData = LIST_TYPES.find(t => t.key === newListData.type); if (typeData) debouncedLoadOptions(inputValue, typeData, callback); else callback([]); }}
-                                    value={newListData.content}
-                                    onChange={(selectedOptions) => setNewListData(prev => ({ ...prev, content: selectedOptions || [] })) }
-                                    placeholder={`Type to search or select from list...`}
-                                    isDisabled={isSubmitting || (newListData.type === 'locus' && !newListData.referenceGenome)}
-                                    className="react-select-container" classNamePrefix="react-select"
-                                    styles={{ /* Use styles from CSS */ }}
-                                    noOptionsMessage={({ inputValue }) => { if (newListData.type === 'locus' && !newListData.referenceGenome && !inputValue) return 'Select Reference Genome first'; return !inputValue ? 'Default options loaded' : 'No results found'; }}
-                                    loadingMessage={() => 'Loading...'}
-                                />
+                                <label>List Content <span className="required-indicator">*</span></label>
+                                {/* == VARIETY or LOCUS Autocomplete == */}
+                                {(newListData.type === 'variety' || newListData.type === 'locus') && (
+                                    <AsyncSelect
+                                        defaultOptions={true} inputId='list-content-select-input'
+                                        isMulti cacheOptions key={newListData.type + newListData.referenceGenome}
+                                        loadOptions={(inputValue, callback) => { const typeData = LIST_TYPES.find(t => t.key === newListData.type); if (typeData) debouncedLoadOptions(inputValue, typeData, callback); else callback([]); }}
+                                        value={newListData.content}
+                                        onChange={(selectedOptions) => setNewListData(prev => ({ ...prev, content: selectedOptions || [] })) }
+                                        placeholder={`Type to search & add ${newListData.type} items...`}
+                                        isDisabled={isSubmitting || (newListData.type === 'locus' && !newListData.referenceGenome)}
+                                        className="react-select-container" classNamePrefix="react-select" styles={{ /* Use styles from CSS */ }}
+                                        noOptionsMessage={({ inputValue }) => { if (newListData.type === 'locus' && !newListData.referenceGenome && !inputValue) return 'Select Reference Genome first'; return !inputValue ? 'Default options loaded' : 'No results found'; }}
+                                        loadingMessage={() => 'Loading...'}
+                                    />
+                                )}
+                                 {/* == SNP (Range) Input Area == */}
+                                {newListData.type === 'snp' && (
+                                     <div className="snp-range-input-area">
+                                        {/* Chromosome Selector */}
+                                        <div className="form-group">
+                                             <label htmlFor="modal-chromosome">Chromosome <span className="required-indicator">*</span></label>
+                                             <select id="modal-chromosome" name="modalChromosome" className="phg-input" value={modalSelectedChromosome} onChange={handleModalChromosomeChange} required disabled={isSubmitting || !newListData.referenceGenome || isLoadingChromosomes}>
+                                                 <option value="">-- Select Chromosome --</option>
+                                                 {chromosomeOptions.map(chrom => ( <option key={chrom} value={chrom}>{chrom}</option> ))}
+                                             </select>
+                                             {isLoadingChromosomes && <small>Loading chromosomes...</small>}
+                                             {!modalSelectedChromosome && newListData.referenceGenome && <small className="error-text">Selection required.</small>}
+                                         </div>
+                                         {/* Range Display */}
+                                         <div className="range-display-modal">
+                                             {modalIsLoadingRange && <small className='loading-text'>Loading available range...</small>}
+                                             {modalRangeError && <small className="error-text">{modalRangeError}</small>}
+                                             {modalChromosomeRange.minPosition !== null && !modalIsLoadingRange && !modalRangeError && ( <small className='info-text'>Available Range: {modalChromosomeRange.minPosition.toLocaleString()} - {modalChromosomeRange.maxPosition.toLocaleString()}</small> )}
+                                         </div>
+                                        {/* Start/End Position Inputs */}
+                                        <div className="form-row snp-pos-inputs">
+                                            <div className="form-group">
+                                                <label htmlFor="modal-snp-start">Start Position <span className="required-indicator">*</span></label>
+                                                <input type="number" id="modal-snp-start" name="modalSnpStart" className="phg-input" value={modalSnpStart} onChange={handleModalSnpStartChange} placeholder="e.g., 1" min={modalChromosomeRange.minPosition ?? 0} max={modalSnpEnd || (modalChromosomeRange.maxPosition ?? undefined)} required disabled={isSubmitting || !modalSelectedChromosome || modalIsLoadingRange || modalRangeError} />
+                                            </div>
+                                            <div className="form-group">
+                                                <label htmlFor="modal-snp-end">End Position <span className="required-indicator">*</span></label>
+                                                <input type="number" id="modal-snp-end" name="modalSnpEnd" className="phg-input" value={modalSnpEnd} onChange={handleModalSnpEndChange} placeholder={`e.g., ${modalChromosomeRange.maxPosition?.toLocaleString() || '100000'}`} min={modalSnpStart || (modalChromosomeRange.minPosition ?? 0)} max={modalChromosomeRange.maxPosition ?? undefined} required disabled={isSubmitting || !modalSelectedChromosome || modalIsLoadingRange || modalRangeError} />
+                                            </div>
+                                        </div>
+                                        {/* Add Range Button */}
+                                        <button type="button" className="phg-button phg-button-secondary add-range-button" onClick={handleAddRangeToList} disabled={isSubmitting || modalIsLoadingRange || !modalSelectedChromosome || modalChromosomeRange.minPosition === null || !modalSnpStart || !modalSnpEnd} title="Add the specified Start/End range to the list below"> <AddToListIcon className="button-icon"/> Add Specified Range </button>
+                                        {/* Display Current Ranges Added */}
+                                        <div className="added-ranges-container item-list-container">
+                                            <h4 className="item-list-title">Added Ranges ({newListData.content.length})</h4>
+                                            <ul className="item-list added-ranges-list">
+                                                {newListData.content.length === 0 ? ( <li className="list-item-empty">No ranges added yet.</li> )
+                                                 : ( newListData.content.map((rangeStr, index) => (
+                                                         <li key={index} className="list-item">
+                                                             <span className="item-text">{rangeStr}</span>
+                                                             <button type="button" onClick={() => handleRemoveRangeFromList(rangeStr)} className="phg-button remove-range-button" disabled={isSubmitting} title={`Remove ${rangeStr}`} aria-label={`Remove ${rangeStr}`}> <RemoveFromListIcon /> </button>
+                                                         </li>
+                                                     ))
+                                                )}
+                                            </ul>
+                                        </div>
+                                        <small>Select chromosome, enter start/end within available range, then Add.</small>
+                                     </div>
+                                )}
                             </div>
                             {/* Modal Actions */}
                             <div className="modal-actions">
