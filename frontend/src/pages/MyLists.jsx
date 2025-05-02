@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Toaster, toast } from 'sonner';
-import AsyncSelect from 'react-select/async'; // Import AsyncSelect
-import debounce from 'lodash.debounce'; // Import debounce
+import AsyncSelect from 'react-select/async';
+import debounce from 'lodash.debounce';
 
 // Import necessary API functions
 import {
@@ -68,8 +68,8 @@ const RemoveFromListIcon = ({ className = "w-4 h-4" }) => ( // Icon for Remove R
 // !! IMPORTANT: Adjust 'idField' and 'nameField' to match your actual API responses !!
 const LIST_TYPES = [
     { key: 'variety', title: 'Variety', searchFn: searchVarietiesAPI, idField: '_id', nameField: 'name' },
-    { key: 'snp', title: 'SNP (Ranges)', searchFn: null, idField: null, nameField: null }, // Uses range input, not autocomplete searchFn
-    { key: 'locus', title: 'Locus', searchFn: autocompleteLocusAPI, idField: '_id', nameField: 'geneName' }, // Using _id
+    { key: 'snp', title: 'SNP (Ranges)', searchFn: null, idField: null, nameField: null },
+    { key: 'locus', title: 'Locus', searchFn: autocompleteLocusAPI, idField: '_id', nameField: 'geneName' },
 ];
 
 // --- Default empty form state ---
@@ -159,6 +159,7 @@ const MyLists = () => {
                  try {
                      // --- Using the REAL API function ---
                      const resolvedMap = await resolveItemIdsAPI(payload);
+                     // --- --------------------------- ---
                      if (resolvedMap && typeof resolvedMap === 'object') {
                          setResolvedNames(prev => ({ ...prev, ...resolvedMap }));
                      } else { console.warn("Received unexpected format from resolveItemIdsAPI"); }
@@ -169,7 +170,7 @@ const MyLists = () => {
              };
              fetchNames();
         }
-    }, [userLists, selectedType, isLoadingLists]); // Dependencies
+    }, [userLists, selectedType, isLoadingLists]);
 
     // --- Effect to Fetch Chromosomes for SNP modal ---
     useEffect(() => {
@@ -297,7 +298,7 @@ const MyLists = () => {
                 default: results = [];
             }
             let options = [];
-            if (listTypeData.key === 'snp') { options = []; }
+            if (listTypeData.key === 'snp') { options = []; } // SNP doesn't use this mapping
             else { options = results.map(item => ({ value: item[listTypeData.idField], label: item[listTypeData.nameField] })).filter(opt => opt.value && opt.label); }
             callback(options);
         } catch (error) { console.error(`Error fetching options for ${listTypeData.key}:`, error); callback([]); }
@@ -380,7 +381,7 @@ const MyLists = () => {
                                 {/* == VARIETY or LOCUS Autocomplete == */}
                                 {(newListData.type === 'variety' || newListData.type === 'locus') && (
                                     <AsyncSelect
-                                        defaultOptions={true} inputId='list-content-select-input'
+                                        defaultOptions={true} inputId={`list-content-${newListData.type}`} // More specific ID
                                         isMulti cacheOptions key={newListData.type + newListData.referenceGenome}
                                         loadOptions={(inputValue, callback) => { const typeData = LIST_TYPES.find(t => t.key === newListData.type); if (typeData) debouncedLoadOptions(inputValue, typeData, callback); else callback([]); }}
                                         value={newListData.content}

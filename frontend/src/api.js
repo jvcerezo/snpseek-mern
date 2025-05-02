@@ -415,31 +415,32 @@ export const createListAPI = async (listData) => {
 };
 
 /**
- * Searches for Varieties based on a query string and optional varietySet.
- * Assumes a backend endpoint exists at /api/genomic/varieties/search (proxied).
- * @param {string} query - The search term entered by the user.
- * @param {string} [varietySet] - Optional variety set context.
- * @returns {Promise<Array<object>>} Promise resolving to an array of variety objects (e.g., [{ _id: '...', name: '...' }]).
+ * Searches for Varieties based on a query string OR fetches default list if query is empty.
+ * @param {string} query - The search term entered by the user (can be "").
+ * @returns {Promise<Array<object>>} Promise resolving to an array of variety objects.
  */
-export const searchVarietiesAPI = async (query, varietySet) => {
-    if (!query || query.trim().length < 2) { // Don't search on empty or very short strings
-        return [];
-    }
+export const searchVarietiesAPI = async (query) => {
+    // REMOVE or comment out the client-side length check:
+    // if (!query || query.trim().length < 2) {
+    //     return [];
+    // }
+    // The backend now handles empty/short queries to return defaults.
+
     try {
-        console.log(`API: Searching Varieties - q: ${query}, varietySet: ${varietySet}`);
-        // Assumes GET /api/genomic/varieties/search?q=...&varietySet=...
+        // Ensure query is treated as string, even if null/undefined initially
+        const searchTerm = query || "";
+        console.log(`API: Searching Varieties - q: ${searchTerm}`);
+        // Make the GET request. The backend will handle q=""
         const response = await API.get("/api/genomic/varieties/search", {
             params: {
-                q: query,
-                // Only send varietySet if it has a value
-                ...(varietySet && { varietySet: varietySet })
+                q: searchTerm
+                // No need to send varietySet anymore based on previous changes
             }
         });
-        // Ensure response.data is an array
         return Array.isArray(response.data) ? response.data : [];
     } catch (error) {
         console.error("API Error searching varieties:", error.response?.data || error.message);
-        return []; // Return empty array on error for autocomplete
+        return []; // Return empty array on error for autocomplete robustness
     }
 };
 
