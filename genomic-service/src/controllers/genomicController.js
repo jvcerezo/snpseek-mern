@@ -503,45 +503,45 @@ export const searchContigs = async (req, res) => {
 };
 
 /**
- * @desc    Search Varieties by name for autocomplete
- * @route   GET /genotype/varieties/search  (Example route)
- * @access  Public (usually)
- * @query   q=searchTerm, varietySet=setName (optional)
+ * @desc    Search Varieties by name for autocomplete OR return default list
+ * @route   GET /genotype/varieties/search
+ * @query   q=searchTerm (optional), varietySet=setName (optional - REMOVED based on prior step)
  */
 export const searchVarietiesByName = async (req, res) => {
     // Use empty string default if 'q' is not provided
-    const { q: searchTerm = "", varietySet } = req.query;
-    const limit = 20; // Define limit for both search and default list
+    const { q: searchTerm = "" } = req.query; // No varietySet filter needed
+    const limit = 30; // Limit for both search and default list
 
     try {
-        const query = {}; // Start with empty query
+        const query = {}; // Base query (potentially empty)
 
-        // Add varietySet filter if provided (Applies to both search and default list)
-        if (varietySet) {
-            query.varietySet = varietySet;
-        }
+        let resultsPromise;
 
-        // If searchTerm is provided (and long enough), add the regex filter
         if (searchTerm && searchTerm.trim().length >= 2) {
+            // --- Search Logic ---
             query.name = { $regex: searchTerm.trim(), $options: 'i' };
             console.log(`CONTROLLER: Searching Varieties with query:`, query);
+            resultsPromise = Variety.find(query)
+                                    .select('_id name')
+                                    .limit(limit)
+                                    .sort({ name: 1 }) // Sort search results too
+                                    .lean();
         } else {
-            // If no search term (or too short), we fetch the default list
-            console.log(`CONTROLLER: Fetching default Variety list with query:`, query);
+            // --- Default List Logic (Empty or short search term) ---
+            console.log(`CONTROLLER: Fetching default Variety list.`);
+            resultsPromise = Variety.find(query) // Find all (or apply other base filters if needed)
+                                    .select('_id name')
+                                    .limit(limit)
+                                    .sort({ name: 1 }) // Sort default list
+                                    .lean();
         }
 
-        // Execute query - fetches default list if 'name' filter wasn't added
-        const results = await Variety.find(query)
-                                     .select('_id name')
-                                     .limit(limit) // Apply limit always
-                                     .sort({ name: 1 }) // Optional: Sort default list alphabetically
-                                     .lean();
-
-        console.log(`CONTROLLER: Found ${results.length} varieties for term "${searchTerm || '(default)'}".`);
+        const results = await resultsPromise;
+        console.log(`CONTROLLER: Found <span class="math-inline">\{results\.length\} varieties for term "</span>{searchTerm || '(default)'}".`);
         res.status(200).json(results);
 
     } catch (error) {
-        console.error(`❌ Error searching varieties for term "${searchTerm || '(default)'}":`, error);
+        console.error(`❌ Error searching/fetching varieties for term "${searchTerm || '(default)'}":`, error);
         res.status(500).json({ message: 'Server error searching varieties.' });
     }
 };

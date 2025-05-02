@@ -395,57 +395,58 @@ export const lookupFeaturesByIds = async (req, res) => {
 };
 
 /**
- * @desc    Autocomplete Features (Loci) by name/ID for list creation
+ * @desc    Autocomplete Features (Loci) by name/ID OR return default list
  * @route   GET /features/autocomplete
- * @access  Public (or Private, as needed)
- * @query   queryTerm=searchString, referenceGenome=refGenomeName
+ * @query   queryTerm=searchString (optional), referenceGenome=refGenomeName
  */
 export const autocompleteFeatures = async (req, res) => {
-    const { queryTerm, referenceGenome } = req.query;
+    // Use empty string default if 'queryTerm' is not provided
+    const { queryTerm = "", referenceGenome } = req.query;
+    const limit = 30; // Limit for both search and default list
 
     // --- Validation ---
-    if (!queryTerm || queryTerm.trim().length < 2) {
-        // Return empty for short/empty queries, including default load (queryTerm="")
-        return res.status(200).json([]);
-    }
+    // Reference genome is always required for this endpoint
     if (!referenceGenome) {
-        // Autocomplete needs context
         return res.status(400).json({ message: "Reference genome is required for locus autocomplete." });
     }
     // --- End Validation ---
 
     try {
-        const searchTerm = queryTerm.trim();
-        // Escape regex special characters for safety
-        const escapedSearchTerm = searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const regex = new RegExp(escapedSearchTerm, 'i'); // Case-insensitive substring search
+         const query = {
+              referenceGenome: referenceGenome, // Always filter by reference genome
+         };
+         let resultsPromise;
 
-        // Build the query
-        const query = {
-            referenceGenome: referenceGenome,
-            // Search in relevant fields - primarily geneName, maybe custom ID if useful
-            // Adjust fields based on your Feature model and search needs
-            $or: [
-                { geneName: { $regex: regex } },
-                // { id: { $regex: regex } } // Optional: search custom ID field too?
-                // { description: { $regex: regex } } // Optional: search description?
-            ]
-        };
-
-        console.log(`FEATURE Controller (Autocomplete): Searching Features with query:`, query);
-
-        // Find features, select ONLY _id and geneName, limit results
-        const results = await Feature.find(query)
-                                     .select('_id geneName') // Select standard ID and display name
-                                     .limit(20) // Limit autocomplete results
+        // Only apply text search if queryTerm is provided and long enough
+        if (queryTerm && queryTerm.trim().length >= 2) {
+            // --- Search Logic ---
+             const searchTerm = queryTerm.trim();
+             const escapedSearchTerm = searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+             const regex = new RegExp(escapedSearchTerm, 'i');
+             query.$or = [ { geneName: { $regex: regex } } ]; // Search geneName
+             console.log(`FEATURE Controller (Autocomplete): Searching Features with query:`, query);
+             resultsPromise = Feature.find(query)
+                                     .select('_id geneName') // Use _id and geneName
+                                     .limit(limit)
+                                     .sort({ geneName: 1 }) // Sort results
                                      .lean();
+        } else {
+             // --- Default List Logic (Empty or short search term) ---
+             console.log(`FEATURE Controller (Autocomplete): Fetching default Locus list for genome ${referenceGenome}.`);
+              resultsPromise = Feature.find(query) // Just filter by referenceGenome
+                                     .select('_id geneName')
+                                     .limit(limit)
+                                     .sort({ geneName: 1 }) // Sort default list
+                                     .lean();
+        }
 
-        console.log(`FEATURE Controller (Autocomplete): Found ${results.length} features for term "${searchTerm}".`);
+        const results = await resultsPromise;
+        console.log(`FEATURE Controller (Autocomplete): Found <span class="math-inline">\{results\.length\} features for term "</span>{queryTerm || '(default)'}".`);
         // Return array like [{ _id: "...", geneName: "..." }]
         res.status(200).json(results);
 
     } catch (error) {
-        console.error(`❌ Error during feature autocomplete for term "${queryTerm}":`, error);
+        console.error(`❌ Error during feature autocomplete for term "${queryTerm || '(default)'}":`, error);
         res.status(500).json({ message: "Server error during feature autocomplete." });
     }
 };

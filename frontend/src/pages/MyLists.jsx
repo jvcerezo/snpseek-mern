@@ -9,12 +9,12 @@ import {
     createListAPI,
     // deleteListAPI, updateListAPI, // Placeholders
     searchVarietiesAPI,
-    searchContigsAPI,     // Use the correct function for SNP/Contig search
+    searchContigsAPI,     // Used by SNP range input logic (fetching chromosomes)
     autocompleteLocusAPI, // Dedicated autocomplete for 'locus' type list
     resolveItemIdsAPI,    // Real API function for name resolution
-    fetchReferenceGenomes, // Real function for fetching genome options
-    fetchChromosomes,      // Needed for SNP list creation
-    fetchChromosomeRange   // Needed for SNP list creation
+    fetchReferenceGenomes,// Real function for fetching genome options
+    fetchChromosomes,     // Needed for SNP list creation
+    fetchChromosomeRange  // Needed for SNP list creation
 } from '../api'; // Adjust path as necessary
 
 import './MyLists.css'; // Ensure styles for component, modal, and react-select are included
@@ -88,16 +88,16 @@ const MyLists = () => {
     const [newListData, setNewListData] = useState({ ...defaultNewListData });
     const [referenceGenomeOptions, setReferenceGenomeOptions] = useState([]);
     const [isLoadingRefGenomes, setIsLoadingRefGenomes] = useState(false);
-    const [chromosomeOptions, setChromosomeOptions] = useState([]); // For SNP modal
+    const [chromosomeOptions, setChromosomeOptions] = useState([]);
     const [isLoadingChromosomes, setIsLoadingChromosomes] = useState(false);
-    const [modalSelectedChromosome, setModalSelectedChromosome] = useState(''); // For SNP modal
+    const [modalSelectedChromosome, setModalSelectedChromosome] = useState('');
     const [modalChromosomeRange, setModalChromosomeRange] = useState({ minPosition: null, maxPosition: null });
     const [modalIsLoadingRange, setModalIsLoadingRange] = useState(false);
     const [modalRangeError, setModalRangeError] = useState('');
-    const [modalSnpStart, setModalSnpStart] = useState('');     // User input for start
-    const [modalSnpEnd, setModalSnpEnd] = useState('');         // User input for end
-    const [resolvedNames, setResolvedNames] = useState({});    // For displaying item names
-    const [fetchingItemIds, setFetchingItemIds] = useState(new Set()); // For displaying item names
+    const [modalSnpStart, setModalSnpStart] = useState('');
+    const [modalSnpEnd, setModalSnpEnd] = useState('');
+    const [resolvedNames, setResolvedNames] = useState({});
+    const [fetchingItemIds, setFetchingItemIds] = useState(new Set());
 
     // --- Effect to Fetch User Lists ---
     useEffect(() => {
@@ -126,7 +126,7 @@ const MyLists = () => {
             finally { setIsLoadingRefGenomes(false); }
         };
         loadReferenceGenomes();
-    }, [isLoadingRefGenomes, referenceGenomeOptions.length]); // Dependencies adjusted
+    }, [isLoadingRefGenomes, referenceGenomeOptions.length]);
 
     // --- Effect: Fetch names for items in VISIBLE lists ---
      useEffect(() => {
@@ -157,7 +157,7 @@ const MyLists = () => {
                  setFetchingItemIds(prev => new Set([...prev, ...allIdsBeingFetched]));
                  console.log(`Workspaceing names for ${allIdsBeingFetched.length} new IDs...`);
                  try {
-                     // Using the REAL API function
+                     // --- Using the REAL API function ---
                      const resolvedMap = await resolveItemIdsAPI(payload);
                      if (resolvedMap && typeof resolvedMap === 'object') {
                          setResolvedNames(prev => ({ ...prev, ...resolvedMap }));
@@ -279,7 +279,7 @@ const MyLists = () => {
          );
       };
 
-    // --- Helper to Filter Lists ---
+    // --- Helper to Filter Lists by Selected Type ---
     const getFilteredLists = () => userLists.filter(list => list.type === selectedType);
 
     // --- Autocomplete Loader Function ---
@@ -290,14 +290,14 @@ const MyLists = () => {
             if (listTypeData.key === 'locus' && !referenceGenome && !query) { callback([]); return; }
             switch (listTypeData.key) {
                 case 'variety': results = await listTypeData.searchFn(query); break;
-                case 'snp': results = []; break; // Not used for autocomplete
+                case 'snp': results = []; break; // Not used by AsyncSelect
                 case 'locus':
                     if (!referenceGenome && query) toast.error("Select Reference Genome for Locus search.");
                     results = await listTypeData.searchFn( query, referenceGenome || undefined ); break;
                 default: results = [];
             }
             let options = [];
-            if (listTypeData.key === 'snp') { options = []; } // SNP doesn't use this mapping
+            if (listTypeData.key === 'snp') { options = []; }
             else { options = results.map(item => ({ value: item[listTypeData.idField], label: item[listTypeData.nameField] })).filter(opt => opt.value && opt.label); }
             callback(options);
         } catch (error) { console.error(`Error fetching options for ${listTypeData.key}:`, error); callback([]); }
