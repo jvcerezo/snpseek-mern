@@ -11,8 +11,8 @@ import {
     searchVarietiesAPI,
     searchContigsAPI,     // Use the correct function for SNP/Contig search
     autocompleteLocusAPI, // Dedicated autocomplete for 'locus' type list
-    resolveItemIdsAPI     // <-- Real API function for name resolution
-    // fetchReferenceGenomesAPI // Placeholder for fetching genome options
+    resolveItemIdsAPI,    // Real API function for name resolution
+    fetchReferenceGenomes // <-- Real function for fetching genome options
 } from '../api'; // Adjust path as necessary
 
 import './MyLists.css'; // Ensure styles for component, modal, and react-select are included
@@ -50,7 +50,6 @@ const LoadingSpinnerIcon = ({ className = "w-4 h-4 animate-spin" }) => (
       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
     </svg>
 );
-
 
 // --- Configuration for List Types and Autocomplete ---
 // !! IMPORTANT: Adjust 'idField' and 'nameField' to match your actual API responses !!
@@ -92,19 +91,31 @@ const MyLists = () => {
         loadLists();
     }, []);
 
-    // --- Effect to Fetch Reference Genomes ---
+    // --- Effect to Fetch Reference Genomes (Using real API call) ---
     useEffect(() => {
         const loadReferenceGenomes = async () => {
-            if (referenceGenomeOptions.length > 0) return; setIsLoadingRefGenomes(true);
+            if (referenceGenomeOptions.length > 0) return; // Don't refetch if already loaded
+            setIsLoadingRefGenomes(true);
+            console.log("Fetching reference genomes for modal context...");
             try {
-                 console.warn("Using placeholder reference genome data. Replace with actual API call in MyLists.jsx.");
-                 await new Promise(res => setTimeout(res, 300)); const genomes = ["Nipponbare", "93-11", "IR64", "ExampleGenome"];
+                // --- Use the imported API function ---
+                const genomes = await fetchReferenceGenomes();
+                // --- ----------------------------- ---
+
+                // Assuming the API returns an array of strings directly
                 setReferenceGenomeOptions(Array.isArray(genomes) ? genomes : []);
-            } catch (error) { console.error("Error fetching reference genomes for modal:", error); toast.error("Could not load reference genomes."); }
-            finally { setIsLoadingRefGenomes(false); }
+                console.log("Loaded reference genomes:", genomes);
+            } catch (error) {
+                console.error("Error fetching reference genomes for modal:", error);
+                toast.error("Could not load reference genomes for context.");
+                setReferenceGenomeOptions([]); // Set empty on error
+            } finally {
+                 setIsLoadingRefGenomes(false);
+            }
         };
         loadReferenceGenomes();
-    }, []);
+    // Add referenceGenomeOptions.length to dependencies to prevent refetch? Or keep empty [] is fine.
+    }, []); // Fetch only once on mount
 
     // --- Effect: Fetch names for items in VISIBLE lists (Uses REAL API) ---
      useEffect(() => {
@@ -148,7 +159,7 @@ const MyLists = () => {
              };
              fetchNames();
         }
-    }, [userLists, selectedType, isLoadingLists]);
+    }, [userLists, selectedType, isLoadingLists]); // Dependencies
 
     // --- Action Handlers ---
     const handleOpenCreateModal = () => { setNewListData({ ...defaultNewListData, type: selectedType }); setShowCreateModal(true); };

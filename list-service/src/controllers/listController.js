@@ -44,65 +44,52 @@ export const getMyLists = async (req, res) => {
 };
 
 /**
- * @desc    Create a new list for the authenticated user
+ * @desc    Create a new list for the authenticated user (Simplified)
  * @route   POST /api/lists
  * @access  Private
- * @body    { name: string, description: string, type: string, content: string[], snpSet: string, varietySet: string }
+ * @body    { name: string, type: string, content: string[], description?: string } // Updated body expectation
  */
 export const createList = async (req, res) => {
-    // Extract data from request body - now expecting description, snpSet, varietySet too
-    const { name, description, type, content, snpSet, varietySet } = req.body;
-
-    // Get user ID from authenticated user (set by 'protect' middleware)
+    // Extract data - NO LONGER expecting snpSet or varietySet
+    const { name, description, type, content } = req.body;
     const userId = req.user.id;
 
-    // --- Validation based on 'required: true' in the model ---
-    // Check for all required fields from the model (excluding the custom 'id' and userId)
-    if (!name || !description || !type || !content || !snpSet || !varietySet) {
-        return res.status(400).json({ message: 'Missing required fields: name, description, type, content, snpSet, and varietySet are required.' });
+    // --- Simplified Validation ---
+    // Only name, type, content are strictly required now
+    if (!name || !type || !content) {
+        // Updated error message
+        return res.status(400).json({ message: 'Missing required fields: name, type, and content are required.' });
     }
-
-    // Validate 'type'
-    const allowedTypes = ['variety', 'snp', 'locus']; // Keep enum logic for robustness
+    const allowedTypes = ['variety', 'snp', 'locus'];
     if (!allowedTypes.includes(type.toLowerCase())) {
          return res.status(400).json({ message: `Invalid list type. Allowed types are: ${allowedTypes.join(', ')}.` });
     }
-
-    // Validate 'content' is a non-empty array of strings
     if (!Array.isArray(content) || content.length === 0 || !content.every(item => typeof item === 'string')) {
          return res.status(400).json({ message: 'Content must be a non-empty array of strings.' });
     }
-    // Trim content items and remove any empty ones resulting from trimming
     const trimmedContent = content.map(item => item.trim()).filter(item => item.length > 0);
     if (trimmedContent.length === 0) {
          return res.status(400).json({ message: 'Content cannot be empty after trimming whitespace.' });
     }
+    // --- End Validation ---
 
-    console.log(`CONTROLLER: Attempting to create list "${name}" for user ${userId}`);
+    console.log(`CONTROLLER: Attempting to create list "${name}" (type: ${type}) for user ${userId}`);
 
     try {
-        // Create new list object using the 'List' model
-        // We don't provide '_id' or the custom 'id', Mongoose/MongoDB handles '_id'
         const newList = new List({
             name: name.trim(),
-            description: description.trim(), // Now required
+            description: description ? description.trim() : '', // Handle optional description
             type: type.toLowerCase(),
             content: trimmedContent,
-            snpSet: snpSet.trim(),           // Now required
-            varietySet: varietySet.trim(),   // Now required
-            userId: userId,                  // Link to the logged-in user
+            userId: userId,
         });
 
-        // Save the new list to the database
         const createdList = await newList.save();
-
         console.log(`CONTROLLER: Successfully created list ID: ${createdList._id}`);
-        // Send back the created list object (which will include the generated _id)
         res.status(201).json(createdList);
 
     } catch (error) {
         console.error(`❌ Error creating list "${name}" for user ${userId}:`, error);
-        // Handle potential validation errors from Mongoose or other DB errors
         if (error.name === 'ValidationError') {
             const messages = Object.values(error.errors).map(val => val.message);
             return res.status(400).json({ message: "Validation failed.", errors: messages });
