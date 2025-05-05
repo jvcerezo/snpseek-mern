@@ -607,87 +607,46 @@ export const lookupVarietiesByIds = async (req, res) => {
  */
 const getReferencePositionsAndAlleles = async (referenceIdStr, contig = null, startPos = null, endPos = null, snpIdList = null, specificPositions = null) => {
     const includedPositions = new Set();
-    const referenceAlleleMap = new Map(); // Map<position_number, allele_string>
+    const referenceAlleleMap = new Map();
     let refPositionDocs = [];
-    let finalQueryPositions = []; // Will hold the list of positions we actually want alleles for
+    let finalQueryPositions = [];
 
-    // --- Determine Mode ---
-    if (specificPositions && Array.isArray(specificPositions) && specificPositions.length > 0) {
-        // --- Specific Positions List Mode ---
-        console.log(`HELPER (getRefPosAndAlleles): Finding refAlleles for ${specificPositions.length} specific positions.`);
-        finalQueryPositions = specificPositions.map(p => p.pos).sort((a, b) => a - b); // Target positions
+    try {
+        if (specificPositions && Array.isArray(specificPositions) && specificPositions.length > 0) {
+            // --- Specific Positions List Mode ---
+            console.log(`HELPER (getRefPosAndAlleles): Finding refAlleles for ${specificPositions.length} specific positions.`);
+            finalQueryPositions = specificPositions.map(p => p.pos).sort((a, b) => a - b);
+            // Query logic assumes individual docs per position/SNP - ADJUST SCHEMA/FIELDS
+            const orClauses = specificPositions.map(p => ({ contig: p.chr, position: p.pos }));
+            const refPosFilter = { referenceId: referenceIdStr, $or: orClauses };
+            refPositionDocs = await ReferenceGenomePos.find(refPosFilter).select("position refAllele contig").lean();
+            console.log(`HELPER (getRefPosAndAlleles): Found ${refPositionDocs.length} ref doc(s) matching specific positions.`);
+            for (const doc of refPositionDocs) { if (doc.position != null && doc.refAllele != null) { const position = parseInt(doc.position, 10); if(!isNaN(position)){ referenceAlleleMap.set(position, typeof doc.refAllele === 'string' ? doc.refAllele : '?'); } } }
+            finalQueryPositions.forEach(pos => { if (!referenceAlleleMap.has(pos)) { referenceAlleleMap.set(pos, '?'); } });
 
-        // Query logic depends heavily on schema. Assuming individual docs per position/SNP:
-        // *** CRITICAL: Adjust 'contig', 'position', 'refAllele' fields to match your ReferenceGenomePos schema ***
-        const orClauses = specificPositions.map(p => ({ contig: p.chr, position: p.pos }));
-        const refPosFilter = { referenceId: referenceIdStr, $or: orClauses };
-        refPositionDocs = await ReferenceGenomePos.find(refPosFilter).select("position refAllele contig").lean();
-        console.log(`HELPER (getRefPosAndAlleles): Found ${refPositionDocs.length} ref doc(s) matching specific positions.`);
+        } else if (snpIdList && Array.isArray(snpIdList) && snpIdList.length > 0) {
+            // --- SNP List Based Search ---
+            console.log(`HELPER (getRefPosAndAlleles): Finding positions for ${snpIdList.length} specific SNP IDs.`);
+            const refPosFilter = { referenceId: referenceIdStr, snpIdentifier: { $in: snpIdList } }; // Adjust field name
+            refPositionDocs = await ReferenceGenomePos.find(refPosFilter).select("position refAllele snpIdentifier contig").lean(); // Adjust fields
+            console.log(`HELPER (getRefPosAndAlleles): Found ${refPositionDocs.length} ref doc(s) matching SNP IDs.`);
+            for (const doc of refPositionDocs) { if (doc.position != null && doc.refAllele != null) { const position = parseInt(doc.position, 10); if(!isNaN(position)){ includedPositions.add(position); referenceAlleleMap.set(position, typeof doc.refAllele === 'string' ? doc.refAllele : '?'); } } }
+            finalQueryPositions = Array.from(includedPositions).sort((a, b) => a - b);
 
-        for (const doc of refPositionDocs) {
-            if (doc.position != null && doc.refAllele != null) {
-                 const position = parseInt(doc.position, 10);
-                 if(!isNaN(position)){
-                      // We only care about the allele for the positions requested
-                      referenceAlleleMap.set(position, typeof doc.refAllele === 'string' ? doc.refAllele : '?');
-                 }
-            }
+        } else {
+            // --- Coordinate Based Search ---
+            const refPosFilter = { referenceId: referenceIdStr }; if (contig) { refPosFilter.contig = contig; }
+            if (startPos !== null && endPos !== null) { refPosFilter.start = { $lte: endPos }; refPosFilter.end = { $gte: startPos }; console.log(`HELPER (getRefPosAndAlleles): Applying coordinate range filter: ${contig || 'AllChr'}:${startPos}-${endPos}`);}
+            else { console.log("HELPER (getRefPosAndAlleles): No strict coordinate range filter applied."); }
+            console.log("HELPER (getRefPosAndAlleles): Finding reference position docs matching:", refPosFilter);
+            refPositionDocs = await ReferenceGenomePos.find(refPosFilter).select("positions").lean(); console.log(`HELPER (getRefPosAndAlleles): Found ${refPositionDocs.length} ref doc(s) for coord search.`);
+            for (const doc of refPositionDocs) { if (doc.positions && typeof doc.positions === 'object') { for (const posStr in doc.positions) { const position = parseInt(posStr, 10); if (!isNaN(position)) { if (startPos === null || (position >= startPos && position <= endPos)) { includedPositions.add(position); referenceAlleleMap.set(position, typeof doc.positions[posStr] === 'string' ? doc.positions[posStr] : '?'); } } } } }
+            finalQueryPositions = Array.from(includedPositions).sort((a, b) => a - b);
         }
-        // Ensure all requested positions have an entry in the map
-        finalQueryPositions.forEach(pos => {
-             if (!referenceAlleleMap.has(pos)) {
-                 referenceAlleleMap.set(pos, '?'); // Mark as not found in reference data
-             }
-         });
-
-    } else if (snpIdList && Array.isArray(snpIdList) && snpIdList.length > 0) {
-        // --- SNP List Based Search ---
-        console.log(`HELPER (getRefPosAndAlleles): Finding positions for ${snpIdList.length} specific SNP IDs.`);
-        // *** CRITICAL: Adjust 'snpIdentifier', 'position', 'refAllele' fields ***
-        const refPosFilter = { referenceId: referenceIdStr, snpIdentifier: { $in: snpIdList } };
-        refPositionDocs = await ReferenceGenomePos.find(refPosFilter).select("position refAllele snpIdentifier contig").lean();
-        console.log(`HELPER (getRefPosAndAlleles): Found ${refPositionDocs.length} ref doc(s) matching SNP IDs.`);
-        for (const doc of refPositionDocs) {
-            if (doc.position != null && doc.refAllele != null) {
-                 const position = parseInt(doc.position, 10);
-                 if(!isNaN(position)){
-                      includedPositions.add(position); // Add found position
-                      referenceAlleleMap.set(position, typeof doc.refAllele === 'string' ? doc.refAllele : '?');
-                 }
-            }
-        }
-        finalQueryPositions = Array.from(includedPositions).sort((a, b) => a - b); // Final positions derived from SNPs
-
-    } else {
-        // --- Coordinate Based Search ---
-        const refPosFilter = { referenceId: referenceIdStr };
-        if (contig && typeof contig === 'string' && contig.trim() !== '') { refPosFilter.contig = contig; }
-        if (typeof startPos === 'number' && typeof endPos === 'number' && !isNaN(startPos) && !isNaN(endPos)) {
-            refPosFilter.start = { $lte: endPos }; refPosFilter.end = { $gte: startPos };
-            console.log(`HELPER (getRefPosAndAlleles): Applying coordinate range filter: ${contig || 'AllChr'}:${startPos}-${endPos}`);
-        } else { console.log("HELPER (getRefPosAndAlleles): No strict coordinate range filter applied."); }
-
-        console.log("HELPER (getRefPosAndAlleles): Finding reference position docs matching:", refPosFilter);
-        // Assumes coordinate-based ReferenceGenomePos docs store positions in a 'positions' map/object
-        refPositionDocs = await ReferenceGenomePos.find(refPosFilter).select("positions").lean();
-        console.log(`HELPER (getRefPosAndAlleles): Found ${refPositionDocs.length} ref doc(s) for coord search.`);
-        for (const doc of refPositionDocs) {
-            if (doc.positions && typeof doc.positions === 'object') {
-                for (const posStr in doc.positions) {
-                    const position = parseInt(posStr, 10);
-                    if (!isNaN(position)) {
-                        // If coordinate range was specified, ensure individual position falls within it
-                        if (startPos === null || (position >= startPos && position <= endPos)) {
-                            includedPositions.add(position); // Add found position
-                            referenceAlleleMap.set(position, typeof doc.positions[posStr] === 'string' ? doc.positions[posStr] : '?');
-                        }
-                    }
-                }
-            }
-        }
-        finalQueryPositions = Array.from(includedPositions).sort((a, b) => a - b); // Final positions from range
+    } catch (dbError) {
+        console.error("HELPER (getRefPosAndAlleles): Database error:", dbError);
+        return { positions: [], referenceAlleles: new Map() };
     }
-
     console.log(`HELPER (getRefPosAndAlleles): Returning ${finalQueryPositions.length} unique positions.`);
     return { positions: finalQueryPositions, referenceAlleles: referenceAlleleMap };
 };
@@ -703,18 +662,19 @@ export const searchGenotypesPublic = async (req, res) => {
         referenceGenome: referenceGenomeName,
         varietySet,
         snpSet,
-        varietySubpopulation,
+        varietySubpopulation, // Includes "", "ALL", or specific subpop
         regionType = 'range',
         regionChromosome,
         regionStart,
         regionEnd,
         regionGeneLocus
+        // selectedVarietyListId is ignored here
     } = req.body;
 
     console.log("CONTROLLER (Public): Received request:", req.body);
 
     if (regionType !== 'range' && regionType !== 'geneLocus') {
-        return res.status(400).json({ message: `Invalid regionType '${regionType}' for public search.` });
+        return res.status(400).json({ message: `Invalid regionType '${regionType}' provided for public search.` });
     }
     if (!referenceGenomeName || !varietySet || !snpSet) {
         return res.status(400).json({ message: "Reference Genome, Variety Set, and SNP Set are required." });
@@ -740,7 +700,7 @@ export const searchGenotypesPublic = async (req, res) => {
 
         // --- 3. Determine Target Positions and Reference Alleles ---
         if (regionType === 'range') {
-            searchContigForVarPos = regionChromosome || ''; // Use for VarietiesPos query later
+            searchContigForVarPos = regionChromosome || '';
             searchStartPosForVarPos = (regionStart !== undefined && regionStart !== '') ? parseInt(regionStart, 10) : null;
             searchEndPosForVarPos = (regionEnd !== undefined && regionEnd !== '') ? parseInt(regionEnd, 10) : null;
 
@@ -764,6 +724,7 @@ export const searchGenotypesPublic = async (req, res) => {
             if (searchContigForVarPos && searchStartPosForVarPos !== null && searchEndPosForVarPos !== null) {
                  isSpecificCoordSearch = true;
             }
+            // Variables for VarietiesPos query were set above
 
         } else if (regionType === 'geneLocus') {
             const locusId = regionGeneLocus;
@@ -819,15 +780,27 @@ export const searchGenotypesPublic = async (req, res) => {
         }
         console.log(`CONTROLLER (Public): Identified ${positionsToUse.length} positions to use for search.`);
 
+        // ====================================================================
+        // --- COMMON STEPS: Filter Varieties & Proceed ---
+        // ====================================================================
 
         // --- 5. Filter Varieties ---
-        const varietyFilter = { varietySet, snpSet };
-        if (varietySubpopulation) {
+        const varietyFilter = { varietySet, snpSet }; // Base required filters
+        // Apply subpopulation filter (handling "ALL" and "")
+        if (varietySubpopulation && varietySubpopulation !== "ALL" && varietySubpopulation !== "") {
             varietyFilter.subpopulation = varietySubpopulation;
+            console.log(`CONTROLLER (Public): Applying filter for specific subpopulation: ${varietySubpopulation}`);
+        } else {
+            console.log(`CONTROLLER (Public): No specific subpopulation filter applied (Value: '${varietySubpopulation || ""}')`);
         }
-        console.log("CONTROLLER (Public): Finding matching varieties with filter:", varietyFilter);
-        const matchingVarieties = await Variety.find(varietyFilter).select("_id id name accession subpopulation varietySet irisId").lean();
+        // selectedVarietyListId is ignored in public controller
 
+        console.log("CONTROLLER (Public): Finding matching varieties with final filter:", varietyFilter);
+        const matchingVarieties = await Variety.find(varietyFilter)
+            .select("_id id name accession subpopulation varietySet irisId") // Select fields needed later
+            .lean();
+
+        // Handle No Varieties Found after filtering
         if (!matchingVarieties || matchingVarieties.length === 0) {
             console.log("CONTROLLER (Public): No varieties found matching dataset criteria.");
             // Still return the reference row with the identified positions' alleles
@@ -841,9 +814,9 @@ export const searchGenotypesPublic = async (req, res) => {
         console.log(`CONTROLLER (Public): Found ${matchingVarieties.length} matching varieties.`);
 
 
-        // --- 6. Fetch Variety Position Data ---
+        // --- 6. Fetch Relevant Variety Position Data ---
+        // Filter VarietiesPos docs by the varieties found AND the coordinates determined earlier
         const varietyPosFilter = { referenceId: { $in: matchingVarietyObjectIdStrings } };
-        // Apply coordinate filters determined earlier
         if (searchContigForVarPos) {
             varietyPosFilter.contig = searchContigForVarPos;
         }
@@ -857,13 +830,13 @@ export const searchGenotypesPublic = async (req, res) => {
 
 
         // --- 7. Aggregate Allele Map ---
-        const finalPositionsSet = new Set(positionsToUse); // Use only positions identified in step 3
+        const finalPositionsSet = new Set(positionsToUse); // Use only positions identified in step 3/4
         const alleleMap = new Map(); // Map<varietyId_string, Map<position_number, allele_string>>
         console.log(`CONTROLLER (Public): Building Allele Map for ${finalPositionsSet.size} target positions...`);
 
         for (const doc of varietyPositionDocs) {
             const varietyIdStr = doc.referenceId;
-            // Skip if doc doesn't match one of our varieties (shouldn't happen with filter) or has no positions
+            // Skip if doc doesn't match one of our varieties or has no positions
             if (!varietyIdStr || !doc.positions || typeof doc.positions !== 'object' || !matchingVarietyIdMap.has(varietyIdStr)) continue;
 
             if (!alleleMap.has(varietyIdStr)) {
@@ -882,7 +855,7 @@ export const searchGenotypesPublic = async (req, res) => {
 
 
         // --- 8. Format Final Response ---
-        const finalPositions = positionsToUse; // Use the sorted array determined in step 3
+        const finalPositions = positionsToUse; // Use the sorted array determined earlier
         console.log(`CONTROLLER (Public): Formatting final response for ${finalPositions.length} positions.`);
 
         const finalResults = {
@@ -902,7 +875,7 @@ export const searchGenotypesPublic = async (req, res) => {
             alleles: {}
         };
         for (const pos of finalPositions) {
-            // Populate alleles from the map generated in step 3
+            // Populate alleles from the map generated in step 3/4
             referenceGenomeRowData.alleles[pos] = referenceAllelesMap.get(pos) ?? '?';
         }
         finalResults.varieties.push(referenceGenomeRowData);
@@ -949,155 +922,140 @@ export const searchGenotypesPublic = async (req, res) => {
     }
 };
 
-// ====================================================================
-// Function: searchGenotypesPrivate (Controller) - FULL VERSION
-// ====================================================================
 /**
- * @desc    Search genotypes for PRIVATE region types (snpList [region OR pos list], locusList)
+ * @desc    Search genotypes for ANY region type, applying private filters (like variety list)
+ * when provided. Handles 'snpList' and 'locusList' region types which require auth.
  * @route   POST /genotype/search/private
  * @access  Private (Requires valid JWT via 'protect' middleware)
  */
 export const searchGenotypesPrivate = async (req, res) => {
+    console.log("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+    console.log("--- ENTERING searchGenotypesPrivate Controller ---");
+    console.log("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+
     // --- 1. Authentication & Input Extraction ---
-    // 'protect' middleware ran, so req.user is guaranteed to exist
-    const userId = req.user.id; // User ID is confirmed
+    if (!req.user || !req.user.id) {
+        console.error("CONTROLLER (Private): Middleware check failed - req.user not set! Ensure 'protect' middleware runs correctly before this controller.");
+        return res.status(500).json({ message: "Internal Server Error: User context not available." });
+    }
+    const userId = req.user.id; // User ID is confirmed by protect middleware
 
     const {
         referenceGenome: referenceGenomeName,
         varietySet,
         snpSet,
         varietySubpopulation,
-        regionType, // Must be 'snpList' or 'locusList'
-        snpList: listId, // Use listId for snpList
-        locusList       // Use locusList text content
+        selectedVarietyListId, // <-- Variety list filter ID
+        regionType,            // Can be 'range', 'geneLocus', 'snpList', 'locusList'
+        regionChromosome,
+        regionStart,
+        regionEnd,
+        regionGeneLocus,
+        snpList: listIdForRegion, // ID if regionType is 'snpList'
+        locusList                // Text if regionType is 'locusList'
     } = req.body;
 
-    console.log(`CONTROLLER (Private): Received request by User ${userId}:`, req.body);
+    console.log(`CONTROLLER (Private): User ${userId} | Request Body:`, req.body);
 
-    // --- 2. Basic Validation ---
-    if (regionType !== 'snpList' && regionType !== 'locusList') {
-         return res.status(400).json({ message: `Invalid regionType '${regionType}' provided for private search.` });
+    // --- 2. Base Parameter Validation ---
+    if (!referenceGenomeName || !varietySet || !snpSet) {
+        return res.status(400).json({ message: "Reference Genome, Variety Set, and SNP Set are required." });
     }
-     if (!referenceGenomeName || !varietySet || !snpSet) {
-         return res.status(400).json({ message: "Reference Genome, Variety Set, and SNP Set are required." });
+     if (selectedVarietyListId && !mongoose.Types.ObjectId.isValid(selectedVarietyListId)) {
+          return res.status(400).json({ message: "Invalid format for selected Variety List ID." });
      }
+     // *** The faulty strict regionType check that caused the error HAS BEEN REMOVED ***
 
     // Initialize variables
     let positionsToUse = [];
     let referenceAllelesMap = new Map();
-    let searchContigForVarPos = ''; // Only set if list is region format
-    let searchStartPosForVarPos = null; // Only set if list is region format
-    let searchEndPosForVarPos = null; // Only set if list is region format
+    let searchContigForVarPos = '';
+    let searchStartPosForVarPos = null;
+    let searchEndPosForVarPos = null;
+    let varietyObjectIdsFromList = null;
+    let isSpecificCoordSearch = false;
 
     try {
+        console.log(`CONTROLLER (Private): User ${userId}, RegionType ${regionType}. Entering main TRY block.`);
+
         // --- 3. Find Reference Genome Document ---
+        console.log(`CONTROLLER (Private): Finding reference genome '${referenceGenomeName}'...`);
         const refGenomeDoc = await ReferenceGenome.findOne({ name: referenceGenomeName }).select("_id id");
-        if (!refGenomeDoc) { return res.status(404).json({ message: `Reference Genome '${referenceGenomeName}' not found.` }); }
+        if (!refGenomeDoc) {
+             console.log(`CONTROLLER (Private): Reference Genome '${referenceGenomeName}' not found.`);
+             return res.status(404).json({ message: `Reference Genome '${referenceGenomeName}' not found.` });
+        }
         const referenceIdStr = refGenomeDoc._id.toString();
         console.log(`CONTROLLER (Private): Found referenceGenome ObjectId: ${referenceIdStr}`);
 
-        // --- 4. Determine Target Positions and Reference Alleles ---
-        if (regionType === 'snpList') { // Handles BOTH list content formats
-            if (!listId || !mongoose.Types.ObjectId.isValid(listId)) {
-                return res.status(400).json({ message: "A valid List ID is required for 'snpList' search type." });
-            }
-            console.log(`CONTROLLER (Private): List-based Search for list ID "${listId}" by user "${userId}"`);
+        // --- 4. Determine Target Positions and Reference Alleles (based on regionType) ---
+        console.log(`CONTROLLER (Private): Processing regionType '${regionType}'...`);
+        if (regionType === 'range') {
+            searchContigForVarPos = regionChromosome || '';
+            searchStartPosForVarPos = (regionStart !== undefined && regionStart !== '') ? parseInt(regionStart, 10) : null;
+            searchEndPosForVarPos = (regionEnd !== undefined && regionEnd !== '') ? parseInt(regionEnd, 10) : null;
+            // Validation for range type
+            if ((searchStartPosForVarPos !== null && isNaN(searchStartPosForVarPos)) || (searchEndPosForVarPos !== null && isNaN(searchEndPosForVarPos)) || (searchStartPosForVarPos !== null && searchStartPosForVarPos < 0) || (searchStartPosForVarPos !== null && searchEndPosForVarPos !== null && searchStartPosForVarPos > searchEndPosForVarPos)) { return res.status(400).json({ message: "Invalid Start/End position." }); }
+            if(searchContigForVarPos && (searchStartPosForVarPos === null || searchEndPosForVarPos === null)){ return res.status(400).json({ message: "Start/End Position required with Chromosome." }); }
+            console.log(`CONTROLLER (Private): Range Search on ${searchContigForVarPos || 'All Chr'}:${searchStartPosForVarPos ?? 'any'}-${searchEndPosForVarPos ?? 'any'}`);
+            // Call helper with coordinates
+            const { positions, referenceAlleles } = await getReferencePositionsAndAlleles(referenceIdStr, searchContigForVarPos, searchStartPosForVarPos, searchEndPosForVarPos);
+            positionsToUse = positions; referenceAllelesMap = referenceAlleles;
+            if (searchContigForVarPos && searchStartPosForVarPos !== null && searchEndPosForVarPos !== null) { isSpecificCoordSearch = true; }
+            // search*ForVarPos are already set
 
-            // Fetch List Content via Internal API Call
-            const listServiceUrl = `${LIST_SERVICE_URL_INTERNAL}/mylists/internal/${listId}`;
-            console.log(`CONTROLLER (Private): Calling List Service at: ${listServiceUrl}`);
-            let userList;
+        } else if (regionType === 'geneLocus') {
+            const locusId = regionGeneLocus;
+            if (!locusId || !mongoose.Types.ObjectId.isValid(locusId)) { return res.status(400).json({ message: "A valid Gene Locus ID is required." }); }
+             console.log(`CONTROLLER (Private): Processing Region Type 'geneLocus' for ID "${locusId}"`);
+            let locusContig, locusStart, locusEnd;
+            // Get Coordinates from Feature Service
             try {
-                // Forward the token - List Service's 'protect' middleware verifies it
-                const listResponse = await axios.get(listServiceUrl, {
-                    headers: { 'Authorization': req.headers.authorization },
-                });
-                userList = listResponse.data;
-                 // Defensive Ownership check (List Service should primarily handle this)
-                 if (userList.userId?.toString() !== userId) {
-                     console.warn(`CONTROLLER (Private): Ownership mismatch detected for list ${listId}! Requested by ${userId}, owned by ${userList.userId}.`);
-                     return res.status(403).json({ message: 'Forbidden: List ownership mismatch.' });
-                 }
-                 // Optional: Check type if needed: if (userList.type !== 'snp') { ... }
-                 if (!Array.isArray(userList.content) || userList.content.length === 0) { return res.status(400).json({ message: `List ('${userList.name}') content is empty or not an array.` }); }
-            } catch (listError) {
-                 console.error(`❌ Error calling List Service:`, listError.response?.data || listError.message);
-                 const status = listError.response?.status; const message = listError.response?.data?.message;
-                 if (status === 404) { return res.status(404).json({ message: message || `List ID ${listId} not found.` }); }
-                 if (status === 403) { return res.status(403).json({ message: message || 'Forbidden: Could not access list.' }); }
-                 if (status === 401) { return res.status(401).json({ message: message || 'Unauthorized by List Service (token issue?).' }); }
-                 return res.status(503).json({ message: message || 'Error communicating with List Service.' });
-            }
+                const coordsUrl = `${FEATURE_SERVICE_URL}/features/coords-by-id`;
+                 console.log(`CONTROLLER (Private): Calling Feature Service: ${coordsUrl}?id=${locusId}&referenceGenome=${referenceGenomeName}`);
+                const featureCoordsRes = await axios.get(coordsUrl, { params: { id: locusId, referenceGenome: referenceGenomeName } });
+                if (!featureCoordsRes.data || featureCoordsRes.data.contig == null || featureCoordsRes.data.start == null || featureCoordsRes.data.end == null) { return res.status(404).json({ message: `Coordinates for Locus ID '${locusId}' not found.` }); }
+                locusContig = featureCoordsRes.data.contig; locusStart = parseInt(featureCoordsRes.data.start, 10); locusEnd = parseInt(featureCoordsRes.data.end, 10); if (isNaN(locusStart) || isNaN(locusEnd)) { throw new Error(`Invalid coordinates received.`); }
+                 console.log(`CONTROLLER (Private): Found coordinates: ${locusContig}:${locusStart}-${locusEnd}`);
+            } catch (featureError) { console.error(`❌ Error calling Feature Service:`, featureError.response?.data || featureError.message); return res.status(503).json({ message: 'Error getting locus coordinates.' }); }
+            // Call helper
+            const { positions, referenceAlleles } = await getReferencePositionsAndAlleles(referenceIdStr, locusContig, locusStart, locusEnd);
+            positionsToUse = positions; referenceAllelesMap = referenceAlleles; isSpecificCoordSearch = true;
+            searchContigForVarPos = locusContig; searchStartPosForVarPos = locusStart; searchEndPosForVarPos = locusEnd; // Set vars
 
-            // Determine Content Format and Extract Parameters
-            const firstItem = userList.content[0];
-            if (typeof firstItem === 'string' && firstItem.includes(':') && firstItem.includes('-')) {
-                // --- Format 1: Region String ---
-                console.log(`CONTROLLER (Private): Detected Region String format in list content.`);
-                if (userList.content.length > 1) { console.warn(`CONTROLLER (Private): Using only first item from region-formatted list: ${firstItem}`); }
-                const regionString = firstItem;
-                const chrMatch = regionString.match(/^([^:]+):/); const rangeMatch = regionString.match(/:(\d+)-(\d+)$/);
-                if (!chrMatch || !rangeMatch) { return res.status(400).json({ message: `Invalid region format: '${regionString}'. Expected 'chr:start-end'.` }); }
-                const listChr = chrMatch[1]; const listStart = parseInt(rangeMatch[1], 10); const listEnd = parseInt(rangeMatch[2], 10);
-                if (!listChr || isNaN(listStart) || isNaN(listEnd) || listStart < 0 || listStart > listEnd) { return res.status(400).json({ message: `Invalid coordinates parsed from region string '${regionString}'.` }); }
-                console.log(`CONTROLLER (Private): Using region from list ${listId}: ${listChr}:${listStart}-${listEnd}`);
-                // Call helper using coordinates
-                const { positions, referenceAlleles } = await getReferencePositionsAndAlleles(referenceIdStr, listChr, listStart, listEnd);
-                positionsToUse = positions; referenceAllelesMap = referenceAlleles;
-                // Set vars for VarietiesPos query
-                searchContigForVarPos = listChr; searchStartPosForVarPos = listStart; searchEndPosForVarPos = listEnd;
+        } else if (regionType === 'snpList') {
+             if (!listIdForRegion || !mongoose.Types.ObjectId.isValid(listIdForRegion)) { return res.status(400).json({ message: "A valid List ID is required for 'snpList' region type." }); }
+             console.log(`CONTROLLER (Private): Processing Region Type 'snpList' (List ID: "${listIdForRegion}")`);
+             // Fetch List Content
+             let regionListDoc;
+             try {
+                const listServiceUrl = `${LIST_SERVICE_URL_INTERNAL}/api/lists/internal/${listIdForRegion}`; console.log(`CONTROLLER (Private): Calling List Service for region list at: ${listServiceUrl}`);
+                const listResponse = await axios.get(listServiceUrl, { headers: { 'Authorization': req.headers.authorization } }); regionListDoc = listResponse.data;
+                if (regionListDoc.userId?.toString() !== userId) { return res.status(403).json({ message: 'Forbidden: Region list ownership mismatch.' }); } if (!Array.isArray(regionListDoc.content) || regionListDoc.content.length === 0) { return res.status(400).json({ message: `List ('${regionListDoc.name}') content is empty.` }); }
+             } catch (listError) { console.error(`❌ Error calling List Service for region list:`, listError.response?.data || listError.message); const status = listError.response?.status; const message = listError.response?.data?.message; if (status === 404) { return res.status(404).json({ message: message || `Region List ID ${listIdForRegion} not found.` }); } if (status === 403) { return res.status(403).json({ message: message || 'Forbidden: Could not access region list.' }); } if (status === 401) { return res.status(401).json({ message: message || 'Unauthorized by List Service.' }); } return res.status(503).json({ message: message || 'Error communicating with List Service.' }); }
 
-            } else if (typeof firstItem === 'string' && /\s+/.test(firstItem)) {
-                // --- Format 2: Chr Pos Strings ---
-                console.log(`CONTROLLER (Private): Detected Chr+Pos format in list content.`);
-                const specificPositions = []; let parseError = false;
-                for (const item of userList.content) {
-                     if (typeof item !== 'string') { parseError = true; break; }
-                     const parts = item.trim().split(/\s+/); if (parts.length !== 2) { parseError = true; break; }
-                     const chr = parts[0]; const pos = parseInt(parts[1], 10);
-                     if (!chr || isNaN(pos) || pos < 0) { parseError = true; break; }
-                     specificPositions.push({ chr, pos });
-                }
-                if (parseError || specificPositions.length === 0) { return res.status(400).json({ message: `List '${userList.name}' contains invalid 'chr pos' items.` }); }
-                console.log(`CONTROLLER (Private): Parsed ${specificPositions.length} specific Chr/Pos pairs from list ${listId}.`);
-                // Call helper using the specific positions list
-                const { positions, referenceAlleles } = await getReferencePositionsAndAlleles(referenceIdStr, null, null, null, null, specificPositions);
-                positionsToUse = positions; referenceAllelesMap = referenceAlleles;
-                // Do not set coordinate filters for VarietiesPos query
-                searchContigForVarPos = ''; searchStartPosForVarPos = null; searchEndPosForVarPos = null;
-
-            } else {
-                // --- Unknown Format ---
-                return res.status(400).json({ message: `List '${userList.name}' has unrecognized content format.` });
-            }
-            console.log(`CONTROLLER (Private): Determined ${positionsToUse.length} positions to use from list ${listId}.`);
+             // Determine Content Format and Extract Parameters/Positions
+             const firstItem = regionListDoc.content[0];
+             if (typeof firstItem === 'string' && firstItem.includes(':') && firstItem.includes('-')) { // Format 1: Region String
+                 console.log(`CONTROLLER (Private): Detected Region String format in list ${listIdForRegion}.`); if (regionListDoc.content.length > 1) { console.warn(`CONTROLLER (Private): Using only first item from region-formatted list: ${firstItem}`); }
+                 const regionString = firstItem; const chrMatch = regionString.match(/^([^:]+):/); const rangeMatch = regionString.match(/:(\d+)-(\d+)$/); if (!chrMatch || !rangeMatch) { return res.status(400).json({ message: `Invalid region format: '${regionString}'.` }); } const listChr = chrMatch[1]; const listStart = parseInt(rangeMatch[1], 10); const listEnd = parseInt(rangeMatch[2], 10); if (!listChr || isNaN(listStart) || isNaN(listEnd) || listStart < 0 || listStart > listEnd) { return res.status(400).json({ message: `Invalid coordinates in region string '${regionString}'.` }); }
+                 console.log(`CONTROLLER (Private): Using region from list: ${listChr}:${listStart}-${listEnd}`); const { positions, referenceAlleles } = await getReferencePositionsAndAlleles(referenceIdStr, listChr, listStart, listEnd); positionsToUse = positions; referenceAllelesMap = referenceAlleles; searchContigForVarPos = listChr; searchStartPosForVarPos = listStart; searchEndPosForVarPos = listEnd;
+             } else if (typeof firstItem === 'string' && /\s+/.test(firstItem)) { // Format 2: Chr Pos Strings
+                  console.log(`CONTROLLER (Private): Detected Chr+Pos format in list ${listIdForRegion}.`); const specificPositions = []; let parseError = false; for (const item of regionListDoc.content) { const parts = item.trim().split(/\s+/); if (parts.length !== 2) { parseError = true; break; } const chr = parts[0]; const pos = parseInt(parts[1], 10); if (!chr || isNaN(pos) || pos < 0) { parseError = true; break; } specificPositions.push({ chr, pos }); } if (parseError || specificPositions.length === 0) { return res.status(400).json({ message: `List '${regionListDoc.name}' contains invalid 'chr pos' items.` }); }
+                  console.log(`CONTROLLER (Private): Parsed ${specificPositions.length} specific Chr/Pos pairs.`); const { positions, referenceAlleles } = await getReferencePositionsAndAlleles(referenceIdStr, null, null, null, null, specificPositions); positionsToUse = positions; referenceAllelesMap = referenceAlleles; searchContigForVarPos = ''; searchStartPosForVarPos = null; searchEndPosForVarPos = null;
+             } else { return res.status(400).json({ message: `List '${regionListDoc.name}' has unrecognized content format.` }); }
 
         } else if (regionType === 'locusList') {
-             // userId is guaranteed by 'protect' middleware
-             const locusIdsFromText = locusList?.split('\n').map(l => l.trim()).filter(l => l) ?? [];
-             if (locusIdsFromText.length === 0) { return res.status(400).json({ message: "Locus list text cannot be empty." }); }
-             console.log(`CONTROLLER (Private): Locus List Search for ${locusIdsFromText.length} loci by user ${userId}`);
-             let combinedRefPositions = new Set(); let combinedRefAlleles = new Map();
-             // Get batch coordinates from Feature Service
-             try {
-                  const batchCoordsUrl = `${FEATURE_SERVICE_URL}/features/batch-coords-by-id`;
-                  const batchCoordsRes = await axios.post(batchCoordsUrl, { ids: locusIdsFromText, referenceGenome: referenceGenomeName });
-                  const coords = batchCoordsRes.data?.success ?? [];
-                  if (coords.length === 0) { return res.status(404).json({ message: `Coordinates for Locus IDs not found.` }); }
-                  // Combine reference positions for all loci
-                  for (const locCoord of coords) {
-                       const { positions, referenceAlleles } = await getReferencePositionsAndAlleles(referenceIdStr, locCoord.contig, locCoord.start, locCoord.end);
-                       positions.forEach(p => combinedRefPositions.add(p));
-                       referenceAlleles.forEach((allele, pos) => combinedRefAlleles.set(pos, allele));
-                  }
-                  positionsToUse = Array.from(combinedRefPositions).sort((a, b) => a - b);
-                  referenceAllelesMap = combinedRefAlleles;
-             } catch (batchFeatureError) {
-                 console.error(`❌ Error calling Feature Service (Batch):`, batchFeatureError.response?.data || batchFeatureError.message);
-                 return res.status(503).json({ message: batchFeatureError.response?.data?.message || 'Error getting batch coordinates.' });
-             }
-             // Do not set coordinate filters for VarietiesPos query
-             searchContigForVarPos = ''; searchStartPosForVarPos = null; searchEndPosForVarPos = null;
+             const locusIdsFromText = locusList?.split('\n').map(l => l.trim()).filter(l => l) ?? []; if (locusIdsFromText.length === 0) { return res.status(400).json({ message: "Locus list text cannot be empty." }); } console.log(`CONTROLLER (Private): Processing Region Type 'locusList' for ${locusIdsFromText.length} loci`); let combinedRefPositions = new Set(); let combinedRefAlleles = new Map();
+             try { /* ... call feature service, call helper, combine results ... */
+                  const batchCoordsUrl = `${FEATURE_SERVICE_URL}/features/batch-coords-by-id`; console.log(`CONTROLLER (Private): Calling Feature Service (Batch): ${batchCoordsUrl} for ${locusIdsFromText.length} IDs`); const batchCoordsRes = await axios.post(batchCoordsUrl, { ids: locusIdsFromText, referenceGenome: referenceGenomeName }); const coords = batchCoordsRes.data?.success ?? []; if (coords.length === 0) { return res.status(404).json({ message: `Coordinates for Locus IDs not found.` }); }
+                  console.log(`CONTROLLER (Private): Fetching reference positions for ${coords.length} locus coordinate ranges.`); for (const locCoord of coords) { const fetchedContig = locCoord.contig; const fetchedStart = parseInt(locCoord.start, 10); const fetchedEnd = parseInt(locCoord.end, 10); if (!fetchedContig || isNaN(fetchedStart) || isNaN(fetchedEnd) || fetchedStart < 0 || fetchedStart > fetchedEnd) { console.warn(`CONTROLLER (Private): Skipping invalid coords from Feature Service:`, locCoord); continue; } const { positions, referenceAlleles } = await getReferencePositionsAndAlleles(referenceIdStr, fetchedContig, fetchedStart, fetchedEnd); positions.forEach(p => combinedRefPositions.add(p)); referenceAlleles.forEach((allele, pos) => combinedRefAlleles.set(pos, allele)); } positionsToUse = Array.from(combinedRefPositions).sort((a, b) => a - b); referenceAllelesMap = combinedRefAlleles;
+             } catch (batchFeatureError) { console.error(`❌ Error calling Feature Service (Batch):`, batchFeatureError.response?.data || batchFeatureError.message); return res.status(503).json({ message: batchFeatureError.response?.data?.message || 'Error getting batch coordinates.' }); }
+             searchContigForVarPos = ''; searchStartPosForVarPos = null; searchEndPosForVarPos = null; // No single coordinate range
+        } else {
+             // Handle potential invalid regionType if it somehow gets here
+             console.error(`CONTROLLER (Private): Reached end of regionType check with unexpected type: ${regionType}`);
+             return res.status(400).json({ message: `Unsupported region type '${regionType}' in private search.` });
         }
 
         // --- 5. Handle No Positions Found ---
@@ -1106,70 +1064,153 @@ export const searchGenotypesPrivate = async (req, res) => {
              const refRow = { name: referenceGenomeName, assay: 'Reference', accession: refGenomeDoc.id || '-', subpop: '-', dataset: '-', mismatch: 0, alleles: {} };
              return res.status(200).json({ referenceGenomeName: referenceGenomeName, positions: [], varieties: [refRow] });
         }
-        console.log(`CONTROLLER (Private): Identified ${positionsToUse.length} positions to use for search.`);
+        console.log(`CONTROLLER (Private): Identified ${positionsToUse.length} positions to use.`);
+
 
         // ====================================================================
-        // --- COMMON STEPS: Proceed with Genotype Search using `positionsToUse` ---
+        // --- COMMON STEPS: Filter Varieties & Proceed ---
         // ====================================================================
 
-        // --- 6. Filter Varieties ---
-        const varietyFilter = { varietySet, snpSet }; if (varietySubpopulation) varietyFilter.subpopulation = varietySubpopulation;
-        console.log("CONTROLLER (Private): Finding matching varieties with filter:", varietyFilter);
-        const matchingVarieties = await Variety.find(varietyFilter).select("_id id name accession subpopulation varietySet irisId").lean();
+        // --- 6. Fetch Variety List Filter Content (If Applied) ---
+        varietyObjectIdsFromList = null; // Reset before checking
+        if (selectedVarietyListId && mongoose.Types.ObjectId.isValid(selectedVarietyListId)) {
+             console.log(`CONTROLLER (Private): Applying filter using variety list ID: ${selectedVarietyListId}`);
+             try {
+                 const varListServiceUrl = `${LIST_SERVICE_URL_INTERNAL}/mylists/internal/${selectedVarietyListId}`;
+                 console.log(`CONTROLLER (Private): Calling List Service for variety list at: ${varListServiceUrl}`);
+                 const varListResponse = await axios.get(varListServiceUrl, { headers: { 'Authorization': req.headers.authorization } }); // Forward token
+                 const varietyList = varListResponse.data;
+                 // Validate ownership and type
+                 if (varietyList.userId?.toString() !== userId) { return res.status(403).json({ message: 'Forbidden: Variety list ownership mismatch.' }); }
+                 if (varietyList.type !== 'variety') { return res.status(400).json({ message: `List '${varietyList.name}' is not a variety list.` }); }
+                 if (!Array.isArray(varietyList.content) || varietyList.content.length === 0) { return res.status(400).json({ message: `Selected Variety List ('${varietyList.name}') is empty.` }); }
+
+                 // Extract and validate ObjectIDs from content
+                 varietyObjectIdsFromList = varietyList.content
+                     .map(idStr => mongoose.Types.ObjectId.isValid(idStr) ? new mongoose.Types.ObjectId(idStr) : null)
+                     .filter(id => id !== null);
+
+                 if (varietyObjectIdsFromList.length === 0) { return res.status(400).json({ message: `Selected Variety List ('${varietyList.name}') contains no valid variety IDs.` }); }
+                 console.log(`CONTROLLER (Private): Filtering for ${varietyObjectIdsFromList.length} varieties from list ${selectedVarietyListId}.`);
+
+             } catch (varListError) {
+                 console.error(`❌ Error calling List Service for variety list:`, varListError.response?.data || varListError.message);
+                 const status = varListError.response?.status; const message = varListError.response?.data?.message;
+                 if (status === 404) { return res.status(404).json({ message: message || `Variety List ID ${selectedVarietyListId} not found.` }); }
+                 if (status === 403) { return res.status(403).json({ message: message || 'Forbidden: Could not access variety list.' }); }
+                 if (status === 401) { return res.status(401).json({ message: message || 'Unauthorized by List Service.' }); }
+                 return res.status(503).json({ message: message || 'Error fetching variety list details.' });
+             }
+        } else {
+             console.log(`CONTROLLER (Private): No variety list filter applied.`);
+        }
+
+
+        // --- 7. Filter Varieties ---
+        const varietyFilter = { varietySet, snpSet }; // Base required filters
+        // Apply subpopulation filter (handling "ALL" and "")
+        if (varietySubpopulation && varietySubpopulation !== "ALL" && varietySubpopulation !== "") {
+            varietyFilter.subpopulation = varietySubpopulation;
+            console.log(`CONTROLLER (Private): Applying filter for specific subpopulation: ${varietySubpopulation}`);
+        } else {
+            console.log(`CONTROLLER (Private): No specific subpopulation filter applied (Value: '${varietySubpopulation || ""}')`);
+        }
+        // Apply variety list filter (if IDs were successfully obtained)
+        if (varietyObjectIdsFromList?.length > 0) {
+             varietyFilter._id = { $in: varietyObjectIdsFromList }; // Filter by the array of ObjectIds
+             console.log(`CONTROLLER (Private): Applying filter for specific variety list.`);
+        }
+
+        console.log("CONTROLLER (Private): Finding matching varieties with final filter:", varietyFilter);
+        const matchingVarieties = await Variety.find(varietyFilter)
+            .select("_id id name accession subpopulation varietySet irisId") // Ensure _id is selected
+            .lean();
+
+        // Handle No Varieties Found after filtering
         if (!matchingVarieties || matchingVarieties.length === 0) {
-             console.log("CONTROLLER (Private): No varieties found matching dataset criteria.");
-             const refRowAlleles = {}; positionsToUse.forEach(pos => { refRowAlleles[pos] = referenceAllelesMap.get(pos) ?? '?' });
-             const refRow = { name: referenceGenomeName, assay: 'Reference', accession: refGenomeDoc.id || '-', subpop: '-', dataset: '-', mismatch: 0, alleles: refRowAlleles };
-             return res.status(200).json({ referenceGenomeName: referenceGenomeName, positions: positionsToUse, varieties: [refRow] });
+            console.log("CONTROLLER (Private): No varieties found matching ALL criteria.");
+            const refRowAlleles = {}; positionsToUse.forEach(pos => { refRowAlleles[pos] = referenceAllelesMap.get(pos) ?? '?' });
+            const refRow = { name: referenceGenomeName, assay: 'Reference', accession: refGenomeDoc.id || '-', subpop: '-', dataset: '-', mismatch: 0, alleles: refRowAlleles };
+            return res.status(200).json({ referenceGenomeName: referenceGenomeName, positions: positionsToUse, varieties: [refRow] });
         }
-        const matchingVarietyObjectIdStrings = matchingVarieties.map(v => v._id.toString());
+        const matchingVarietyObjectIdStrings = matchingVarieties.map(v => v._id.toString()); // Still need strings for map key
         const matchingVarietyIdMap = new Map(matchingVarieties.map(v => [v._id.toString(), v]));
-        console.log(`CONTROLLER (Private): Found ${matchingVarieties.length} matching varieties.`);
+        console.log(`CONTROLLER (Private): Found ${matchingVarieties.length} matching varieties after all filters.`);
 
-        // --- 7. Fetch Relevant Variety Position Documents ---
-        const varietyPosFilter = { referenceId: { $in: matchingVarietyObjectIdStrings } };
-        // Apply coordinate filters ONLY if they were determined (i.e., from region string list format)
-        if (searchContigForVarPos) { varietyPosFilter.contig = searchContigForVarPos; }
-        if (searchStartPosForVarPos !== null && searchEndPosForVarPos !== null) {
-             varietyPosFilter.start = { $lte: searchEndPosForVarPos };
-             varietyPosFilter.end = { $gte: searchStartPosForVarPos };
-        }
-        console.log("CONTROLLER (Private): Finding variety position data with filter:", varietyPosFilter);
-        const varietyPositionDocs = await VarietiesPos.find(varietyPosFilter).select("positions referenceId").lean();
-        console.log(`CONTROLLER (Private): Found ${varietyPositionDocs.length} relevant variety position document(s).`);
 
-        // --- 8. Aggregate Allele Map ---
-        const finalPositionsSet = new Set(positionsToUse); const alleleMap = new Map();
-        console.log(`CONTROLLER (Private): Building Allele Map for ${finalPositionsSet.size} target positions...`);
-        for (const doc of varietyPositionDocs) {
+        // --- 8. Fetch Relevant Variety Position Documents ---
+         const varietyPosFilter = { referenceId: { $in: matchingVarietyObjectIdStrings } }; // Use the filtered variety IDs
+         // Apply coordinate filters ONLY if they were determined (i.e., from region string list format or geneLocus type)
+         if (searchContigForVarPos) { varietyPosFilter.contig = searchContigForVarPos; }
+         if (searchStartPosForVarPos !== null && searchEndPosForVarPos !== null) { varietyPosFilter.start = { $lte: searchEndPosForVarPos }; varietyPosFilter.end = { $gte: searchStartPosForVarPos }; }
+         console.log("CONTROLLER (Private): Finding variety position data with filter:", varietyPosFilter);
+         const varietyPositionDocs = await VarietiesPos.find(varietyPosFilter).select("positions referenceId").lean();
+         console.log(`CONTROLLER (Private): Found ${varietyPositionDocs.length} relevant variety position document(s).`);
+
+
+        // --- 9. Aggregate Allele Map ---
+         const finalPositionsSet = new Set(positionsToUse); const alleleMap = new Map();
+         console.log(`CONTROLLER (Private): Building Allele Map for ${finalPositionsSet.size} target positions...`);
+         for (const doc of varietyPositionDocs) {
              const varietyIdStr = doc.referenceId; if (!varietyIdStr || !doc.positions || typeof doc.positions !== 'object' || !matchingVarietyIdMap.has(varietyIdStr)) continue;
              if (!alleleMap.has(varietyIdStr)) alleleMap.set(varietyIdStr, new Map());
              const varietyAlleleData = alleleMap.get(varietyIdStr);
              for (const posStr in doc.positions) { const position = parseInt(posStr, 10); if (!isNaN(position) && finalPositionsSet.has(position)) { varietyAlleleData.set(position, typeof doc.positions[posStr] === 'string' ? doc.positions[posStr] : '?'); } }
          }
 
-        // --- 9. Format Final Response ---
-        const finalPositions = positionsToUse; // Already sorted
-        console.log(`CONTROLLER (Private): Formatting final response for ${finalPositions.length} positions.`);
-        const finalResults = { referenceGenomeName: referenceGenomeName, positions: finalPositions, varieties: [] };
-        // Add Reference Row
-        const referenceGenomeRowData = { name: referenceGenomeName, assay: 'Reference', accession: refGenomeDoc.id || '-', subpop: '-', dataset: '-', mismatch: 0, alleles: {} };
-        for (const pos of finalPositions) { referenceGenomeRowData.alleles[pos] = referenceAllelesMap.get(pos) ?? '?'; }
-        finalResults.varieties.push(referenceGenomeRowData);
-        // Add Variety Rows
-        for (const variety of matchingVarieties) {
-             const varietyIdStr = variety._id.toString(); const varietyAllelesData = alleleMap.get(varietyIdStr); const formattedAlleles = {}; let mismatchCount = 0;
-             for (const pos of finalPositions) { const varAllele = varietyAllelesData?.get(pos); const refAllele = referenceAllelesMap.get(pos); formattedAlleles[pos] = varAllele ?? '-'; if (varAllele && varAllele !== '-' && refAllele && refAllele !== '?' && varAllele !== refAllele) { mismatchCount++; } }
-             finalResults.varieties.push({ name: variety.name, accession: variety.accession, assay: variety.irisId ?? 'N/A', subpop: variety.subpopulation, dataset: variety.varietySet, mismatch: mismatchCount, alleles: formattedAlleles });
+
+        // --- 10. Format Final Response ---
+         const finalPositions = positionsToUse; // Use the sorted array determined earlier
+         console.log(`CONTROLLER (Private): Formatting final response for ${finalPositions.length} positions.`);
+         const finalResults = {
+             referenceGenomeName: referenceGenomeName,
+             positions: finalPositions,
+             varieties: []
+         };
+         // Add Reference Row
+         const referenceGenomeRowData = { name: referenceGenomeName, assay: 'Reference', accession: refGenomeDoc.id || '-', subpop: '-', dataset: '-', mismatch: 0, alleles: {} };
+         for (const pos of finalPositions) {
+             referenceGenomeRowData.alleles[pos] = referenceAllelesMap.get(pos) ?? '?'; // Use map from earlier step
+         }
+         finalResults.varieties.push(referenceGenomeRowData);
+         // Add Filtered Variety Rows
+         for (const variety of matchingVarieties) {
+             const varietyIdStr = variety._id.toString();
+             const varietyAllelesData = alleleMap.get(varietyIdStr); // Get this variety's allele map
+             const formattedAlleles = {};
+             let mismatchCount = 0;
+             // Iterate through all final positions to build allele object and calculate mismatch
+             for (const pos of finalPositions) {
+                 const varAllele = varietyAllelesData?.get(pos); // Allele from this variety's map (if found)
+                 const refAllele = referenceAllelesMap.get(pos); // Allele from reference map
+                 formattedAlleles[pos] = varAllele ?? '-'; // Default to '-' if variety has no data
+                 // Calculate Mismatch
+                 if (varAllele && varAllele !== '-' && refAllele && refAllele !== '?' && varAllele !== refAllele) {
+                     mismatchCount++;
+                 }
+             }
+             // Add the row for this variety
+             finalResults.varieties.push({
+                 name: variety.name,
+                 accession: variety.accession,
+                 assay: variety.irisId ?? 'N/A', // Use irisId for assay?
+                 subpop: variety.subpopulation,
+                 dataset: variety.varietySet,
+                 mismatch: mismatchCount,
+                 alleles: formattedAlleles
+             });
          }
         console.log(`CONTROLLER (Private): Formatted ${finalResults.varieties.length} total rows.`);
         res.status(200).json(finalResults);
 
     } catch (error) {
+        // --- Overall Error Handling ---
         console.error(`❌ Error during private genotype search for user ${userId}:`, error);
-         if (error.response) { // Axios error
+         if (error.response) { // Axios error from internal calls
+             console.error("Axios error status:", error.response.status);
+             console.error("Axios error data:", error.response.data);
              res.status(error.response.status || 503).json({ message: error.response.data?.message || 'Error during internal service communication.' });
-         } else { // Other errors
+         } else { // Other errors (DB, validation, processing, etc.)
              res.status(error.status || 500).json({ message: error.message || "Server Error during private genotype search." });
          }
     }
