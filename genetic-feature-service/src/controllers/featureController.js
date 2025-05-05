@@ -450,3 +450,58 @@ export const autocompleteFeatures = async (req, res) => {
         res.status(500).json({ message: "Server error during feature autocomplete." });
     }
 };
+
+/**
+ * @desc    Get coordinates (contig, start, end) for a specific feature by its _id and reference genome
+ * @route   GET /features/coords-by-id  (Example internal route)
+ * @access  Internal/Private
+ * @query   id=featureObjectId, referenceGenome=refGenomeName
+ */
+export const getFeatureCoordinatesById = async (req, res) => {
+    const { id: featureId, referenceGenome } = req.query;
+
+    // 1. Validate input
+    if (!featureId || !mongoose.Types.ObjectId.isValid(featureId)) {
+        return res.status(400).json({ message: "Valid Feature ID ('id') query parameter is required." });
+    }
+    if (!referenceGenome) {
+        return res.status(400).json({ message: "Reference genome query parameter is required." });
+    }
+
+    console.log(`FEATURE Controller: Fetching coordinates for ID: ${featureId}, genome: ${referenceGenome}`);
+
+    try {
+        // 2. Query by standard _id and referenceGenome, selecting only coordinates
+        const feature = await Feature.findOne(
+            {
+                _id: featureId, // Use standard MongoDB ObjectId
+                referenceGenome: referenceGenome
+            },
+            'contig start end geneName' // Select necessary fields + geneName for confirmation
+        ).lean(); // Use lean for performance
+
+        // 3. Handle response
+        if (!feature) {
+            console.log(`❌ Feature coordinates not found for ID: ${featureId} (${referenceGenome})`);
+            return res.status(404).json({ message: "Feature not found for the specified ID and reference genome." });
+        }
+
+        // Validate that coordinates exist and are numbers
+        if (feature.contig == null || feature.start == null || feature.end == null || isNaN(Number(feature.start)) || isNaN(Number(feature.end))) {
+             console.error(`❌ Invalid coordinate data found for Feature ID: ${featureId}`, feature);
+             return res.status(500).json({ message: "Feature found, but coordinate data is missing or invalid." });
+        }
+
+        console.log(`✅ Found coordinates for ${feature.geneName} (${featureId}): ${feature.contig}:${feature.start}-${feature.end}`);
+        // Send only the necessary coordinate data
+        res.status(200).json({
+            contig: feature.contig,
+            start: feature.start,
+            end: feature.end
+        });
+
+    } catch (error) {
+        console.error("❌ Error fetching feature coordinates by ID:", error);
+        res.status(500).json({ message: "Internal Server Error while fetching feature coordinates." });
+    }
+};

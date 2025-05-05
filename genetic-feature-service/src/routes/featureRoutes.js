@@ -1,5 +1,5 @@
 import express from "express";
-import { searchFeaturesByText, getAvailableTraits, getFeaturesByTrait, getReferenceGenomes, getGeneDetails, getFeaturesByRegion, lookupFeaturesByIds, autocompleteFeatures } from "../controllers/featureController.js";
+import { searchFeaturesByText, getAvailableTraits, getFeaturesByTrait, getReferenceGenomes, getGeneDetails, getFeaturesByRegion, lookupFeaturesByIds, autocompleteFeatures, getFeatureCoordinatesById  } from "../controllers/featureController.js";
 
 const router = express.Router();
 
@@ -12,6 +12,7 @@ router.get("/details", getGeneDetails);
 router.get("/by-region", getFeaturesByRegion);
 router.get("/lookup", lookupFeaturesByIds);
 router.get("/autocomplete", autocompleteFeatures);
+router.get("/coords-by-id", getFeatureCoordinatesById);
 
 
 export default router;

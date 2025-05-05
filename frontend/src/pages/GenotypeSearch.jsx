@@ -1,4 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import AsyncSelect from 'react-select/async'; // Import AsyncSelect for async dropdowns
+import debounce from 'lodash.debounce'; // Import debounce for search input
+
 // Import the API functions
 import {
     fetchVarietySets,
@@ -8,7 +11,8 @@ import {
     fetchReferenceGenomes,
     searchGenotypes,
     fetchChromosomeRange,
-    fetchConsolidatedChromosomeRange // <-- IMPORT THE NEW FUNCTION
+    fetchConsolidatedChromosomeRange,
+    autocompleteLocusAPI// <-- IMPORT THE NEW FUNCTION
     // TODO: Import function to fetch Gene Locus options if changing input to dropdown
     // import { fetchGeneLociList } from '../api';
 } from '../api'; // Adjust path if necessary
@@ -54,6 +58,7 @@ const GenotypeSearch = () => {
     const [snpSetOptions, setSnpSetOptions] = useState([]);
     const [subpopulationOptions, setSubpopulationOptions] = useState([]);
     const [chromosomeOptions, setChromosomeOptions] = useState([]);
+    const [selectedLocusOption, setSelectedLocusOption] = useState(null); // State for selected Gene Locus options
     // TODO: Add state for Gene Locus dropdown options if implemented
     // const [geneLocusOptions, setGeneLocusOptions] = useState([]);
     // const [loadingGeneLoci, setLoadingGeneLoci] = useState(false);
@@ -166,6 +171,49 @@ const GenotypeSearch = () => {
         setFormData((prev) => ({ ...prev, [name]: value }));
     };
 
+    const loadLocusOptions = async (inputValue, callback) => {
+        const query = inputValue || ""; // Handle empty query for default options
+
+        // Don't proceed if reference genome isn't selected
+        if (!formData.referenceGenome) {
+            // You might optionally want a message here via callback({ options: [], message: "..." })
+            // but react-select's noOptionsMessage prop handles it too.
+            callback([]); // Return empty options
+            return;
+        }
+        // Don't call API for very short input unless loading default options
+        // Allow empty query `""` to pass for defaultOptions={true}
+        if (query && query.trim().length < 2) {
+             callback([]);
+             return;
+        }
+
+        try {
+            console.log(`GENOTYPE SEARCH: Autocompleting Loci - q: ${query}, ref: ${formData.referenceGenome}`);
+            const results = await autocompleteLocusAPI(query, formData.referenceGenome);
+
+            // !! Verify idField ('_id') and nameField ('geneName') match your Feature API response !!
+            const options = results.map(item => ({
+                value: item._id,    // Assuming API returns MongoDB _id as value
+                label: item.geneName // Assuming API returns geneName as label
+            })).filter(opt => opt.value && opt.label); // Ensure valid options
+
+            callback(options); // Pass formatted options back to AsyncSelect
+
+        } catch (error) {
+            console.error(`Error fetching locus autocomplete options:`, error);
+            callback([]); // Return empty array on error
+        }
+    };
+
+    // Debounced version to limit API calls while typing
+    const debouncedLoadLocusOptions = useCallback(
+        debounce((inputValue, callback) => {
+            loadLocusOptions(inputValue, callback);
+        } , 500), // 500ms debounce delay
+        [formData.referenceGenome] // Recreate debounce function only if reference genome changes
+    );
+
     // Handler for changing the main region input type dropdown
      const handleRegionTypeChange = (e) => {
         const newType = e.target.value;
@@ -187,6 +235,10 @@ const GenotypeSearch = () => {
              setDisplayedRange({ minPosition: null, maxPosition: null });
              setRangeError('');
              setLoadingRange(false);
+         }
+
+         if (newType !== 'geneLocus') {
+             setSelectedLocusOption(null); // Clear selected locus options when switching away from gene locus
          }
     };
 
@@ -271,6 +323,7 @@ const GenotypeSearch = () => {
         });
         setShowResults(false); setSearchResults(null); setLoading(false);
         setOptionsError('');
+        setSelectedLocusOption(null); // Reset selected locus options
         // Reset range display too
         setDisplayedRange({ minPosition: null, maxPosition: null });
         setLoadingRange(false); setRangeError('');
@@ -519,20 +572,41 @@ const GenotypeSearch = () => {
 
                              {/* == GENE LOCUS INPUT == */}
                              {regionInputType === 'geneLocus' && (
-                                 <div className="form-row">
-                                     <div className="form-group"> {/* Takes full width */}
-                                         <label htmlFor="regionGeneLocus">Gene Locus ID <span className="required-indicator" title="Required">*</span></label>
-                                         <input
-                                             id="regionGeneLocus" type="text" name="regionGeneLocus"
-                                             value={formData.regionGeneLocus} onChange={handleInputChange}
-                                             placeholder="Enter Gene Locus ID (e.g., LOC_Os...)" required
-                                             className="search-input"
-                                             disabled={!formData.referenceGenome} // Disable if no genome selected
-                                         />
-                                     </div>
-                                 </div>
-                             )}
-
+                                <div className="form-row">
+                                    <div className="form-group"> {/* Takes full width */}
+                                        <label htmlFor="regionGeneLocus">Gene Locus ID <span className="required-indicator" title="Required">*</span></label>
+                                        <AsyncSelect
+                                            inputId='regionGeneLocus' // Links label to the input inside react-select
+                                            isMulti={false} // We want single selection
+                                            cacheOptions // Caches results for same input value
+                                            defaultOptions={true} // Load default options on focus/mount
+                                            loadOptions={debouncedLoadLocusOptions} // Use the debounced loader
+                                            value={selectedLocusOption} // Controlled component using dedicated state
+                                            onChange={(selectedOption) => {
+                                                // Update both states when an option is selected/cleared
+                                                setSelectedLocusOption(selectedOption);
+                                                setFormData(prev => ({
+                                                    ...prev,
+                                                    regionGeneLocus: selectedOption ? selectedOption.value : '' // Update formData with the ID only
+                                                }));
+                                            }}
+                                            placeholder="Type to search for Locus ID/Name..."
+                                            isDisabled={loading || !formData.referenceGenome} // Also disable if no reference genome
+                                            className="react-select-container" // For specific container styling (add to CSS)
+                                            classNamePrefix="react-select"    // Prefix for styling inner elements (add to CSS)
+                                            styles={{ /* Add custom styles here or use CSS */ }}
+                                            // Provide informative messages
+                                            noOptionsMessage={({ inputValue }) => {
+                                                if (!formData.referenceGenome) return 'Select Reference Genome first';
+                                                return !inputValue ? 'Default options loaded' : 'No results found';
+                                            }}
+                                            loadingMessage={() => 'Loading...'}
+                                        />
+                                        {/* Helper text */}
+                                        {!formData.referenceGenome && <small className="error-text">Reference Genome selection required to search.</small>}
+                                    </div>
+                                </div>
+                            )}
 
                               {/* == SNP LIST INPUT == */}
                              {regionInputType === 'snpList' && (
