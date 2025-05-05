@@ -9,10 +9,13 @@ import {
     fetchVarietySubpopulations,
     fetchChromosomes,
     fetchReferenceGenomes,
-    searchGenotypes,
     fetchChromosomeRange,
     fetchConsolidatedChromosomeRange,
-    autocompleteLocusAPI// <-- IMPORT THE NEW FUNCTION
+    autocompleteLocusAPI,
+    fetchUserLists,
+    searchGenotypesPublic,
+    searchGenotypesPrivate
+    // <-- IMPORT THE NEW FUNCTION
     // TODO: Import function to fetch Gene Locus options if changing input to dropdown
     // import { fetchGeneLociList } from '../api';
 } from '../api'; // Adjust path if necessary
@@ -22,6 +25,10 @@ import './GenotypeSearch.css'; // Ensure you link the updated CSS
 
 // Helper component for loading indicators inside dropdowns
 const LoadingOption = ({ text = "Loading..." }) => (
+    <option disabled value="">{text}</option>
+);
+
+const UserListLoadingOption = ({ text = "Loading Lists..." }) => (
     <option disabled value="">{text}</option>
 );
 
@@ -59,9 +66,9 @@ const GenotypeSearch = () => {
     const [subpopulationOptions, setSubpopulationOptions] = useState([]);
     const [chromosomeOptions, setChromosomeOptions] = useState([]);
     const [selectedLocusOption, setSelectedLocusOption] = useState(null); // State for selected Gene Locus options
-    // TODO: Add state for Gene Locus dropdown options if implemented
-    // const [geneLocusOptions, setGeneLocusOptions] = useState([]);
-    // const [loadingGeneLoci, setLoadingGeneLoci] = useState(false);
+    const [userSnpLists, setUserSnpLists] = useState([]);
+    const [loadingUserLists, setLoadingUserLists] = useState(false);
+    const [userListsError, setUserListsError] = useState('');
 
     // State for loading dropdown options
     const [loadingOptions, setLoadingOptions] = useState({
@@ -112,40 +119,65 @@ const GenotypeSearch = () => {
         loadDropdownData();
     }, []); // Run once on mount
 
+    useEffect(() => {
+        const loadUserSnpLists = async () => {
+            // Only fetch if authenticated and the SNP List region type is selected
+            if (isAuthenticated && regionInputType === 'snpList') {
+                console.log("GenotypeSearch: useEffect - Loading user SNP lists...");
+                setLoadingUserLists(true);
+                setUserListsError('');
+                setUserSnpLists([]); // Clear previous lists
+                 // Also clear the selected list ID from formData when re-fetching
+                setFormData(prev => ({ ...prev, snpList: '' }));
+                try {
+                    const allUserLists = await fetchUserLists();
+                    // Filter for lists of type 'snp'
+                    const snpLists = allUserLists.filter(list => list.type === 'snp');
+                    setUserSnpLists(snpLists);
+                    console.log(`GenotypeSearch: useEffect - Found ${snpLists.length} user SNP lists.`);
+                } catch (error) {
+                    console.error("GenotypeSearch: useEffect - Failed to load user SNP lists:", error);
+                    setUserListsError(error?.response?.data?.message || error?.message || "Could not load your SNP lists.");
+                    setUserSnpLists([]);
+                } finally {
+                    setLoadingUserLists(false);
+                }
+            } else {
+                 // Clear lists if not authenticated or not the right region type
+                 // Might not be strictly necessary depending on UX preference
+                 // setUserSnpLists([]);
+                 // setUserListsError('');
+            }
+        };
+
+        loadUserSnpLists();
+        // Dependencies: run when authentication status changes OR region type changes
+    }, [isAuthenticated, regionInputType]);
+
 
     // --- MODIFIED useEffect for Chromosome Range Fetch ---
     useEffect(() => {
         const getRange = async () => {
-            // Trigger only when type is 'range' AND a reference genome is selected
             if (regionInputType === 'range' && formData.referenceGenome) {
-                setLoadingRange(true);
-                setRangeError('');
-                setDisplayedRange({ minPosition: null, maxPosition: null }); // Clear previous range
-
+                setLoadingRange(true); setRangeError('');
+                setDisplayedRange({ minPosition: null, maxPosition: null });
                 try {
                     let rangeData;
-                    // Check if a SPECIFIC chromosome is selected
                     if (formData.regionChromosome) {
                         console.log(`EFFECT: Fetching specific range for ${formData.regionChromosome}`);
                         rangeData = await fetchChromosomeRange(formData.regionChromosome, formData.referenceGenome);
-                         if (!rangeData || rangeData.minPosition === null || rangeData.maxPosition === null) {
+                        if (!rangeData || rangeData.minPosition === null || rangeData.maxPosition === null) {
                             setRangeError(`No range data found for ${formData.regionChromosome}.`);
                         }
-                    }
-                    // Else, if "Any Chromosome" is selected (empty string)
-                    else {
+                    } else {
                         console.log("EFFECT: Fetching consolidated range for all chromosomes");
                         rangeData = await fetchConsolidatedChromosomeRange(formData.referenceGenome);
                         if (!rangeData || rangeData.minPosition === null || rangeData.maxPosition === null) {
                             setRangeError(`No consolidated range data found for ${formData.referenceGenome}.`);
                         }
                     }
-                    // Set the fetched range (could be specific or consolidated)
-                     setDisplayedRange(rangeData || { minPosition: null, maxPosition: null });
-
+                    setDisplayedRange(rangeData || { minPosition: null, maxPosition: null });
                 } catch (error) {
-                    // The API functions now return nulls on error, so catch block might be less critical
-                    // unless the API functions re-throw. Adjust based on api.js error handling.
                     console.error("EFFECT: Error fetching range data", error);
                     setRangeError(`Failed to fetch range data.`);
                     setDisplayedRange({ minPosition: null, maxPosition: null });
@@ -153,17 +185,12 @@ const GenotypeSearch = () => {
                     setLoadingRange(false);
                 }
             } else {
-                // Clear range info if not applicable (not 'range' type or no genome selected)
                 setDisplayedRange({ minPosition: null, maxPosition: null });
-                setRangeError('');
-                setLoadingRange(false);
+                setRangeError(''); setLoadingRange(false);
             }
         };
-
         getRange();
-        // Dependencies: run when type, genome, or specific chromosome changes
     }, [formData.regionChromosome, formData.referenceGenome, regionInputType]);
-
 
     // Input change handler
     const handleInputChange = (e) => {
@@ -240,49 +267,57 @@ const GenotypeSearch = () => {
          if (newType !== 'geneLocus') {
              setSelectedLocusOption(null); // Clear selected locus options when switching away from gene locus
          }
+
+         if (newType !== 'snpList') {
+            setUserListsError('');
+       }
     };
 
 
     // Form submit handler - Calls actual API
     const handleSubmit = async (e) => {
         e.preventDefault();
-        // --- Validation based on regionType ---
+
+        // --- Validation (remains the same - checks based on regionType) ---
         if (!formData.referenceGenome || !formData.varietySet || !formData.snpSet) {
-             alert("Reference Genome, Variety Set, and SNP Set are required."); return;
+            alert("Reference Genome, Variety Set, and SNP Set are required."); return;
         }
         let regionValid = false;
         let alertMessage = "";
+        let requiresAuth = false; // Flag for private search types
+
         switch (formData.regionType) {
             case 'range':
-                 // Start and End are always required for range search now
+                // ... (range validation logic) ...
                  if (!formData.regionStart || !formData.regionEnd) { alertMessage = "Position Start and Position End are required when searching by Range."; break; }
-                 const startPos = parseInt(formData.regionStart, 10);
-                 const endPos = parseInt(formData.regionEnd, 10);
+                 const startPos = parseInt(formData.regionStart, 10); const endPos = parseInt(formData.regionEnd, 10);
                  if (isNaN(startPos) || isNaN(endPos) || startPos < 0 || startPos > endPos) { alertMessage = "Invalid Start/End position provided for Range search."; break; }
-
-                 // Only validate against range *if a specific chromosome was selected*
-                 // And if the range data was successfully fetched
-                 if (formData.regionChromosome && displayedRange.minPosition !== null && displayedRange.maxPosition !== null && !rangeError) {
-                     if (startPos < displayedRange.minPosition) { alertMessage = `For ${formData.regionChromosome}, Position Start must be >= ${displayedRange.minPosition.toLocaleString()}.`; break; }
-                     if (endPos > displayedRange.maxPosition) { alertMessage = `For ${formData.regionChromosome}, Position End must be <= ${displayedRange.maxPosition.toLocaleString()}.`; break; }
+                 if (formData.regionChromosome && displayedRange.minPosition !== null && !rangeError) {
+                     if (startPos < displayedRange.minPosition) { alertMessage = `Start must be >= ${displayedRange.minPosition.toLocaleString()}.`; break; }
+                     if (endPos > displayedRange.maxPosition) { alertMessage = `End must be <= ${displayedRange.maxPosition.toLocaleString()}.`; break; }
                  }
-                 // No specific range validation needed for "Any Chromosome" - backend handles it.
-                 regionValid = true;
+                regionValid = true;
                 break;
-            // Keep cases for 'geneLocus', 'snpList', 'locusList'
-             case 'geneLocus':
-                 if (!formData.regionGeneLocus.trim()) { alertMessage = "Gene Locus ID is required."; break; }
+            case 'geneLocus':
+                if (!formData.regionGeneLocus) { alertMessage = "Gene Locus must be selected."; break; }
+                regionValid = true;
+                break;
+            case 'snpList':
+                 requiresAuth = true; // Mark as needing auth
+                 // Frontend check (optional but good UX, backend enforces it)
+                 if (!isAuthenticated) { alertMessage = "Login required for SNP list search."; break; }
+                 if (!formData.snpList) { alertMessage = "Please select one of your SNP Lists."; break; }
+                 if (loadingUserLists) { alertMessage = "Still loading your SNP lists, please wait."; break; }
+                 if (userListsError) { alertMessage = "Could not load SNP lists, cannot proceed."; break; }
+                 if (userSnpLists.length === 0 && !loadingUserLists && !userListsError) { alertMessage = "You have no SNP lists available."; break;}
                  regionValid = true;
                  break;
-             case 'snpList':
-                 if (!isAuthenticated) { alertMessage = "Login required for SNP list search."; break; }
-                 if (!formData.snpList.trim()) { alertMessage = "SNP List cannot be empty."; break; }
-                  regionValid = true;
-                 break;
-             case 'locusList':
+            case 'locusList':
+                 requiresAuth = true; // Mark as needing auth
+                 // Frontend check (optional but good UX)
                  if (!isAuthenticated) { alertMessage = "Login required for Locus list search."; break; }
                  if (!formData.locusList.trim()) { alertMessage = "Locus List cannot be empty."; break; }
-                  regionValid = true;
+                 regionValid = true;
                  break;
             default:
                 alertMessage = "Invalid Region Type selected.";
@@ -290,7 +325,7 @@ const GenotypeSearch = () => {
 
         if (!regionValid) {
             alert(alertMessage);
-            return;
+            return; // Stop submission if validation fails
         }
         // --- End Validation ---
 
@@ -300,13 +335,25 @@ const GenotypeSearch = () => {
         console.log('Submitting search with criteria:', formData);
 
         try {
-            // Backend `searchGenotypes` already handles empty `regionChromosome` correctly
-            const results = await searchGenotypes(formData);
+            let results;
+            // ** Choose API call based on regionType **
+            if (requiresAuth) {
+                 // Double-check auth status just before calling (robustness)
+                 if (!isAuthenticated) {
+                     throw new Error("Authentication is required for this search type."); // Throw error to be caught below
+                 }
+                 console.log("Calling PRIVATE search API");
+                 results = await searchGenotypesPrivate(formData); // Call private function
+            } else { // 'range' or 'geneLocus'
+                 console.log("Calling PUBLIC search API");
+                 results = await searchGenotypesPublic(formData); // Call public function
+            }
             setSearchResults(results);
             console.log("Search successful, received results:", results);
         } catch (error) {
             console.error("Genotype search failed:", error);
             setSearchResults(null);
+            // Use the error message from the API response if available
             alert(`Search failed: ${error?.message || 'Unknown error'}`);
         } finally {
             setLoading(false);
@@ -322,11 +369,11 @@ const GenotypeSearch = () => {
             regionGeneLocus: '', snpList: '', locusList: '',
         });
         setShowResults(false); setSearchResults(null); setLoading(false);
-        setOptionsError('');
-        setSelectedLocusOption(null); // Reset selected locus options
-        // Reset range display too
+        setOptionsError(''); setSelectedLocusOption(null);
         setDisplayedRange({ minPosition: null, maxPosition: null });
         setLoadingRange(false); setRangeError('');
+        // Reset user list state as well
+        setUserSnpLists([]); setLoadingUserLists(false); setUserListsError('');
     };
 
     // --- Helper function to render options ---
@@ -352,6 +399,15 @@ const GenotypeSearch = () => {
          }
          return <option disabled>Invalid options data</option>;
      };
+
+     const renderUserListOptions = (lists) => {
+        if (!Array.isArray(lists)) return null;
+        return lists.map(list => (
+            <option key={list._id} value={list._id}>
+                {list.name} ({list.content.length} items)
+            </option>
+        ));
+    };
 
     // --- Function to Generate and Download CSV ---
      const handleDownloadCsv = () => {
@@ -609,23 +665,44 @@ const GenotypeSearch = () => {
                             )}
 
                               {/* == SNP LIST INPUT == */}
-                             {regionInputType === 'snpList' && (
-                                 <div className="form-row">
-                                     <div className="form-group">
-                                         <label htmlFor="snpList">SNP List (one per line) <span className="required-indicator" title="Required">*</span></label>
-                                         <textarea
-                                             id="snpList" name="snpList" rows="5"
-                                             placeholder="Enter SNP IDs, one per line (e.g., snp123)"
-                                             value={formData.snpList} onChange={handleInputChange}
-                                             disabled={!isAuthenticated || !formData.referenceGenome} // Also disable if no genome
-                                             required
-                                             className={!isAuthenticated ? 'disabled-textarea' : ''}
-                                         ></textarea>
-                                         {!isAuthenticated && <p className="auth-required-note">Note: Login required to use SNP list search.</p>}
-                                     </div>
-                                 </div>
-                             )}
+                              {regionInputType === 'snpList' && ( <div className="form-row"> <div className="form-group">
+                                  {/* Check Authentication First */}
+                                  {!isAuthenticated ? (
+                                      <p className="auth-required-note">Note: Login required to use SNP list search.</p>
+                                  ) : (
+                                      <>
+                                          <label htmlFor="snpListSelect">Select Your SNP List <span className="required-indicator" title="Required">*</span></label>
+                                          <select
+                                              id="snpListSelect"
+                                              name="snpList" // This name should match the key in formData
+                                              value={formData.snpList} // Controlled component using the ID stored in formData
+                                              onChange={handleInputChange} // Use standard handler
+                                              disabled={loadingUserLists || !!userListsError || !formData.referenceGenome}
+                                              required
+                                              className="styled-select" // Add styling as needed
+                                          >
+                                              {/* Handle loading state */}
+                                              {loadingUserLists && <UserListLoadingOption text="Loading Your Lists..." />}
 
+                                              {/* Handle error state */}
+                                              {!loadingUserLists && userListsError && <option value="" disabled>Error: {userListsError}</option>}
+
+                                              {/* Handle success state */}
+                                              {!loadingUserLists && !userListsError && (
+                                                  <>
+                                                      <option value="">-- Select Your SNP List --</option>
+                                                      {userSnpLists.length > 0 ? (
+                                                          renderUserListOptions(userSnpLists)
+                                                      ) : (
+                                                          <option value="" disabled>No SNP lists found</option>
+                                                      )}
+                                                  </>
+                                              )}
+                                          </select>
+                                          {!formData.referenceGenome && <small className="error-text">Reference Genome selection required.</small>}
+                                      </>
+                                  )}
+                              </div> </div> )}
 
                               {/* == LOCUS LIST INPUT == */}
                               {regionInputType === 'locusList' && (

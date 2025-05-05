@@ -296,3 +296,57 @@ export const deleteList = async (req, res) => {
         res.status(500).json({ message: 'Server error deleting list.' });
     }
 };
+
+/**
+ * @desc    Get full list details by ID (for internal service calls)
+ * @route   GET /api/lists/internal/:id
+ * @access  Private (Requires valid JWT via 'protect' middleware, ownership checked within)
+ */
+export const getInternalListDetails = async (req, res) => {
+    const listId = req.params.id;
+    // Get user ID from the protect middleware that ran before this controller
+    const requestingUserId = req.user?.id;
+
+    console.log(`LIST SERVICE (Internal): Request received for list ID: ${listId} by requesting user ID: ${requestingUserId}`);
+
+    // 1. Validate requesting user ID (should be present if 'protect' middleware succeeded)
+    if (!requestingUserId) {
+        // This shouldn't happen if 'protect' middleware is working correctly
+        console.error("LIST SERVICE (Internal): User ID missing after protect middleware.");
+        return res.status(401).json({ message: "Not authorized (user ID missing)." });
+    }
+
+    // 2. Validate List ID format
+    if (!mongoose.Types.ObjectId.isValid(listId)) {
+        console.log(`LIST SERVICE (Internal): Invalid list ID format: ${listId}`);
+        return res.status(400).json({ message: 'Invalid list ID format.' });
+    }
+
+    try {
+        // 3. Find the list by ID
+        console.log(`LIST SERVICE (Internal): Finding list document with ID: ${listId}`);
+        const list = await List.findById(listId); // Fetch the whole document
+
+        // 4. Check if list exists
+        if (!list) {
+            console.log(`LIST SERVICE (Internal): List not found: ${listId}`);
+            return res.status(404).json({ message: 'List not found.' });
+        }
+
+        // 5. *** Perform Ownership Check ***
+        // Verify the list owner matches the user ID from the verified token
+        if (list.userId.toString() !== requestingUserId.toString()) {
+            console.warn(`LIST SERVICE (Internal): Ownership mismatch! List ${listId} owned by ${list.userId}, requested by ${requestingUserId}.`);
+            // Return 403 Forbidden - user is authenticated but doesn't own this specific list
+            return res.status(403).json({ message: 'Forbidden: Requester does not own this list.' });
+        }
+
+        // 6. Return the full list document (or specific fields needed by Genomic Service)
+        console.log(`LIST SERVICE (Internal): List ${listId} found and authorized. Returning details.`);
+        res.status(200).json(list); // Send the entire list object
+
+    } catch (error) {
+        console.error(`❌ LIST SERVICE (Internal): Error fetching list ${listId}:`, error);
+        res.status(500).json({ message: 'Server error fetching list details.' });
+    }
+};

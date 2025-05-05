@@ -603,4 +603,30 @@ export const deleteListAPI = async (listId) => {
     }
 };
 
+export const searchGenotypesPublic = async (searchCriteria) => {
+    console.log("API: Sending PUBLIC genotype search criteria:", searchCriteria);
+    try {
+        // No Authorization header needed/sent automatically if user not logged in
+        const response = await API.post("/api/genomic/search/public", searchCriteria);
+        console.log("API: Received PUBLIC genotype search results:", response.data);
+        return response.data;
+    } catch (error) {
+        console.error("Error during public genotype search:", error);
+        throw formatErrorForThrowing(error);
+    }
+};
+
+export const searchGenotypesPrivate = async (searchCriteria) => {
+    console.log("API: Sending PRIVATE genotype search criteria:", searchCriteria);
+    try {
+        // Interceptor automatically adds Authorization header if user is logged in
+        const response = await API.post("/api/genomic/search/private", searchCriteria);
+        console.log("API: Received PRIVATE genotype search results:", response.data);
+        return response.data;
+    } catch (error) {
+        console.error("Error during private genotype search:", error);
+        throw formatErrorForThrowing(error);
+    }
+};
+
 export default API;
