@@ -162,6 +162,48 @@ app.use(
     })
 );
 
+app.use(
+    `${API_BASE_URL}/PHG`, // Path: /api/phg/...
+    verifyToken, // Apply authentication middleware FIRST
+    proxy(process.env.PHG_SERVICE_URL, {
+        proxyReqPathResolver: (req) => {
+            return `/PHG${req.url}`; // To Service: /phg/...
+        },
+        proxyReqOptDecorator: (proxyReqOpts, srcReq) => {
+            proxyReqOpts.headers["Content-Type"] = "application/json";
+
+            // --- UNCOMMENT AND VERIFY THIS SECTION ---
+            if (srcReq.user && srcReq.user.id) {
+                // Add the custom header for the downstream service
+                proxyReqOpts.headers['X-User-Id'] = srcReq.user.id;
+                console.log(`Gateway: Forwarding to PHG Service WITH X-User-Id: ${srcReq.user.id}`);
+            } else {
+                // Log if verifyToken ran but didn't attach user.id as expected
+                console.warn("Gateway: proxyReqOptDecorator - srcReq.user or srcReq.user.id is missing after verifyToken.");
+            }
+            // --- END SECTION ---
+
+            // Optional: Remove original Authorization header?
+            // delete proxyReqOpts.headers['authorization'];
+
+            return proxyReqOpts;
+        },
+        proxyReqBodyDecorator: (bodyContent, srcReq) => {
+            return bodyContent ? JSON.stringify(bodyContent) : '{}';
+        },
+        proxyErrorHandler: (err, res, next) => {
+            console.error('Proxy Error (PGF Service):', err);
+            // Check for ECONNREFUSED specifically
+            if (err.code === 'ECONNREFUSED') {
+                 res.status(503).json({ message: 'PHG service is unavailable or connection refused.' });
+            } else {
+                // Handle other proxy errors
+                 res.status(502).json({ message: 'Bad Gateway: Error communicating with PHG Service.' });
+            }
+        }
+    })
+);
+
 // ✅ API Gateway status check (remains public)
 app.get("/", (req, res) => {
     res.send("API Gateway is Running...");

@@ -53,7 +53,7 @@ const Pipeline = () => {
     const fetchProjects = useCallback(async () => {
         try {
             console.log("Fetching projects...");
-            const res = await api.get('/PHG/pipeline/get-directory-projects');
+            const res = await api.get('/api/PHG/pipeline/get-directory-projects');
             if (res.data?.Files && Array.isArray(res.data.Files)) {
                 setProjects(res.data.Files);
                 console.log("Projects fetched:", res.data.Files);
@@ -123,7 +123,7 @@ const Pipeline = () => {
         }
         setIsSubmittingProjectCreation(true);
         try {
-            const res = await api.post(`/PHG/pipeline/create-project`, { Project_Name: projectName.trim() }, { headers: { 'Content-Type': 'application/json' } });
+            const res = await api.post(`/api/PHG/pipeline/create-project`, { Project_Name: projectName.trim() }, { headers: { 'Content-Type': 'application/json' } });
             if (res.data?.message?.includes("created successfully")) {
                 toast.success("Project Created Successfully!"); setProjectName("");
             } else if (res.data?.message === "Project Name Already Used") {
@@ -141,7 +141,7 @@ const Pipeline = () => {
         if (!selectedProjectForDownload) { toast.warning("Please select a project to download metrics."); return; }
         setIsDownloading(true); toast.info("Preparing VCF Metrics download...");
         try {
-            const res = await api.post(`/PHG/pipeline/get-vcf-metrics`, { Project_Name: selectedProjectForDownload }, { headers: { 'Content-Type': 'application/json' }, responseType: 'blob' });
+            const res = await api.post(`/api/PHG/pipeline/get-vcf-metrics`, { Project_Name: selectedProjectForDownload }, { headers: { 'Content-Type': 'application/json' }, responseType: 'blob' });
             saveAs(res.data, `${selectedProjectForDownload}_VCFMetrics.tsv`); toast.success("VCF Metrics downloaded successfully!");
         } catch (error) {
             console.error("Download metrics error:", error); let errorMsg = "An error occurred during metrics download.";
@@ -154,7 +154,7 @@ const Pipeline = () => {
         if (!selectedProjectForDownload) { toast.warning("Please select a project to download the plot."); return; }
         setIsDownloading(true); toast.info("Preparing Dot Plot download...");
         try {
-            const res = await api.post(`/PHG/pipeline/get-dot-plots`, { Project_Name: selectedProjectForDownload }, { headers: { 'Content-Type': 'application/json' }, responseType: 'blob' });
+            const res = await api.post(`/api/PHG/pipeline/get-dot-plots`, { Project_Name: selectedProjectForDownload }, { headers: { 'Content-Type': 'application/json' }, responseType: 'blob' });
             saveAs(res.data, `${selectedProjectForDownload}_DotPlot.zip`); toast.success("Dot Plot downloaded successfully!");
         } catch (error) {
             console.error("Download plot error:", error); let errorMsg = "An error occurred during plot download.";
@@ -243,10 +243,10 @@ const Pipeline = () => {
             let stepOK = true;
             if (stepOK) {
                 toast.info("Step 1/6: Preparing Assembly...");
-                const prepareRes = await api.post(`/PHG/pipeline/prepare-assembly`, { sequences: formData.selectedSequences, new_names: newNames, Project_Name: selectedProjectName, hvcf_anchorgap: 1000000, gvcf_anchorgap: 1000 });
+                const prepareRes = await api.post(`/api/PHG/pipeline/prepare-assembly`, { sequences: formData.selectedSequences, new_names: newNames, Project_Name: selectedProjectName, hvcf_anchorgap: 1000000, gvcf_anchorgap: 1000 });
                 if (!prepareRes.data || prepareRes.data.detail === "Process already running.") throw new Error(prepareRes.data?.detail || "Failed to start Prepare Assembly.");
                 console.log("Prepare Assembly response:", prepareRes.data);
-                stepOK = await pollLogStatus("/PHG/pipeline/prepare-assembly-log-file", selectedProjectName);
+                stepOK = await pollLogStatus("/api/PHG/pipeline/prepare-assembly-log-file", selectedProjectName);
                 if (!stepOK) throw new Error("Prepare Assembly step failed or timed out.");
             }
              if (stepOK) {
@@ -254,37 +254,37 @@ const Pipeline = () => {
                 const compressRes = await api.post(`/PHG/pipeline/agc-compress`, { Project_Name: selectedProjectName, sequences: filteredSequences, reference: formData.reference });
                 if (!compressRes.data || compressRes.data.detail === "Process already running.") throw new Error(compressRes.data?.detail || "Failed to start AGC Compress.");
                 console.log("Compress FASTA response:", compressRes.data);
-                stepOK = await pollLogStatus("/PHG/pipeline/agc-compress-log-file", selectedProjectName);
+                stepOK = await pollLogStatus("/api/PHG/pipeline/agc-compress-log-file", selectedProjectName);
                 if (!stepOK) throw new Error("Compress FASTA step failed or timed out.");
             }
              if (stepOK) {
                 toast.info("Step 3/6: Creating Reference Ranges...");
-                const rangeRes = await api.post(`/PHG/pipeline/create-reference-ranges`, { Project_Name: selectedProjectName, gff_file: formData.gff, reference: formData.reference, boundary: formData.boundary, pad: Number(formData.pad), min_range_size: Number(formData.minRangeSize) });
+                const rangeRes = await api.post(`/api/PHG/pipeline/create-reference-ranges`, { Project_Name: selectedProjectName, gff_file: formData.gff, reference: formData.reference, boundary: formData.boundary, pad: Number(formData.pad), min_range_size: Number(formData.minRangeSize) });
                 if (!rangeRes.data || rangeRes.data.detail === "Process already running.") throw new Error(rangeRes.data?.detail || "Failed to start Create Reference Ranges.");
                 console.log("Create Reference Ranges response:", rangeRes.data);
-                stepOK = await pollLogStatus("/PHG/pipeline/create-reference-ranges-log-file", selectedProjectName);
+                stepOK = await pollLogStatus("/api/PHG/pipeline/create-reference-ranges-log-file", selectedProjectName);
                 if (!stepOK) throw new Error("Create Reference Ranges step failed or timed out.");
             }
              if (stepOK) {
                 toast.info("Step 4/6: Aligning Assemblies...");
-                const alignRes = await api.post(`/PHG/pipeline/align-assemblies`, { Project_Name: selectedProjectName, gff_file: formData.gff, reference: formData.reference, sequences: filteredSequences });
+                const alignRes = await api.post(`/api/PHG/pipeline/align-assemblies`, { Project_Name: selectedProjectName, gff_file: formData.gff, reference: formData.reference, sequences: filteredSequences });
                 if (!alignRes.data || alignRes.data.detail === "Process already running.") throw new Error(alignRes.data?.detail || "Failed to start Align Assemblies.");
                 console.log("Align Assemblies response:", alignRes.data);
-                stepOK = await pollLogStatus("/PHG/pipeline/align-assemblies-log-file", selectedProjectName);
+                stepOK = await pollLogStatus("/api/PHG/pipeline/align-assemblies-log-file", selectedProjectName);
                 if (!stepOK) throw new Error("Align Assemblies step failed or timed out.");
             }
              if (stepOK) {
                 toast.info("Step 5/6: Creating VCF...");
-                const vcfRes = await api.post(`/PHG/pipeline/create-vcf`, { reference: formData.reference, Project_Name: selectedProjectName });
+                const vcfRes = await api.post(`/api/PHG/pipeline/create-vcf`, { reference: formData.reference, Project_Name: selectedProjectName });
                 if (!vcfRes.data || vcfRes.data.detail === "Process already running.") throw new Error(vcfRes.data?.detail || "Failed to start Create VCF.");
                 console.log("Create VCF response:", vcfRes.data);
             }
              if (stepOK) {
                 toast.info("Step 6/6: Loading VCF...");
-                const loadRes = await api.post(`/PHG/pipeline/load-vcf`, { Project_Name: selectedProjectName });
+                const loadRes = await api.post(`/api/PHG/pipeline/load-vcf`, { Project_Name: selectedProjectName });
                 if (!loadRes.data || loadRes.data.detail === "Process already running.") throw new Error(loadRes.data?.detail || "Failed to start Load VCF.");
                 console.log("Load VCF response:", loadRes.data);
-                stepOK = await pollLogStatus("/PHG/pipeline/load-vcf-log-file", selectedProjectName);
+                stepOK = await pollLogStatus("/api/PHG/pipeline/load-vcf-log-file", selectedProjectName);
                 if (!stepOK) throw new Error("Load VCF step failed or timed out.");
             }
             if (stepOK) {
