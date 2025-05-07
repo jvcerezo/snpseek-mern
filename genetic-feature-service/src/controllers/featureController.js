@@ -505,3 +505,132 @@ export const getFeatureCoordinatesById = async (req, res) => {
         res.status(500).json({ message: "Internal Server Error while fetching feature coordinates." });
     }
 };
+
+/**
+ * @desc    Get coordinates (contig, start, end) for multiple feature IDs
+ * @route   POST /api/genetic-features/batch-coords-by-id (Example Route - Adjust in your featureRoutes.js)
+ * @access  Internal/Private (Typically called by other services)
+ * @body    { ids: ["id1_string", "id2_string", ...], referenceGenome: "genomeName" }
+ */
+export const getBatchFeatureCoordinatesByIds = async (req, res) => {
+    const { ids, referenceGenome } = req.body;
+
+    // --- 1. Log Input ---
+    console.log(`FEATURE Controller (Batch): Received request body:`, JSON.stringify(req.body));
+
+    // --- 2. Validate Input ---
+    if (!referenceGenome) {
+        console.log("FEATURE Controller (Batch): Validation failed - Missing referenceGenome.");
+        return res.status(400).json({ message: "Request body must include 'referenceGenome'." });
+    }
+    if (!Array.isArray(ids) || ids.length === 0) {
+        console.log("FEATURE Controller (Batch): Validation failed - Missing or empty 'ids' array.");
+        return res.status(400).json({ message: "Request body must include a non-empty 'ids' array." });
+    }
+
+    // Filter for valid ObjectIds and convert
+    const requestedIdStrings = ids.map(id => String(id)); // Keep original strings
+    const validObjectIds = requestedIdStrings
+        .map(id => id.trim()) // Trim whitespace
+        .filter(id => {
+            const isValid = mongoose.Types.ObjectId.isValid(id);
+            if (!isValid) {
+                console.warn(`FEATURE Controller (Batch): Invalid ObjectId format skipped: ${id}`);
+            }
+            return isValid;
+        }) // Check validity
+        .map(id => new mongoose.Types.ObjectId(id)); // Convert to ObjectId type
+
+    console.log(`FEATURE Controller (Batch): Processing ${validObjectIds.length} valid ObjectIds.`);
+    console.log(`FEATURE Controller (Batch): Valid ObjectIds to query:`, validObjectIds.map(id => id.toString()));
+
+
+    if (validObjectIds.length === 0) {
+        console.log("FEATURE Controller (Batch): No valid ObjectIds after filtering.");
+        // Return empty success, all original requested IDs as failed
+        return res.status(200).json({ success: [], failed: requestedIdStrings });
+    }
+
+    try {
+        // --- 3. Database Query ---
+        const query = {
+            _id: { $in: validObjectIds },       // Use standard MongoDB _id
+            referenceGenome: referenceGenome // Filter by genome name
+        };
+        console.log(`FEATURE Controller (Batch): Executing DB query:`, JSON.stringify(query));
+
+        // Find features matching the valid IDs and the reference genome
+        const features = await Feature.find(query)
+            .select('_id contig start end geneName') // Select necessary fields + geneName for context
+            .lean(); // Use lean for performance
+
+        // *** Log the raw results from the database query ***
+        console.log(`FEATURE Controller (Batch): Found ${features.length} features in DB.`);
+        // Optional: Log the actual data found (can be large)
+        // console.log(`FEATURE Controller (Batch): Features data from DB:`, JSON.stringify(features));
+
+
+        // --- 4. Process Results ---
+        const successResults = [];
+        const foundIds = new Set(); // Keep track of IDs found in the DB
+
+        for (const feature of features) {
+            const featureIdStr = feature._id.toString();
+            foundIds.add(featureIdStr); // Mark this ID as found
+
+            // Validate coordinates for each found feature
+            const startNum = Number(feature.start);
+            const endNum = Number(feature.end);
+            if (feature.contig != null && // Check contig exists
+                !isNaN(startNum) && !isNaN(endNum) && // Check start/end are numbers
+                startNum >= 0 && // Check start isn't negative
+                startNum <= endNum) // Check start <= end
+            {
+                 // Coordinates seem valid, add to success list
+                 successResults.push({
+                     id: featureIdStr, // Return the ID as string
+                     contig: feature.contig,
+                     start: startNum,
+                     end: endNum
+                 });
+            } else {
+                 // Log if coordinates are missing or invalid for a found feature
+                 console.warn(`FEATURE Controller (Batch): Invalid/missing coordinates for found feature ID ${featureIdStr} (${feature.geneName}). Contig: ${feature.contig}, Start: ${feature.start}, End: ${feature.end}`);
+                 // This ID was found but is invalid, so it will end up in the 'failed' list below
+            }
+        }
+
+        // Determine which requested IDs were not found in DB OR had invalid coords
+        const failedIds = requestedIdStrings.filter(idStr => {
+             // Check if the original string ID corresponds to a valid ObjectId format AND wasn't successfully processed
+             const isValidObjectId = mongoose.Types.ObjectId.isValid(idStr);
+             // Failed if it's a valid ObjectId but not in the set of successfully found/processed IDs
+             return isValidObjectId && !foundIds.has(idStr);
+             // Note: IDs that were invalid format from the start are implicitly 'failed' as they weren't queried
+             // If you want to explicitly include *all* original non-valid format IDs in failed list:
+             // return !foundIds.has(idStr); // This includes initially invalid format IDs too
+        });
+
+         console.log(`FEATURE Controller (Batch): Lookup Summary - Success: ${successResults.length}, Failed/Not Found/Invalid Coords: ${failedIds.length}`);
+
+        // --- 5. Handle No Valid Coordinates Found ---
+        if (successResults.length === 0) {
+            // This means either no features were found matching the IDs/genome,
+            // OR all features found had invalid coordinates.
+            console.log(`FEATURE Controller (Batch): No features with valid coordinates found for the request.`);
+            // Return 404 status because the specific requested resources (with valid coords) were not found
+            return res.status(404).json({ message: 'Coordinates for provided Locus IDs not found or invalid.' });
+        }
+
+        // --- 6. Format and Send Success Response ---
+        res.status(200).json({
+            success: successResults,
+            failed: failedIds
+        });
+
+    } catch (error) {
+        // --- 7. Handle Unexpected Errors ---
+        console.error("❌ Error during batch feature coordinate lookup:", error);
+        res.status(500).json({ message: "Server Error during batch coordinate lookup." });
+    }
+};

@@ -19,6 +19,7 @@ import {
 import { useAuth } from '../context/AuthContext'; // Import useAuth hook
 import { FaDownload } from 'react-icons/fa'; // Import FaDownload for download button
 import './GenotypeSearch.css'; // Ensure you link the updated CSS
+import { set } from 'mongoose';
 
 // Helper component for loading indicators inside dropdowns
 const LoadingOption = ({ text = "Loading..." }) => (
@@ -51,7 +52,7 @@ const GenotypeSearch = () => {
         regionEnd: '',
         regionGeneLocus: '', // Holds selected Locus ID from AsyncSelect
         snpList: '',         // Holds selected SNP List ID
-        locusList: '',       // Holds Locus List text content
+        selectedLocusListId: '', // Holds selected Locus List ID
     });
 
     // State for search results
@@ -72,6 +73,7 @@ const GenotypeSearch = () => {
     // --- State for user lists ---
     const [userSnpLists, setUserSnpLists] = useState([]);
     const [userVarietyLists, setUserVarietyLists] = useState([]); // <-- ADDED state for variety lists
+    const [userLocusLists, setUserLocusLists] = useState([]); // <-- ADDED state for locus lists
     const [loadingUserLists, setLoadingUserLists] = useState(false); // Combined loading state
     const [userListsFetchError, setUserListsFetchError] = useState(''); // Combined error state
 
@@ -132,7 +134,7 @@ const GenotypeSearch = () => {
                 setUserListsFetchError('');
                 setUserSnpLists([]); // Clear previous
                 setUserVarietyLists([]); // Clear previous
-                 // Clear selected lists from formData when re-fetching/logging in
+                setUserLocusLists([]); // Clear previous
                  setFormData(prev => ({
                     ...prev,
                     snpList: '',
@@ -143,8 +145,10 @@ const GenotypeSearch = () => {
                     // Filter lists by type
                     const snpLists = allUserLists.filter(list => list.type === 'snp');
                     const varietyLists = allUserLists.filter(list => list.type === 'variety');
+                    const locusLists = allUserLists.filter(list => list.type === 'locus'); // <-- ADDED for locus lists
                     setUserSnpLists(snpLists);
                     setUserVarietyLists(varietyLists); // Set variety lists state
+                    setUserLocusLists(locusLists); // <-- Set locus lists state
                     console.log(`GenotypeSearch: useEffect - Found ${snpLists.length} SNP lists and ${varietyLists.length} Variety lists.`);
                 } catch (error) {
                     console.error("GenotypeSearch: useEffect - Failed to load user lists:", error);
@@ -164,7 +168,8 @@ const GenotypeSearch = () => {
                  setFormData(prev => ({
                     ...prev,
                     snpList: '',
-                    selectedVarietyListId: '' // <-- Clear variety list selection too
+                    selectedVarietyListId: '', // <-- Clear variety list selection too
+                    selectedLocusListId: '' // <-- Clear locus list selection too
                  }));
             }
         };
@@ -231,7 +236,6 @@ const GenotypeSearch = () => {
                 console.log("Variety List selected, clearing Subpopulation filter.");
                 newState.varietySubpopulation = '';
             }
-            // ** End Conditional Clearing Logic **
 
             return newState;
         });
@@ -288,7 +292,7 @@ const GenotypeSearch = () => {
             regionGeneLocus: newType === 'geneLocus' ? (selectedLocusOption ? selectedLocusOption.value : '') : '',
             // Clear list selection if switching away
             snpList: newType === 'snpList' ? prev.snpList : '',
-            locusList: newType === 'locusList' ? prev.locusList : '',
+            selectedLocusListId: newType === 'locusList' ? prev.selectedLocusListId : '', // Clear locus list selection
             // Keep selectedVarietyListId as it's independent of region type
         }));
         // Clear dependent UI elements
@@ -300,8 +304,12 @@ const GenotypeSearch = () => {
             setSelectedLocusOption(null); // Clear AsyncSelect display
         }
         if (newType !== 'snpList') {
-            // Clear potential errors related to SNP list fetching if switching away
-             // setUserListsFetchError(''); // Keep general error potentially
+             setUserListsFetchError(''); // Keep general error potentially
+        }
+
+        if (newType !== 'locusList') {
+            // Clear potential errors related to Locus list fetching if switching away
+             setUserListsFetchError(''); // Keep general error potentially
         }
     };
 
@@ -347,10 +355,17 @@ const GenotypeSearch = () => {
                     if (userSnpLists.length === 0 && !loadingUserLists && !userListsFetchError) { isValid = false; alertMessage = "You have no SNP lists available to select."; break; }
                     break; // Valid SNP list selected
                 case 'locusList':
-                    requiresAuth = true; // Mark as needing auth
+                    requiresAuth = true;
                     if (!isAuthenticated) { isValid = false; alertMessage = "Login required for Locus list search."; break; }
-                    if (!formData.locusList.trim()) { isValid = false; alertMessage = "Locus List cannot be empty."; break; }
-                    break; // Valid locus list content
+                    // *** VALIDATION: Check if a locus list ID is selected ***
+                    if (!formData.selectedLocusListId) { // Check the dropdown selection
+                        isValid = false; alertMessage = "Please select one of your Locus Lists."; break;
+                    }
+                    // Optional checks if list selected
+                    if (loadingUserLists) { isValid = false; alertMessage = "Still loading lists..."; break; }
+                    if (userListsFetchError) { isValid = false; alertMessage = "Could not load lists."; break; }
+                    if (userLocusLists.length === 0 && !loadingUserLists && !userListsFetchError) { isValid = false; alertMessage = "No Locus lists available."; break;}
+                    break;
                 default:
                     isValid = false;
                     alertMessage = "Invalid Region Type selected.";
@@ -433,7 +448,7 @@ const GenotypeSearch = () => {
             regionEnd: '',
             regionGeneLocus: '',
             snpList: '',
-            locusList: '',
+            selectedLocusListId: '', // <-- Reset new field
         });
         setShowResults(false);
         setSearchResults(null);
@@ -689,12 +704,46 @@ const GenotypeSearch = () => {
                                   </> )}
                               </div> </div>)}
 
-                            {regionInputType === 'locusList' && ( /* ... Locus List Textarea ... */ <div className="form-row"> <div className="form-group">
-                                  <label htmlFor="locusList">Locus List (one per line) <span className="required-indicator" title="Required">*</span></label>
-                                  <textarea id="locusList" name="locusList" rows="5" placeholder="Enter Locus IDs..." value={formData.locusList} onChange={handleInputChange} disabled={!isAuthenticated || !formData.referenceGenome} required className={!isAuthenticated ? 'disabled-textarea' : ''}></textarea>
-                                  {!isAuthenticated && <p className="auth-required-note">Login required.</p>}
-                                  {!formData.referenceGenome && <small className="error-text">Ref Genome required.</small>}
-                               </div> </div>)}
+                              {regionInputType === 'locusList' && (
+                                 <div className="form-row">
+                                     <div className="form-group">
+                                         {/* Check Authentication First */}
+                                         {!isAuthenticated ? (
+                                             <p className="auth-required-note">Note: Login required to use saved Locus Lists.</p>
+                                         ) : (
+                                             <>
+                                                 <label htmlFor="locusListSelect">
+                                                     Select Your Locus List <span className="required-indicator" title="Required">*</span>
+                                                 </label>
+                                                 <select
+                                                     id="locusListSelect"
+                                                     name="selectedLocusListId" // State key to update
+                                                     value={formData.selectedLocusListId} // Controlled by state
+                                                     onChange={handleInputChange} // Update state
+                                                     disabled={!isAuthenticated || loadingUserLists || !!userListsFetchError || !formData.referenceGenome}
+                                                     required // Make selection required for this region type
+                                                     className="styled-select"
+                                                 >
+                                                     {/* Default Option */}
+                                                     <option value="">-- Select Your Locus List --</option>
+
+                                                     {/* Conditional Options */}
+                                                     {loadingUserLists && <UserListLoadingOption text="Loading Lists..." />}
+                                                     {!loadingUserLists && userListsFetchError && <option value="" disabled>Error: {userListsFetchError}</option>}
+                                                     {!loadingUserLists && !userListsFetchError && userLocusLists.length === 0 && <option value="" disabled>No locus lists found</option>}
+                                                     {/* Render options if loaded successfully */}
+                                                     {!loadingUserLists && !userListsFetchError && userLocusLists.length > 0 && (
+                                                         renderUserListOptions(userLocusLists) // Reuse helper
+                                                     )}
+                                                     {/* Fallback if somehow disabled but shouldn't be */}
+                                                     {!isAuthenticated && <option value="" disabled>Please log in</option>}
+                                                 </select>
+                                                  {!formData.referenceGenome && <small className="error-text">Reference Genome selection required.</small>}
+                                             </>
+                                         )}
+                                     </div>
+                                 </div>
+                             )}
                         </div>
 
                         {/* Section 5: Actions */}
