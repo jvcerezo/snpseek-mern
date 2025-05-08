@@ -1,65 +1,121 @@
 /* Pipeline.css - Self-Contained Styles specific to the Pipeline component */
 
-/* --- Font Imports (Assuming these are loaded globally or via index.html/main CSS) --- */
-/* @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&family=Lato:wght@400;700&display=swap'); */
-
-/* --- CSS Variables (Dark Theme - Assumed to be defined globally or replace with actual values) --- */
+/* --- CSS Variables (Dark Theme - Refined) --- */
 :root {
-  /* Define variables here OR ensure they are loaded globally */
   --phg-font-primary: 'Poppins', sans-serif;
   --phg-font-secondary: 'Lato', sans-serif;
+
+  /* Colors */
   --phg-color-background-primary: #0a192f;
   --phg-color-background-secondary: #112240;
   --phg-color-background-tertiary: #1f2d4a;
-  --phg-color-background-overlay: rgba(17, 34, 64, 0.85);
-  --phg-color-background-disabled: var(--phg-color-background-tertiary);
+  --phg-color-background-quaternary: #2a3b5f; /* For subtle hover backgrounds */
+  --phg-color-background-overlay: rgba(17, 34, 64, 0.9); /* Slightly more opaque overlay */
+  --phg-color-background-disabled: #162338; /* Slightly different disabled bg */
+
   --phg-color-text-primary: #e6f1ff;
   --phg-color-text-secondary: #ccd6f6;
   --phg-color-text-muted: #8892b0;
+  --phg-color-text-placeholder: rgba(136, 146, 176, 0.6); /* Specific placeholder color */
   --phg-color-text-on-accent: var(--phg-color-background-primary);
+
   --phg-color-accent-primary: #64ffda;
   --phg-color-accent-primary-hover: #52d8c3;
-  --phg-color-accent-overlay-hover: rgba(100, 255, 218, 0.1);
+  --phg-color-accent-primary-active: #47c0ae; /* For active button press */
+  --phg-color-accent-secondary: #ffab70; /* Warm accent */
+  --phg-color-accent-overlay-hover: rgba(100, 255, 218, 0.08); /* More subtle overlay */
+
   --phg-color-border: #233554;
   --phg-color-border-light: #304a7c;
-  --phg-color-border-disabled: var(--phg-color-border);
+  --phg-color-border-focus: var(--phg-color-accent-primary);
+  --phg-color-border-disabled: #283651; /* Slightly different disabled border */
+
+  --phg-color-error: #ff7b7b;
+  --phg-color-error-background: rgba(255, 123, 123, 0.1); /* Subtle bg for error messages */
+  --phg-color-success: #70ff90;
+  --phg-color-warning: #ffd700;
+
+  /* Shadows */
+  --phg-shadow-xs: 0 2px 4px -1px rgba(2, 12, 27, 0.5); /* Softer small shadow */
   --phg-shadow: 0 4px 10px -2px rgba(2, 12, 27, 0.6);
   --phg-shadow-lg: 0 10px 30px -10px rgba(2, 12, 27, 0.7);
+  --phg-shadow-focus: 0 0 0 3px rgba(100, 255, 218, 0.35); /* Refined focus shadow */
+  --phg-shadow-inset-press: inset 0 2px 4px rgba(2, 12, 27, 0.5); /* For button press */
+
+  /* Borders & Radius */
   --phg-border-radius: 6px;
-  --phg-transition-speed: 0.2s;
-  --phg-error-color: #ff7b7b; /* Added for error text */
+  --phg-border-radius-sm: 4px;
+  --phg-border-width: 1px;
+  --phg-border-width-thick: 2px;
+
+  /* Transitions */
+  --phg-transition-speed-fast: 0.15s;
+  --phg-transition-speed-normal: 0.2s;
+  --phg-transition-speed-slow: 0.3s;
+  --phg-transition-easing: ease-out;
+
+  /* Typography */
+  --phg-font-size-sm: 0.8rem;
+  --phg-font-size-base: 0.9rem; /* Base for inputs/buttons */
+  --phg-font-size-md: 1rem;
+  --phg-font-size-lg: 1.2rem;   /* Card titles */
+  --phg-font-size-xl: 1.8rem;   /* Smaller page titles */
+  --phg-font-size-xxl: 2.25rem; /* Main page titles */
+  --phg-line-height-tight: 1.2;
+  --phg-line-height-base: 1.5;
+
+  /* Spacing (using existing ones) */
+  --phg-spacing-xs: 0.25rem;  /* 4px */
+  --phg-spacing-sm: 0.5rem;   /* 8px */
+  --phg-spacing-md: 1rem;     /* 16px */
+  --phg-spacing-lg: 1.5rem;   /* 24px */
+  --phg-spacing-xl: 2rem;     /* 32px */
+  --phg-spacing-xxl: 2.5rem;  /* 40px */
+
+  /* Scrollbar */
+  --phg-scrollbar-bg: var(--phg-color-background-tertiary);
+  --phg-scrollbar-thumb-bg: var(--phg-color-text-muted);
+  --phg-scrollbar-thumb-hover-bg: var(--phg-color-border-light);
 }
 
-/* --- Base Styles Copied from Theme (Needed for self-containment) --- */
+/* Assume box-sizing: border-box; is set globally */
 
-/* Card Base */
+/* --- Base Styles --- */
+
 .phg-card {
-  background-color: var(--phg-color-background-secondary); /* Default card bg */
-  border: 1px solid var(--phg-color-border);
+  background-color: var(--phg-color-background-secondary);
+  border: var(--phg-border-width) solid var(--phg-color-border);
   border-radius: var(--phg-border-radius);
   box-shadow: var(--phg-shadow);
   overflow: hidden;
-  color: var(--phg-color-text-primary); /* Default text color in card */
+  color: var(--phg-color-text-primary);
+  transition: border-color var(--phg-transition-speed-normal) var(--phg-transition-easing),
+              box-shadow var(--phg-transition-speed-normal) var(--phg-transition-easing);
+  height: 450px;
+}
+.phg-card:hover {
+  border-color: var(--phg-color-border-light);
+  box-shadow: var(--phg-shadow-lg); /* More pronounced shadow on card hover */
 }
 
 .phg-card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.75rem 1.5rem; /* Increased horizontal padding */
-  border-bottom: 1px solid var(--phg-color-border);
+  padding: var(--phg-spacing-md) var(--phg-spacing-lg);
+  border-bottom: var(--phg-border-width) solid var(--phg-color-border);
 }
 
 .phg-card-title {
   font-family: var(--phg-font-primary);
-  font-size: 1.1rem;
+  font-size: var(--phg-font-size-lg);
   font-weight: 600;
-  color: var(--phg-color-text-secondary);
+  color: var(--phg-color-text-primary);
   margin: 0;
 }
 
 .phg-card-content {
-  padding: 1.5rem; /* Increased padding */
+  padding: var(--phg-spacing-lg);
 }
 
 /* Button Base */
@@ -67,246 +123,345 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0.6rem 1.2rem; /* Slightly increased padding */
+  padding: 0.7rem 1.4rem; /* Slightly more padding */
   border-radius: var(--phg-border-radius);
   font-family: var(--phg-font-primary);
   font-weight: 600;
-  font-size: 0.875rem;
-  border: 1px solid var(--phg-color-border);
+  font-size: var(--phg-font-size-base);
+  border: var(--phg-border-width) solid var(--phg-color-border-light);
   background-color: var(--phg-color-background-tertiary);
   color: var(--phg-color-text-secondary);
   cursor: pointer;
-  transition: background-color var(--phg-transition-speed) ease-out, border-color var(--phg-transition-speed) ease-out, color var(--phg-transition-speed) ease-out, opacity var(--phg-transition-speed) ease-out, transform var(--phg-transition-speed) ease-out;
+  transition: background-color var(--phg-transition-speed-fast) var(--phg-transition-easing),
+              border-color var(--phg-transition-speed-fast) var(--phg-transition-easing),
+              color var(--phg-transition-speed-fast) var(--phg-transition-easing),
+              opacity var(--phg-transition-speed-fast) var(--phg-transition-easing),
+              transform var(--phg-transition-speed-fast) var(--phg-transition-easing),
+              box-shadow var(--phg-transition-speed-fast) var(--phg-transition-easing);
   text-decoration: none;
   white-space: nowrap;
+  line-height: var(--phg-line-height-base);
 }
 .phg-button:focus-visible {
-  outline: 2px solid var(--phg-color-accent-primary);
-  outline-offset: 2px;
+  outline: none; /* Remove default outline */
+  border-color: var(--phg-color-border-focus);
+  box-shadow: var(--phg-shadow-focus);
 }
 .phg-button:hover:not(:disabled) {
-  border-color: var(--phg-color-border-light);
-  background-color: var(--phg-color-background-tertiary);
+  border-color: var(--phg-color-accent-primary);
+  background-color: var(--phg-color-background-quaternary);
   color: var(--phg-color-text-primary);
+  transform: translateY(-2px); /* Slightly more lift */
+  box-shadow: var(--phg-shadow-xs);
+}
+.phg-button:active:not(:disabled) {
+  transform: translateY(0px);
+  background-color: var(--phg-color-background-primary);
+  box-shadow: var(--phg-shadow-inset-press);
 }
 .phg-button:disabled {
   background-color: var(--phg-color-background-disabled);
   color: var(--phg-color-text-muted);
   border-color: var(--phg-color-border-disabled);
-  opacity: 0.6;
+  opacity: 0.5; /* More opacity for disabled */
   cursor: not-allowed;
   transform: none;
-}
-.phg-button:disabled:hover {
-   background-color: var(--phg-color-background-disabled);
-   color: var(--phg-color-text-muted);
-   border-color: var(--phg-color-border-disabled);
+  box-shadow: none;
 }
 
 /* Primary Button Variant */
 .phg-button-primary {
   background-color: var(--phg-color-accent-primary);
+  background-image: linear-gradient(to bottom, var(--phg-color-accent-primary), color-mix(in srgb, var(--phg-color-accent-primary) 90%, black)); /* Subtle gradient */
   color: var(--phg-color-text-on-accent);
   border-color: var(--phg-color-accent-primary);
+  text-shadow: 1px 1px 1px rgba(0,0,0,0.1);
 }
 .phg-button-primary:hover:not(:disabled) {
   background-color: var(--phg-color-accent-primary-hover);
+  background-image: linear-gradient(to bottom, var(--phg-color-accent-primary-hover), var(--phg-color-accent-primary-active));
   border-color: var(--phg-color-accent-primary-hover);
+  color: var(--phg-color-text-on-accent);
   transform: translateY(-2px);
+  box-shadow: 0 6px 12px -2px rgba(100, 255, 218, 0.25); /* Enhanced glow */
+}
+.phg-button-primary:active:not(:disabled) {
+  background-color: var(--phg-color-accent-primary-active);
+  background-image: none; /* Remove gradient on press for flatter feel */
+  border-color: var(--phg-color-accent-primary-active);
+  transform: translateY(0px);
+  box-shadow: var(--phg-shadow-inset-press);
 }
 
-/* Input/Select Base */
+/* Input/Select Base (for native elements and custom triggers styled like inputs) */
 .phg-input,
-.phg-select {
+.phg-select, /* Native select */
+.phg-dropdown-trigger.phg-input /* Custom dropdown trigger styled as input */
+{
   width: 100%;
-  padding: 0.6rem 0.85rem; /* Slightly increased padding */
-  border: 1px solid var(--phg-color-border);
+  padding: 0.75rem 1.1rem; /* Slightly adjusted padding */
+  border: var(--phg-border-width) solid var(--phg-color-border);
   border-radius: var(--phg-border-radius);
-  background-color: var(--phg-color-background-secondary);
+  background-color: var(--phg-color-background-primary);
   color: var(--phg-color-text-primary);
-  font-size: 0.875rem;
+  font-size: var(--phg-font-size-base);
   font-family: var(--phg-font-secondary);
-  transition: border-color var(--phg-transition-speed) ease-out, box-shadow var(--phg-transition-speed) ease-out;
+  transition: border-color var(--phg-transition-speed-fast) var(--phg-transition-easing),
+              box-shadow var(--phg-transition-speed-fast) var(--phg-transition-easing),
+              background-color var(--phg-transition-speed-fast) var(--phg-transition-easing);
+  line-height: var(--phg-line-height-base);
 }
-.phg-input::placeholder {
-  color: var(--phg-color-text-muted);
-  opacity: 0.8;
+.phg-input::placeholder { /* For <input type="text"> */
+  color: var(--phg-color-text-placeholder);
+  opacity: 1; /* Opacity handled by the color itself */
+}
+/* For custom dropdown placeholder span */
+.phg-dropdown-trigger.phg-input .phg-dropdown-placeholder {
+  color: var(--phg-color-text-placeholder);
+  opacity: 1;
 }
 .phg-input:focus,
-.phg-select:focus {
-  border-color: var(--phg-color-accent-primary);
+.phg-select:focus,
+.phg-dropdown-trigger.phg-input:focus {
+  border-color: var(--phg-color-border-focus);
   outline: none;
-  box-shadow: 0 0 0 2px rgba(100, 255, 218, 0.3);
+  box-shadow: var(--phg-shadow-focus);
+  background-color: var(--phg-color-background-secondary);
 }
 .phg-input:disabled,
-.phg-select:disabled {
+.phg-select:disabled,
+.phg-dropdown-trigger.phg-input:disabled {
   background-color: var(--phg-color-background-disabled);
   color: var(--phg-color-text-muted);
   border-color: var(--phg-color-border-disabled);
   cursor: not-allowed;
+  opacity: 0.5;
 }
 .phg-input:disabled::placeholder {
   color: var(--phg-color-text-muted);
-  opacity: 0.5;
+  opacity: 0.6;
 }
+
+/* Styling for NATIVE <select> elements */
 .phg-select {
   appearance: none;
-  background-image: url('data:image/svg+xml;charset=US-ASCII,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="%238892b0"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>');
+  background-image: url('data:image/svg+xml;charset=US-ASCII,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="%23ccd6f6"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>');
   background-repeat: no-repeat;
-  background-position: right 0.75rem center; /* Adjusted position */
-  background-size: 1.1em 1.1em; /* Slightly smaller arrow */
-  padding-right: 2.75rem; /* More space for arrow */
+  background-position: right 1rem center;
+  background-size: 1.1em 1.1em; /* Slightly larger */
+  padding-right: 3.2rem; /* More space for arrow */
 }
 .phg-select:disabled {
   background-image: url('data:image/svg+xml;charset=US-ASCII,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="%23555e70"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>');
 }
 .phg-select option {
-   background-color: var(--phg-color-background-secondary);
-   color: var(--phg-color-text-primary);
-   padding: 0.5rem;
+  background-color: var(--phg-color-background-secondary);
+  color: var(--phg-color-text-primary);
+  padding: var(--phg-spacing-sm) var(--phg-spacing-md);
 }
 
 /* Form Group Base */
 .phg-form-group {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem; /* Increased gap */
+  gap: var(--phg-spacing-sm);
 }
 
 .phg-label {
   font-weight: 600;
   color: var(--phg-color-text-secondary);
-  font-size: 0.875rem;
-  margin-bottom: 0.2rem; /* Increased space below label */
+  font-size: var(--phg-font-size-base); /* Match input font size */
+  margin-bottom: 0; /* Gap handles spacing */
+  line-height: var(--phg-line-height-tight);
+  padding-left: var(--phg-spacing-xs); /* Small indent */
 }
 
 /* --- Pipeline Specific Styles --- */
 
-.pipeline-container { /* Added class to main div in JSX */
-  padding: 2rem; /* Increased overall padding */
+.pipeline-container {
+  padding: var(--phg-spacing-xl);
   width: 100%;
-  max-width: 1600px; /* Optional: constrain max width */
-  margin: 0 auto; /* Center if max-width is applied */
+  max-width: 1600px;
+  margin: 0 auto;
+  height: 1000px;
 }
-
 
 .pipeline-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
   flex-wrap: wrap;
-  gap: 1.5rem 2rem; /* Increased column gap */
-  margin-bottom: 2.5rem; /* Increased space below header */
-  padding-bottom: 1.5rem;
-  border-bottom: 1px solid var(--phg-color-border);
+  gap: var(--phg-spacing-lg) var(--phg-spacing-xl);
+  margin-bottom: var(--phg-spacing-xxl);
+  padding-bottom: var(--phg-spacing-lg);
+  border-bottom: var(--phg-border-width) solid var(--phg-color-border);
 }
 
 .phg-page-title {
   font-family: var(--phg-font-primary);
   color: var(--phg-color-accent-primary);
-  font-size: 2rem; /* Larger title */
+  font-size: var(--phg-font-size-xxl);
   font-weight: 700;
   margin: 0;
   flex-shrink: 0;
+  line-height: var(--phg-line-height-tight);
+  text-shadow: 0 0 10px rgba(100, 255, 218, 0.3); /* Subtle glow for title */
 }
 
 .pipeline-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 1.5rem 2rem; /* Increased gaps */
+  gap: var(--phg-spacing-lg);
   align-items: center;
 }
 
 .pipeline-action-group {
   display: flex;
   flex-wrap: nowrap;
-  gap: 1rem; /* Increased gap within group */
+  gap: var(--phg-spacing-md);
   align-items: center;
 }
 
 .pipeline-action-group .phg-input,
-.pipeline-action-group .phg-select {
-  min-width: 200px; /* Slightly larger min-width */
+.pipeline-action-group .phg-select,
+.pipeline-action-group .phg-dropdown-container {
+  min-width: 240px; /* Slightly larger */
   flex-grow: 1;
 }
 
 .pipeline-form-card {
-  margin-top: 2rem; /* Increased space below header */
+  margin-top: var(--phg-spacing-xl);
 }
 
 .pipeline-form {
   display: grid;
-  /* Adjust grid columns for better spacing */
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); /* Wider minmax */
-  gap: 1.5rem 2rem; /* Increased row and column gap */
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); /* Wider min for better spacing */
+  gap: var(--phg-spacing-lg) var(--phg-spacing-xl);
 }
 
 .pipeline-form-submit {
   grid-column: 1 / -1;
   display: flex;
   justify-content: center;
-  margin-top: 1.5rem; /* Increased space above submit */
+  padding-top: var(--phg-spacing-lg);
+  margin-top: var(--phg-spacing-md);
+}
+.pipeline-form-submit .phg-button {
+    min-width: 220px;
+    padding: 0.8rem 2rem; /* Larger submit button */
 }
 
-/* Dropdown specific styles */
+
+/* --- Custom Dropdown specific styles --- */
 .phg-dropdown-container {
   position: relative;
+  width: 100%;
 }
 
-.phg-dropdown-trigger {
+/* Custom trigger button - already styled by .phg-input */
+.phg-dropdown-trigger.phg-input {
+  background-image: none !important; /* Ensures no bg image from .phg-select if classes were mixed */
   display: flex;
   justify-content: space-between;
   align-items: center;
   text-align: left;
-  width: 100%;
   cursor: pointer;
+  padding-right: 1rem; /* Ensure space for icon if it's not managed by flex-gap */
 }
-.phg-dropdown-trigger span {
+
+.phg-dropdown-trigger.phg-input .phg-dropdown-selected-value {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  padding-right: 0.5rem;
   flex-grow: 1;
+  padding-right: var(--phg-spacing-sm); /* Space between text and icon */
 }
-.phg-dropdown-icon {
-  width: 1.1em;
+
+.phg-dropdown-icon { /* Base style for SVG icon component */
+  width: 1.1em; /* Relative to font size of trigger */
   height: 1.1em;
   flex-shrink: 0;
   color: var(--phg-color-text-muted);
+  transition: transform var(--phg-transition-speed-normal) var(--phg-transition-easing); /* CSS driven transition */
 }
-
+/* Rotation handled by parent's aria-expanded state */
+.phg-dropdown-trigger[aria-expanded="true"] .phg-dropdown-icon {
+  transform: rotate(180deg);
+  color: var(--phg-color-accent-primary); /* Highlight icon when open */
+}
 
 .phg-dropdown-menu {
   position: absolute;
-  z-index: 20;
-  top: 100%;
+  z-index: 1000;
+  top: calc(100% + 6px); /* Increased gap */
   left: 0;
   right: 0;
   background-color: var(--phg-color-background-secondary);
-  border: 1px solid var(--phg-color-border-light);
-  border-radius: 0 0 var(--phg-border-radius) var(--phg-border-radius);
-  margin-top: -1px;
-  max-height: 200px;
+  border: var(--phg-border-width) solid var(--phg-color-border-light);
+  border-radius: var(--phg-border-radius);
+  max-height: 260px; /* Slightly more height */
   overflow-y: auto;
-  box-shadow: var(--phg-shadow);
+  box-shadow: var(--phg-shadow-lg);
+  opacity: 0;
+  transform: translateY(-12px) scale(0.98); /* Refined opening animation */
+  transform-origin: top center;
+  visibility: hidden;
+  transition: opacity var(--phg-transition-speed-normal) var(--phg-transition-easing),
+              transform var(--phg-transition-speed-normal) var(--phg-transition-easing),
+              visibility 0s var(--phg-transition-speed-normal);
 }
+.phg-dropdown-trigger[aria-expanded="true"] + .phg-dropdown-menu {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  visibility: visible;
+  transition-delay: 0s;
+}
+
+/* Custom Scrollbar for dropdown menu */
+.phg-dropdown-menu::-webkit-scrollbar {
+  width: 8px;
+}
+.phg-dropdown-menu::-webkit-scrollbar-track {
+  background: var(--phg-scrollbar-bg);
+  border-radius: 0 var(--phg-border-radius) var(--phg-border-radius) 0;
+}
+.phg-dropdown-menu::-webkit-scrollbar-thumb {
+  background: var(--phg-scrollbar-thumb-bg);
+  border-radius: 4px;
+}
+.phg-dropdown-menu::-webkit-scrollbar-thumb:hover {
+  background: var(--phg-scrollbar-thumb-hover-bg);
+}
+/* For Firefox */
+.phg-dropdown-menu {
+  scrollbar-width: thin;
+  scrollbar-color: var(--phg-scrollbar-thumb-bg) var(--phg-scrollbar-bg);
+}
+
 
 .phg-dropdown-item,
 .phg-dropdown-item-disabled {
   display: block;
   width: 100%;
   text-align: left;
-  padding: 0.7rem 1.2rem; /* Increased item padding */
-  font-size: 0.875rem;
+  padding: 0.85rem 1.4rem; /* Consistent padding */
+  font-size: var(--phg-font-size-base);
   color: var(--phg-color-text-secondary);
   background: none;
   border: none;
   cursor: pointer;
-  transition: background-color var(--phg-transition-speed) ease;
+  transition: background-color var(--phg-transition-speed-fast) var(--phg-transition-easing),
+              color var(--phg-transition-speed-fast) var(--phg-transition-easing);
+  border-bottom: var(--phg-border-width) solid var(--phg-color-border);
+  position: relative; /* For pseudo-elements */
 }
-.phg-dropdown-item:hover,
-.phg-dropdown-item:focus {
-  background-color: var(--phg-color-background-tertiary);
+.phg-dropdown-item:last-child {
+  border-bottom: none;
+}
+.phg-dropdown-item:hover:not([aria-selected="true"]),
+.phg-dropdown-item:focus-visible:not([aria-selected="true"]),
+.phg-dropdown-item[data-focused="true"]:not([aria-selected="true"]) {
+  background-color: var(--phg-color-background-quaternary); /* Subtle hover */
   color: var(--phg-color-text-primary);
   outline: none;
 }
@@ -314,35 +469,58 @@
   color: var(--phg-color-text-muted);
   cursor: default;
   font-style: italic;
+  background-color: transparent !important;
+  opacity: 0.6; /* Make disabled items more distinct */
 }
 .phg-dropdown-item[aria-selected="true"] {
   font-weight: 600;
   color: var(--phg-color-accent-primary);
+  background-color: var(--phg-color-accent-overlay-hover);
 }
+.phg-dropdown-item[aria-selected="true"]::before { /* Highlight for selected item */
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 20%;
+    bottom: 20%;
+    width: 3px;
+    background-color: var(--phg-color-accent-primary);
+    border-radius: 0 2px 2px 0;
+}
+
 
 /* Multi-select specific */
-.phg-dropdown-menu-multi {
-  /* No specific styles needed currently */
-}
-
-.phg-dropdown-item-multi {
+.phg-dropdown-item-multi { /* This is a <label> */
   display: flex;
   align-items: center;
   cursor: pointer;
 }
 .phg-checkbox {
-  margin-right: 0.85rem; /* Increased space */
-  height: 1rem;
-  width: 1rem;
+  margin-right: var(--phg-spacing-md);
+  height: 1.15rem; /* Slightly larger */
+  width: 1.15rem;
   accent-color: var(--phg-color-accent-primary);
   cursor: pointer;
-  background-color: var(--phg-color-background-tertiary);
-  border: 1px solid var(--phg-color-border);
-  border-radius: 3px;
+  background-color: var(--phg-color-background-primary);
+  border: var(--phg-border-width) solid var(--phg-color-border-light);
+  border-radius: var(--phg-border-radius-sm);
   vertical-align: middle;
   appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
   display: inline-block;
   position: relative;
+  transition: background-color var(--phg-transition-speed-fast) var(--phg-transition-easing),
+              border-color var(--phg-transition-speed-fast) var(--phg-transition-easing),
+              box-shadow var(--phg-transition-speed-fast) var(--phg-transition-easing);
+}
+.phg-checkbox:hover {
+  border-color: var(--phg-color-accent-primary);
+}
+.phg-checkbox:focus-visible {
+  outline: none;
+  border-color: var(--phg-color-border-focus);
+  box-shadow: var(--phg-shadow-focus);
 }
 .phg-checkbox:checked {
   background-color: var(--phg-color-accent-primary);
@@ -351,87 +529,139 @@
 .phg-checkbox:checked::after {
   content: '';
   position: absolute;
-  left: 4px;
-  top: 1px;
-  width: 4px;
-  height: 8px;
+  left: 5px;
+  top: 2px;
+  width: 5px; /* Adjusted checkmark */
+  height: 10px;
   border: solid var(--phg-color-text-on-accent);
-  border-width: 0 2px 2px 0;
+  border-width: 0 2.5px 2.5px 0; /* Slightly thicker checkmark */
   transform: rotate(45deg);
+}
+.phg-dropdown-item-multi .phg-checkbox-label {
+  flex-grow: 1;
+  line-height: var(--phg-line-height-base);
 }
 
 
 /* Error message styling */
 .phg-error-text {
-  color: var(--phg-error-color);
-  font-size: 0.8rem; /* Slightly larger error text */
-  margin-top: 0.35rem; /* More space above error */
+  color: var(--phg-color-error);
+  background-color: var(--phg-color-error-background); /* Subtle background */
+  font-size: var(--phg-font-size-sm);
+  margin-top: var(--phg-spacing-sm);
+  display: block;
+  font-weight: 500;
+  padding: var(--phg-spacing-xs) var(--phg-spacing-sm); /* Padding for background */
+  border-radius: var(--phg-border-radius-sm);
+  border-left: 3px solid var(--phg-color-error); /* Accent border */
+}
+/* Success & Warning messages (add these classes to your message elements if needed) */
+.phg-success-text { /* Example, can be expanded like error text */
+  color: var(--phg-color-success);
+  font-size: var(--phg-font-size-sm);
+  margin-top: var(--phg-spacing-sm);
   display: block;
 }
+.phg-warning-text { /* Example, can be expanded like error text */
+  color: var(--phg-color-warning);
+  font-size: var(--phg-font-size-sm);
+  margin-top: var(--phg-spacing-sm);
+  display: block;
+}
+
 
 /* Spinner animation */
 .phg-spinner {
   display: inline-block;
-  width: 1em;
-  height: 1em;
-  border: 2px solid currentColor;
+  width: 1.1em;
+  height: 1.1em;
+  border: 3px solid currentColor;
   border-right-color: transparent;
   border-radius: 50%;
-  animation: phg-spin 0.6s linear infinite;
-  margin-right: 0.5em;
-  vertical-align: -0.125em;
+  animation: phg-spin 0.7s linear infinite;
+  margin-right: var(--phg-spacing-sm);
+  vertical-align: -0.15em;
+}
+.phg-button .phg-spinner {
+    margin-right: var(--phg-spacing-md);
+    margin-left: calc(-1 * var(--phg-spacing-xs));
 }
 
 @keyframes phg-spin {
   to { transform: rotate(360deg); }
 }
 
-/* Responsive adjustments for the form */
-@media (max-width: 768px) { /* Adjust breakpoint if needed */
-   .pipeline-container {
-      padding: 1.5rem; /* Reduce padding on smaller screens */
+/* Responsive adjustments (largely unchanged, ensure variables are respected) */
+@media (max-width: 768px) {
+  :root { /* Adjust base font sizes for smaller screens if needed */
+      --phg-font-size-base: 0.875rem;
+      --phg-font-size-lg: 1.1rem;
+      --phg-font-size-xxl: 2rem;
+  }
+  .pipeline-container {
+    padding: var(--phg-spacing-lg);
   }
   .pipeline-header {
-      gap: 1rem; /* Reduce header gap */
+    gap: var(--phg-spacing-md);
+    align-items: flex-start;
   }
-   .pipeline-actions {
-      gap: 1rem; /* Reduce actions gap */
+  .pipeline-actions {
+    gap: var(--phg-spacing-md);
   }
   .pipeline-action-group {
-      gap: 0.75rem; /* Reduce group gap */
+    gap: var(--phg-spacing-sm);
   }
-   .pipeline-form {
-      grid-template-columns: 1fr; /* Stack form elements */
-      gap: 1.2rem; /* Adjust gap for single column */
+  .pipeline-form {
+    grid-template-columns: 1fr; /* Stack form elements */
+    gap: var(--phg-spacing-lg);
   }
 }
 
 @media (max-width: 640px) {
+  :root {
+      --phg-font-size-base: 0.85rem;
+      --phg-font-size-lg: 1rem;
+      --phg-font-size-xxl: 1.75rem;
+      --phg-font-size-xl: 1.5rem;
+  }
   .pipeline-container {
-      padding: 1rem;
+    padding: var(--phg-spacing-md);
   }
   .pipeline-header {
-      flex-direction: column;
-      align-items: stretch;
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--phg-spacing-lg);
   }
   .pipeline-actions {
-      flex-direction: column;
-      align-items: stretch;
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--phg-spacing-lg);
   }
   .pipeline-action-group {
-      flex-direction: column;
-      align-items: stretch;
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--phg-spacing-md);
   }
   .pipeline-action-group .phg-input,
   .pipeline-action-group .phg-select,
+  .pipeline-action-group .phg-dropdown-container,
   .pipeline-action-group .phg-button {
-      width: 100%;
-      min-width: unset; /* Remove min-width */
+    width: 100%;
+    min-width: unset;
   }
-  .phg-page-title {
-      font-size: 1.6rem; /* Adjust title size */
+  .phg-card-header {
+    padding: var(--phg-spacing-sm) var(--phg-spacing-md);
   }
   .phg-card-content {
-      padding: 1rem; /* Reduce card padding */
+    padding: var(--phg-spacing-md);
+  }
+  .phg-button {
+    padding: 0.7rem 1rem;
+  }
+  .pipeline-form-submit .phg-button {
+    width: 100%;
+  }
+  .phg-input, .phg-select, .phg-dropdown-trigger.phg-input {
+    padding: 0.7rem 1rem; /* Ensure consistent padding */
   }
 }

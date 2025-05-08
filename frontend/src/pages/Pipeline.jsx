@@ -5,16 +5,16 @@ import api from "../api"; // Adjust path as needed
 
 import './Pipeline.css';
 
-// --- SVG Chevron Icon ---
-const ChevronDownIcon = ({ className = "w-5 h-5", open }) => (
+// --- SVG Chevron Icon (Revised to rely on CSS for rotation/transition via parent's aria-expanded) ---
+const ChevronDownIcon = ({ className }) => ( // Removed 'open' prop
   <svg
     xmlns="http://www.w3.org/2000/svg"
     fill="none"
     viewBox="0 0 24 24"
     strokeWidth={2}
     stroke="currentColor"
-    // Apply className for potential utility classes, but base style in CSS
-    className={`${className} phg-dropdown-icon transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+    // phg-dropdown-icon class from Pipeline.css will handle base style, size, transition, and rotation
+    className={`phg-dropdown-icon ${className || ''}`} // className prop can be used for additional utility classes if needed
     style={{ flexShrink: 0 }}
   >
     <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
@@ -149,7 +149,7 @@ const Pipeline = () => {
         } finally { setIsDownloading(false); }
     };
 
-     const handleDownloadPlot = async (e) => {
+   const handleDownloadPlot = async (e) => {
         e.preventDefault();
         if (!selectedProjectForDownload) { toast.warning("Please select a project to download the plot."); return; }
         setIsDownloading(true); toast.info("Preparing Dot Plot download...");
@@ -180,22 +180,18 @@ const Pipeline = () => {
         setErrors(newErrors); return isValid;
     };
 
-    // *** FIXED toggleDropdown function ***
     const toggleDropdown = (setter, currentState) => {
-        const shouldOpen = !currentState; // Determine if the target dropdown should open
+        const shouldOpen = !currentState; 
 
-        // Close all dropdowns first
         setShowProjectDropdown(false);
         setShowSequencesDropdown(false);
         setShowGffDropdown(false);
         setShowReferenceDropdown(false);
         setShowBoundaryDropdown(false);
 
-        // Set the target dropdown state ONLY if it should open
         if (shouldOpen) {
             setter(true);
         }
-        // If shouldOpen is false, the target dropdown remains closed due to the reset above.
     };
 
 
@@ -251,7 +247,7 @@ const Pipeline = () => {
             }
              if (stepOK) {
                 toast.info("Step 2/6: Compressing FASTA...");
-                const compressRes = await api.post(`/PHG/pipeline/agc-compress`, { Project_Name: selectedProjectName, sequences: filteredSequences, reference: formData.reference });
+                const compressRes = await api.post(`/api/PHG/pipeline/agc-compress`, { Project_Name: selectedProjectName, sequences: filteredSequences, reference: formData.reference });
                 if (!compressRes.data || compressRes.data.detail === "Process already running.") throw new Error(compressRes.data?.detail || "Failed to start AGC Compress.");
                 console.log("Compress FASTA response:", compressRes.data);
                 stepOK = await pollLogStatus("/api/PHG/pipeline/agc-compress-log-file", selectedProjectName);
@@ -278,6 +274,10 @@ const Pipeline = () => {
                 const vcfRes = await api.post(`/api/PHG/pipeline/create-vcf`, { reference: formData.reference, Project_Name: selectedProjectName });
                 if (!vcfRes.data || vcfRes.data.detail === "Process already running.") throw new Error(vcfRes.data?.detail || "Failed to start Create VCF.");
                 console.log("Create VCF response:", vcfRes.data);
+                // Assuming create-vcf is quick or doesn't need polling like others, or its log is checked by load-vcf
+                // If it has its own log to poll, add:
+                // stepOK = await pollLogStatus("/api/PHG/pipeline/create-vcf-log-file", selectedProjectName);
+                // if (!stepOK) throw new Error("Create VCF step failed or timed out.");
             }
              if (stepOK) {
                 toast.info("Step 6/6: Loading VCF...");
@@ -312,19 +312,19 @@ const Pipeline = () => {
                      <form onSubmit={handleCreateProject} className="pipeline-action-group">
                          <input value={projectName} onChange={(e) => setProjectName(e.target.value)} type="text" placeholder="New Project Name" className="phg-input" aria-label="New Project Name" />
                          <button type="submit" disabled={isSubmittingProjectCreation || !projectName.trim()} className="phg-button phg-button-primary" >
-                            {isSubmittingProjectCreation ? ( <><span className="phg-spinner"></span> Creating...</> ) : ( "Create Project" )}
+                             {isSubmittingProjectCreation ? ( <><span className="phg-spinner"></span> Creating...</> ) : ( "Create Project" )}
                          </button>
                      </form>
                      <div className="pipeline-action-group">
                          <select value={selectedProjectForDownload} onChange={(e) => setSelectedProjectForDownload(e.target.value)} className="phg-select" aria-label="Select project for download" >
-                            <option value="">Select Project for Download</option>
-                            {projects.map((proj) => (<option key={proj} value={proj}>{proj}</option>))}
+                             <option value="">Select Project for Download</option>
+                             {projects.map((proj) => (<option key={proj} value={proj}>{proj}</option>))}
                          </select>
                          <button disabled={isDownloading || !selectedProjectForDownload} onClick={handleDownloadMetrics} className="phg-button" >
-                            {isDownloading ? ( <> <span className="phg-spinner"></span> Downloading...</> ) : ( "Download QC Metrics" )}
+                             {isDownloading ? ( <> <span className="phg-spinner"></span> Downloading...</> ) : ( "Download QC Metrics" )}
                          </button>
                          <button disabled={isDownloading || !selectedProjectForDownload} onClick={handleDownloadPlot} className="phg-button" >
-                             {isDownloading ? ( <> <span className="phg-spinner"></span> Downloading...</> ) : ( "Download Dot Plot" )}
+                              {isDownloading ? ( <> <span className="phg-spinner"></span> Downloading...</> ) : ( "Download Dot Plot" )}
                          </button>
                      </div>
                 </div>
@@ -338,133 +338,188 @@ const Pipeline = () => {
                      <form onSubmit={handleSubmitPipeline} className="pipeline-form">
                          {/* Project Selection */}
                          <div className="phg-form-group" onBlur={(e) => handleDropdownBlur(e, setShowProjectDropdown)}>
-                            <label htmlFor="project" className="phg-label">Target Project</label>
-                            <div className="phg-dropdown-container" >
-                                <button
-                                    type="button" id="project"
-                                    // *** FIXED onClick ***
-                                    onClick={() => toggleDropdown(setShowProjectDropdown, showProjectDropdown)}
-                                    className="phg-select phg-dropdown-trigger" aria-haspopup="listbox" aria-expanded={showProjectDropdown}
-                                >
-                                    <span>{formData.project || "Select a Project..."}</span>
-                                    <ChevronDownIcon className="phg-dropdown-icon" open={showProjectDropdown} />
-                                </button>
-                                {showProjectDropdown && (
-                                    <div className="phg-dropdown-menu" role="listbox">
-                                        {projects.map((project) => ( <button key={project} type="button" role="option" aria-selected={formData.project === project} onClick={() => handleSelect('project', project, setShowProjectDropdown)} className="phg-dropdown-item" > {project} </button> ))}
-                                        {projects.length === 0 && <div className="phg-dropdown-item-disabled">No projects available</div>}
-                                    </div>
-                                )}
-                            </div>
-                            {errors.project && <span className="phg-error-text">{errors.project}</span>}
+                             <label htmlFor="project" className="phg-label">Target Project</label>
+                             <div className="phg-dropdown-container" >
+                                 <button
+                                     type="button" id="project"
+                                     onClick={() => toggleDropdown(setShowProjectDropdown, showProjectDropdown)}
+                                     className="phg-input phg-dropdown-trigger" // MODIFIED CLASS
+                                     aria-haspopup="listbox" aria-expanded={showProjectDropdown}
+                                 >
+                                    {/* MODIFIED: Use specific classes for selected value or placeholder */}
+                                    {formData.project ? (
+                                        <span className="phg-dropdown-selected-value">{formData.project}</span>
+                                    ) : (
+                                        <span className="phg-dropdown-placeholder">Select a Project...</span>
+                                    )}
+                                    <ChevronDownIcon />
+                                 </button>
+                                 {showProjectDropdown && (
+                                     <div className="phg-dropdown-menu" role="listbox">
+                                         {projects.length > 0 ? (
+                                            projects.map((projectItem) => (
+                                                <button key={projectItem} type="button" role="option" aria-selected={formData.project === projectItem} onClick={() => handleSelect('project', projectItem, setShowProjectDropdown)} className="phg-dropdown-item" > {projectItem} </button>
+                                            ))
+                                         ) : (
+                                            <div className="phg-dropdown-item-disabled">No projects available</div>
+                                         )}
+                                     </div>
+                                 )}
+                             </div>
+                             {errors.project && <span className="phg-error-text">{errors.project}</span>}
                          </div>
 
                          {/* Sequences Multi-select */}
                          <div className="phg-form-group" onBlur={(e) => handleDropdownBlur(e, setShowSequencesDropdown)}>
-                            <label htmlFor="selectedSequences" className="phg-label">Input Sequences</label>
-                            <div className="phg-dropdown-container">
-                                <button
-                                    type="button" id="selectedSequences"
-                                    // *** FIXED onClick ***
-                                    onClick={() => toggleDropdown(setShowSequencesDropdown, showSequencesDropdown)}
-                                    className="phg-select phg-dropdown-trigger" aria-haspopup="listbox" aria-expanded={showSequencesDropdown}
-                                >
-                                    <span> {formData.selectedSequences.length === 0 ? "Select Sequences..." : formData.selectedSequences.length === 1 ? formData.selectedSequences[0] : `${formData.selectedSequences.length} sequences selected`} </span>
-                                    <ChevronDownIcon className="phg-dropdown-icon" open={showSequencesDropdown} />
-                                </button>
-                                {showSequencesDropdown && (
-                                    <div className="phg-dropdown-menu phg-dropdown-menu-multi" role="listbox">
-                                        {sequenceOptions.map((option) => ( <label key={option.value} className="phg-dropdown-item phg-dropdown-item-multi"> <input type="checkbox" checked={formData.selectedSequences.includes(option.value)} onChange={() => handleSequenceSelect(option.value)} className="phg-checkbox" /> {option.label} </label> ))}
-                                    </div>
-                                )}
-                            </div>
-                            {errors.selectedSequences && <span className="phg-error-text">{errors.selectedSequences}</span>}
+                             <label htmlFor="selectedSequences" className="phg-label">Input Sequences</label>
+                             <div className="phg-dropdown-container">
+                                 <button
+                                     type="button" id="selectedSequences"
+                                     onClick={() => toggleDropdown(setShowSequencesDropdown, showSequencesDropdown)}
+                                     className="phg-input phg-dropdown-trigger" // MODIFIED CLASS
+                                     aria-haspopup="listbox" aria-expanded={showSequencesDropdown}
+                                 >
+                                    {/* MODIFIED: Use specific classes */}
+                                    {formData.selectedSequences.length === 0 ? (
+                                        <span className="phg-dropdown-placeholder">Select Sequences...</span>
+                                    ) : formData.selectedSequences.length === 1 ? (
+                                        <span className="phg-dropdown-selected-value">{formData.selectedSequences[0]}</span>
+                                    ) : (
+                                        <span className="phg-dropdown-selected-value">{`${formData.selectedSequences.length} sequences selected`}</span>
+                                    )}
+                                    <ChevronDownIcon />
+                                 </button>
+                                 {showSequencesDropdown && (
+                                     <div className="phg-dropdown-menu phg-dropdown-menu-multi" role="listbox">
+                                         {sequenceOptions.map((option) => (
+                                            <label key={option.value} className="phg-dropdown-item phg-dropdown-item-multi">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={formData.selectedSequences.includes(option.value)}
+                                                    onChange={() => handleSequenceSelect(option.value)}
+                                                    className="phg-checkbox"
+                                                    aria-labelledby={`sequence-label-${option.value}`}
+                                                />
+                                                {/* MODIFIED: Wrap label text */}
+                                                <span className="phg-checkbox-label" id={`sequence-label-${option.value}`}>{option.label}</span>
+                                            </label>
+                                        ))}
+                                     </div>
+                                 )}
+                             </div>
+                             {errors.selectedSequences && <span className="phg-error-text">{errors.selectedSequences}</span>}
                          </div>
 
                          {/* GFF File Selection */}
                          <div className="phg-form-group" onBlur={(e) => handleDropdownBlur(e, setShowGffDropdown)}>
-                             <label htmlFor="gff" className="phg-label">GFF File</label>
-                             <div className="phg-dropdown-container">
-                                 <button
-                                     type="button" id="gff"
-                                     // *** FIXED onClick ***
-                                     onClick={() => toggleDropdown(setShowGffDropdown, showGffDropdown)}
-                                     className="phg-select phg-dropdown-trigger" aria-haspopup="listbox" aria-expanded={showGffDropdown}>
-                                     <span>{formData.gff || "Select GFF File..."}</span>
-                                     <ChevronDownIcon className="phg-dropdown-icon" open={showGffDropdown} />
-                                 </button>
-                                 {showGffDropdown && (
-                                     <div className="phg-dropdown-menu" role="listbox">
-                                         {gffOptions.map((gff) => ( <button key={gff} type="button" role="option" aria-selected={formData.gff === gff} onClick={() => handleSelect('gff', gff, setShowGffDropdown)} className="phg-dropdown-item"> {gff} </button> ))}
-                                     </div>
-                                 )}
-                             </div>
-                             {errors.gff && <span className="phg-error-text">{errors.gff}</span>}
+                              <label htmlFor="gff" className="phg-label">GFF File</label>
+                              <div className="phg-dropdown-container">
+                                  <button
+                                      type="button" id="gff"
+                                      onClick={() => toggleDropdown(setShowGffDropdown, showGffDropdown)}
+                                      className="phg-input phg-dropdown-trigger" // MODIFIED CLASS
+                                      aria-haspopup="listbox" aria-expanded={showGffDropdown}>
+                                      {/* MODIFIED: Use specific classes */}
+                                      {formData.gff ? (
+                                          <span className="phg-dropdown-selected-value">{formData.gff}</span>
+                                      ) : (
+                                          <span className="phg-dropdown-placeholder">Select GFF File...</span>
+                                      )}
+                                      <ChevronDownIcon />
+                                  </button>
+                                  {showGffDropdown && (
+                                      <div className="phg-dropdown-menu" role="listbox">
+                                          {gffOptions.map((gffFile) => ( // Renamed 'gff' to 'gffFile'
+                                              <button key={gffFile} type="button" role="option" aria-selected={formData.gff === gffFile} onClick={() => handleSelect('gff', gffFile, setShowGffDropdown)} className="phg-dropdown-item"> {gffFile} </button>
+                                          ))}
+                                      </div>
+                                  )}
+                              </div>
+                              {errors.gff && <span className="phg-error-text">{errors.gff}</span>}
                          </div>
 
                          {/* Reference File Selection */}
                          <div className="phg-form-group" onBlur={(e) => handleDropdownBlur(e, setShowReferenceDropdown)}>
-                             <label htmlFor="reference" className="phg-label">Reference Sequence File</label>
-                             <div className="phg-dropdown-container">
-                                 <button
-                                     type="button" id="reference"
-                                     // *** FIXED onClick ***
-                                     onClick={() => toggleDropdown(setShowReferenceDropdown, showReferenceDropdown)}
-                                     className="phg-select phg-dropdown-trigger" aria-haspopup="listbox" aria-expanded={showReferenceDropdown}>
-                                     <span>{formData.reference || "Select Reference File..."}</span>
-                                     <ChevronDownIcon className="phg-dropdown-icon" open={showReferenceDropdown} />
-                                 </button>
-                                 {showReferenceDropdown && (
-                                     <div className="phg-dropdown-menu" role="listbox">
-                                         {sequenceOptions .filter(seq => formData.selectedSequences.includes(seq.value)) .map((seq) => ( <button key={seq.value} type="button" role="option" aria-selected={formData.reference === seq.value} onClick={() => handleSelect('reference', seq.value, setShowReferenceDropdown)} className="phg-dropdown-item"> {seq.label} </button> ))}
-                                         {sequenceOptions.filter(seq => formData.selectedSequences.includes(seq.value)).length === 0 && <div className="phg-dropdown-item-disabled">Select sequences first</div> }
-                                     </div>
-                                 )}
-                             </div>
-                             {errors.reference && <span className="phg-error-text">{errors.reference}</span>}
+                              <label htmlFor="reference" className="phg-label">Reference Sequence File</label>
+                              <div className="phg-dropdown-container">
+                                  <button
+                                      type="button" id="reference"
+                                      onClick={() => toggleDropdown(setShowReferenceDropdown, showReferenceDropdown)}
+                                      className="phg-input phg-dropdown-trigger" // MODIFIED CLASS
+                                      aria-haspopup="listbox" aria-expanded={showReferenceDropdown}>
+                                     {/* MODIFIED: Use specific classes */}
+                                     {formData.reference ? (
+                                         <span className="phg-dropdown-selected-value">{formData.reference}</span>
+                                     ) : (
+                                         <span className="phg-dropdown-placeholder">Select Reference File...</span>
+                                     )}
+                                     <ChevronDownIcon />
+                                  </button>
+                                  {showReferenceDropdown && (
+                                      <div className="phg-dropdown-menu" role="listbox">
+                                          {sequenceOptions
+                                            .filter(seq => formData.selectedSequences.includes(seq.value))
+                                            .map((seq) => (
+                                                <button key={seq.value} type="button" role="option" aria-selected={formData.reference === seq.value} onClick={() => handleSelect('reference', seq.value, setShowReferenceDropdown)} className="phg-dropdown-item"> {seq.label} </button>
+                                            ))
+                                          }
+                                          {sequenceOptions.filter(seq => formData.selectedSequences.includes(seq.value)).length === 0 &&
+                                              <div className="phg-dropdown-item-disabled">Select input sequences first</div>
+                                          }
+                                      </div>
+                                  )}
+                              </div>
+                              {errors.reference && <span className="phg-error-text">{errors.reference}</span>}
                          </div>
 
                          {/* Boundary Selection */}
                          <div className="phg-form-group" onBlur={(e) => handleDropdownBlur(e, setShowBoundaryDropdown)}>
-                             <label htmlFor="boundary" className="phg-label">Boundary Type</label>
-                             <div className="phg-dropdown-container">
-                                 <button
-                                     type="button" id="boundary"
-                                     // *** FIXED onClick ***
-                                     onClick={() => toggleDropdown(setShowBoundaryDropdown, showBoundaryDropdown)}
-                                     className="phg-select phg-dropdown-trigger" aria-haspopup="listbox" aria-expanded={showBoundaryDropdown}>
-                                     <span>{formData.boundary || "Select Boundary..."}</span>
-                                     <ChevronDownIcon className="phg-dropdown-icon" open={showBoundaryDropdown} />
-                                 </button>
-                                 {showBoundaryDropdown && (
-                                     <div className="phg-dropdown-menu" role="listbox">
-                                         {boundaryOptions.map((bound) => ( <button key={bound} type="button" role="option" aria-selected={formData.boundary === bound} onClick={() => handleSelect('boundary', bound, setShowBoundaryDropdown)} className="phg-dropdown-item"> {bound} </button> ))}
-                                     </div>
-                                 )}
-                             </div>
-                             {errors.boundary && <span className="phg-error-text">{errors.boundary}</span>}
+                              <label htmlFor="boundary" className="phg-label">Boundary Type</label>
+                              <div className="phg-dropdown-container">
+                                  <button
+                                      type="button" id="boundary"
+                                      onClick={() => toggleDropdown(setShowBoundaryDropdown, showBoundaryDropdown)}
+                                      className="phg-input phg-dropdown-trigger" // MODIFIED CLASS
+                                      aria-haspopup="listbox" aria-expanded={showBoundaryDropdown}>
+                                      {/* MODIFIED: Use specific classes */}
+                                      {formData.boundary ? (
+                                          <span className="phg-dropdown-selected-value">{formData.boundary}</span>
+                                      ) : (
+                                          <span className="phg-dropdown-placeholder">Select Boundary...</span>
+                                      )}
+                                      <ChevronDownIcon />
+                                  </button>
+                                  {showBoundaryDropdown && (
+                                      <div className="phg-dropdown-menu" role="listbox">
+                                          {boundaryOptions.map((bound) => (
+                                              <button key={bound} type="button" role="option" aria-selected={formData.boundary === bound} onClick={() => handleSelect('boundary', bound, setShowBoundaryDropdown)} className="phg-dropdown-item"> {bound} </button>
+                                          ))}
+                                      </div>
+                                  )}
+                              </div>
+                              {errors.boundary && <span className="phg-error-text">{errors.boundary}</span>}
                          </div>
 
                          {/* Pad Input */}
                          <div className="phg-form-group">
-                             <label htmlFor="pad" className="phg-label">Pad Size</label>
-                             <input type="number" id="pad" name="pad" value={formData.pad} onChange={handleChange} min={0} className="phg-input" placeholder="e.g., 1000" />
-                             {errors.pad && <span className="phg-error-text">{errors.pad}</span>}
+                              <label htmlFor="pad" className="phg-label">Pad Size</label>
+                              <input type="number" id="pad" name="pad" value={formData.pad} onChange={handleChange} min={0} className="phg-input" placeholder="e.g., 1000" />
+                              {errors.pad && <span className="phg-error-text">{errors.pad}</span>}
                          </div>
 
                          {/* Min Range Size Input */}
                          <div className="phg-form-group">
-                             <label htmlFor="minRangeSize" className="phg-label">Minimum Range Size</label>
-                             <input type="number" id="minRangeSize" name="minRangeSize" value={formData.minRangeSize} onChange={handleChange} min={1} className="phg-input" placeholder="e.g., 500" />
-                             {errors.minRangeSize && <span className="phg-error-text">{errors.minRangeSize}</span>}
+                              <label htmlFor="minRangeSize" className="phg-label">Minimum Range Size</label>
+                              <input type="number" id="minRangeSize" name="minRangeSize" value={formData.minRangeSize} onChange={handleChange} min={1} className="phg-input" placeholder="e.g., 500" />
+                              {errors.minRangeSize && <span className="phg-error-text">{errors.minRangeSize}</span>}
                          </div>
 
                          {/* Submit Button */}
                          <div className="pipeline-form-submit">
-                             <button type="submit" className="phg-button phg-button-primary" disabled={isSubmittingPipeline} >
-                                 {isSubmittingPipeline && <span className="phg-spinner"></span>}
-                                 {isSubmittingPipeline ? "Processing Pipeline..." : "Run Full Pipeline"}
-                             </button>
+                              <button type="submit" className="phg-button phg-button-primary" disabled={isSubmittingPipeline} >
+                                  {isSubmittingPipeline && <span className="phg-spinner"></span>}
+                                  {isSubmittingPipeline ? "Processing Pipeline..." : "Run Full Pipeline"}
+                              </button>
                          </div>
                      </form>
                  </div> {/* End Card Content */}
