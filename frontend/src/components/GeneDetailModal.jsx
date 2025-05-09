@@ -58,7 +58,7 @@ const GeneDetailModal = ({ geneData, onClose }) => {
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={handleContentClick}>
+      <div className="modal-content-gene" onClick={handleContentClick}>
         <button className="modal-close-btn" onClick={onClose} aria-label="Close modal">
           <i className="fas fa-times"></i> {/* Or use FaTimes */}
         </button>
@@ -87,7 +87,7 @@ const GeneDetailModal = ({ geneData, onClose }) => {
                     <iframe
                         src={jbrowseUrl}
                         width="100%"
-                        height="450" // Adjust height as needed
+                        height="600" // Adjust height as needed
                         title={`JBrowse view for ${geneData.geneName}`}
                         frameBorder="0"
                     >

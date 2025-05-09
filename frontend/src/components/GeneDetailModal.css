@@ -30,7 +30,7 @@
   padding: 1rem; box-sizing: border-box;
 }
 
-.modal-content {
+.modal-content-gene {
   background-color: var(--background-secondary);
   padding: 2rem 2.5rem;
   border-radius: var(--border-radius);
