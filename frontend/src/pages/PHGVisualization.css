@@ -50,14 +50,14 @@ body { /* Apply base font to body if component is root */
 }
 
 /* --- Component Container --- */
-.phg-visualization-container {
+.phg-visualization-container-taj {
     padding: 1rem;
     height: 100%;
     width: 100%;
 }
 
 /* --- React Flow Wrapper --- */
-.phg-reactflow-wrapper {
+.phg-reactflow-wrapper-taj {
     position: relative;
     border: 1px solid var(--phg-color-border); /* Use dark border */
     border-radius: var(--phg-border-radius);
@@ -68,48 +68,48 @@ body { /* Apply base font to body if component is root */
 }
 
 /* Style React Flow Background (dots/lines) */
-.phg-reactflow-wrapper .react-flow__background {
+.phg-reactflow-wrapper-taj .react-flow__background {
     --bg-color: var(--phg-color-background-primary); /* Ensure variable scope */
     background-color: var(--bg-color);
 }
-.phg-reactflow-wrapper .react-flow__background path {
+.phg-reactflow-wrapper-taj .react-flow__background path {
      stroke: var(--phg-color-border); /* Color of the dots/lines */
      opacity: 0.4;
 }
 
 /* Style React Flow Controls */
-.phg-reactflow-wrapper .react-flow__controls {
+.phg-reactflow-wrapper-taj .react-flow__controls {
     box-shadow: var(--phg-shadow);
 }
-.phg-reactflow-wrapper .react-flow__controls button {
+.phg-reactflow-wrapper-taj .react-flow__controls button {
     background-color: var(--phg-color-background-secondary);
     border-bottom: 1px solid var(--phg-color-border);
     fill: var(--phg-color-text-secondary);
     transition: background-color var(--phg-transition-speed) ease;
 }
-.phg-reactflow-wrapper .react-flow__controls button:hover {
+.phg-reactflow-wrapper-taj .react-flow__controls button:hover {
     background-color: var(--phg-color-background-tertiary);
 }
-.phg-reactflow-wrapper .react-flow__controls button:disabled {
+.phg-reactflow-wrapper-taj .react-flow__controls button:disabled {
     fill: var(--phg-color-text-muted);
     cursor: not-allowed;
     opacity: 0.7;
 }
 
 /* Style React Flow Minimap */
-.phg-reactflow-wrapper .react-flow__minimap {
+.phg-reactflow-wrapper-taj .react-flow__minimap {
     background-color: var(--phg-color-background-secondary);
     border: 1px solid var(--phg-color-border);
     border-radius: var(--phg-border-radius);
 }
 /* Minimap node color is set via prop, but mask can be styled */
-.phg-reactflow-wrapper .react-flow__minimap-mask {
+.phg-reactflow-wrapper-taj .react-flow__minimap-mask {
     fill: rgba(17, 34, 64, 0.6); /* Semi-transparent secondary bg */
 }
 
 
 /* --- Node Label Styling --- */
-.phg-node-label {
+.phg-node-label-taj {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -124,7 +124,7 @@ body { /* Apply base font to body if component is root */
     text-align: center;
 }
 
-.phg-node-label-sample {
+.phg-node-label-sample-taj {
     font-size: 11px;
     font-weight: 600;
     white-space: nowrap;
@@ -134,7 +134,7 @@ body { /* Apply base font to body if component is root */
     line-height: 1.2;
 }
 
-.phg-node-label-pos {
+.phg-node-label-pos-taj {
     font-size: 9px;
     opacity: 0.8;
     white-space: nowrap;
@@ -145,7 +145,7 @@ body { /* Apply base font to body if component is root */
 }
 
 /* --- Card Styling --- */
-.phg-card {
+.phg-card-taj {
     background-color: var(--phg-color-background-overlay); /* Use overlay bg */
     backdrop-filter: blur(5px); /* Slightly more blur */
     border: 1px solid var(--phg-color-border-light); /* Lighter border for overlay */
@@ -154,7 +154,7 @@ body { /* Apply base font to body if component is root */
     overflow: hidden;
 }
 
-.phg-card-header {
+.phg-card-header-taj {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -162,7 +162,7 @@ body { /* Apply base font to body if component is root */
     border-bottom: 1px solid var(--phg-color-border); /* Standard border */
 }
 
-.phg-card-title {
+.phg-card-title-taj {
     font-family: var(--phg-font-primary);
     font-size: 1rem;
     font-weight: 600;
@@ -170,7 +170,7 @@ body { /* Apply base font to body if component is root */
     margin: 0;
 }
 
-.phg-card-content {
+.phg-card-content-taj {
     padding: 0.75rem 1rem;
     font-size: 0.875rem;
     display: flex;
@@ -179,7 +179,7 @@ body { /* Apply base font to body if component is root */
 }
 
 /* --- Button Styling --- */
-.phg-button {
+.phg-button-taj {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -195,12 +195,12 @@ body { /* Apply base font to body if component is root */
     white-space: nowrap;
 }
 
-.phg-button:focus-visible {
+.phg-button-taj:focus-visible {
     outline: 2px solid var(--phg-color-accent-primary); /* Use accent for focus */
     outline-offset: 2px;
 }
 
-.phg-button:disabled {
+.phg-button-taj:disabled {
     background-color: var(--phg-color-background-disabled); /* Use disabled bg */
     color: var(--phg-color-text-muted); /* Use muted text */
     border-color: var(--phg-color-border-disabled); /* Use standard border */
@@ -209,7 +209,7 @@ body { /* Apply base font to body if component is root */
     transform: none; /* Prevent hover transforms */
 }
 /* Ensure hover styles don't apply when disabled */
-.phg-button:disabled:hover {
+.phg-button-taj:disabled:hover {
      background-color: var(--phg-color-background-disabled);
      color: var(--phg-color-text-muted);
      border-color: var(--phg-color-border-disabled);
@@ -217,26 +217,26 @@ body { /* Apply base font to body if component is root */
 
 
 /* Primary Button (Visualize) */
-.phg-button-primary {
+.phg-button-primary-taj {
     background-color: var(--phg-color-accent-primary);
     color: var(--phg-color-text-on-accent); /* Dark text on accent */
     border-color: var(--phg-color-accent-primary);
 }
 
-.phg-button-primary:hover:not(:disabled) {
+.phg-button-primary-taj:hover:not(:disabled) {
     background-color: var(--phg-color-accent-primary-hover);
     border-color: var(--phg-color-accent-primary-hover);
     transform: translateY(-2px); /* Subtle lift */
 }
 
-.phg-button-visualize {
+.phg-button-visualize-taj {
     width: 100%;
     margin-top: 0.5rem;
 }
 
 
 /* Ghost Button (Expand/Collapse) */
-.phg-button-ghost {
+.phg-button-ghost-taj {
     background-color: transparent;
     color: var(--phg-color-accent-primary); /* Use accent color */
     border-color: transparent;
@@ -244,33 +244,33 @@ body { /* Apply base font to body if component is root */
     font-size: 0.8rem;
 }
 
-.phg-button-ghost:hover:not(:disabled) {
+.phg-button-ghost-taj:hover:not(:disabled) {
     background-color: var(--phg-color-accent-overlay-hover); /* Subtle accent bg */
     color: var(--phg-color-accent-primary-hover); /* Lighter accent text */
 }
 
 /* --- Form Elements Styling --- */
-.phg-form-group {
+.phg-form-group-taj {
     display: flex;
     flex-direction: column;
     gap: 0.25rem;
 }
 
-.phg-label {
+.phg-label-taj {
     font-weight: 600;
     color: var(--phg-color-text-secondary); /* Use secondary light text */
     font-size: 0.875rem;
 }
 
-.phg-label-detail {
+.phg-label-detail-taj {
     font-weight: 400;
     font-size: 0.75rem;
     color: var(--phg-color-text-muted); /* Use muted text */
     margin-left: 0.25rem;
 }
 
-.phg-input,
-.phg-select {
+.phg-input-taj,
+.phg-select-taj {
     width: 100%;
     padding: 0.5rem 0.75rem;
     border: 1px solid var(--phg-color-border); /* Use dark border */
@@ -281,33 +281,33 @@ body { /* Apply base font to body if component is root */
     transition: border-color var(--phg-transition-speed) ease-out, box-shadow var(--phg-transition-speed) ease-out;
 }
 
-.phg-input::placeholder { /* Style placeholder text */
+.phg-input-taj::placeholder { /* Style placeholder text */
     color: var(--phg-color-text-muted);
     opacity: 0.8;
 }
 
-.phg-input:focus,
-.phg-select:focus {
+.phg-input-taj:focus,
+.phg-select-taj:focus {
     border-color: var(--phg-color-accent-primary); /* Use accent for focus border */
     outline: none;
     box-shadow: 0 0 0 2px rgba(100, 255, 218, 0.3); /* Teal focus ring */
 }
 
-.phg-input:disabled,
-.phg-select:disabled {
+.phg-input-taj:disabled,
+.phg-select-taj:disabled {
     background-color: var(--phg-color-background-disabled); /* Use disabled bg */
     color: var(--phg-color-text-muted); /* Use muted text */
     border-color: var(--phg-color-border-disabled);
     cursor: not-allowed;
 }
-.phg-input:disabled::placeholder {
+.phg-input-taj:disabled::placeholder {
     color: var(--phg-color-text-muted);
     opacity: 0.5;
 }
 
 
 /* Specific styling for select dropdown arrow (dark theme) */
-.phg-select {
+.phg-select-taj {
     appearance: none;
     background-image: url('data:image/svg+xml;charset=US-ASCII,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="%238892b0"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>'); /* Use muted text color */
     background-repeat: no-repeat;
@@ -316,18 +316,18 @@ body { /* Apply base font to body if component is root */
     padding-right: 2.5rem;
 }
 
-.phg-select option {
+.phg-select-taj option {
      background-color: var(--phg-color-background-secondary); /* Dark background for options */
      color: var(--phg-color-text-primary);
      padding: 0.5rem;
 }
 /* Style the select when disabled */
-.phg-select:disabled {
+.phg-select-taj:disabled {
     background-image: url('data:image/svg+xml;charset=US-ASCII,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="%23555e70"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>'); /* Darker muted arrow */
 }
 
 
-.phg-slider {
+.phg-slider-taj {
     width: 100%;
     height: 0.5rem;
     background-color: var(--phg-color-border); /* Use border color for track */
@@ -338,13 +338,13 @@ body { /* Apply base font to body if component is root */
     transition: opacity var(--phg-transition-speed) ease-out;
 }
 
-.phg-slider:disabled {
+.phg-slider-taj:disabled {
     cursor: not-allowed;
     opacity: 0.6;
 }
 
 /* Slider thumb styling (dark theme) */
-.phg-slider::-webkit-slider-thumb {
+.phg-slider-taj::-webkit-slider-thumb {
     appearance: none;
     width: 1rem;
     height: 1rem;
@@ -353,7 +353,7 @@ body { /* Apply base font to body if component is root */
     cursor: pointer;
     transition: background-color var(--phg-transition-speed) ease-out;
 }
-.phg-slider::-moz-range-thumb {
+.phg-slider-taj::-moz-range-thumb {
     width: 1rem;
     height: 1rem;
     background-color: var(--phg-color-accent-primary);
@@ -363,17 +363,17 @@ body { /* Apply base font to body if component is root */
     transition: background-color var(--phg-transition-speed) ease-out;
 }
 
-.phg-slider:hover::-webkit-slider-thumb { background-color: var(--phg-color-accent-primary-hover); }
-.phg-slider:hover::-moz-range-thumb { background-color: var(--phg-color-accent-primary-hover); }
+.phg-slider-taj:hover::-webkit-slider-thumb { background-color: var(--phg-color-accent-primary-hover); }
+.phg-slider-taj:hover::-moz-range-thumb { background-color: var(--phg-color-accent-primary-hover); }
 
-.phg-help-text {
+.phg-help-text-taj {
     font-size: 0.75rem;
     color: var(--phg-color-text-muted); /* Use muted text */
     margin-top: 0.25rem;
 }
 
 /* --- Panel Overlays (Settings & Legend) --- */
-.phg-settings-panel {
+.phg-settings-panel-taj {
     position: absolute;
     left: 1rem;
     top: 1rem;
@@ -382,7 +382,7 @@ body { /* Apply base font to body if component is root */
     max-width: 24rem;
 }
 
-.phg-legend-panel {
+.phg-legend-panel-taj {
     position: absolute;
     right: 1rem;
     top: 1rem;
@@ -391,20 +391,20 @@ body { /* Apply base font to body if component is root */
 }
 
 /* --- Legend Specific Styles --- */
-.phg-legend-content {
+.phg-legend-content-taj {
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
     padding-top: 0.5rem;
 }
 
-.phg-legend-item {
+.phg-legend-item-taj {
     display: flex;
     align-items: center;
     gap: 0.5rem;
 }
 
-.phg-legend-color-box {
+.phg-legend-color-box-taj {
     width: 1rem;
     height: 1rem;
     border-radius: 2px;
@@ -412,12 +412,12 @@ body { /* Apply base font to body if component is root */
     border: 1px solid rgba(204, 214, 246, 0.2); /* Subtle border using secondary text color */
 }
 
-.phg-legend-text {
+.phg-legend-text-taj {
     font-size: 0.8rem;
     color: var(--phg-color-text-secondary); /* Use secondary light text */
 }
 
-.phg-legend-explanation {
+.phg-legend-explanation-taj {
     font-size: 0.75rem;
     color: var(--phg-color-text-muted); /* Use muted text */
     padding-top: 0.5rem;
@@ -428,7 +428,7 @@ body { /* Apply base font to body if component is root */
 
 
 /* --- Modal Styling --- */
-.phg-modal-overlay {
+.phg-modal-overlay-taj {
     position: fixed;
     inset: 0;
     background-color: rgba(2, 12, 27, 0.8); /* Darker overlay using primary bg */
@@ -440,7 +440,7 @@ body { /* Apply base font to body if component is root */
     transition: opacity var(--phg-transition-speed) ease-out;
 }
 
-.phg-modal-content {
+.phg-modal-content-taj {
     position: relative;
     display: flex;
     flex-direction: column;
@@ -458,7 +458,7 @@ body { /* Apply base font to body if component is root */
     transition: transform var(--phg-transition-speed) ease-out;
 }
 
-.phg-modal-close-button {
+.phg-modal-close-button-taj {
     position: absolute;
     top: 0.75rem;
     right: 0.75rem;
@@ -472,11 +472,11 @@ body { /* Apply base font to body if component is root */
     transition: color var(--phg-transition-speed) ease-out;
 }
 
-.phg-modal-close-button:hover {
+.phg-modal-close-button-taj:hover {
     color: var(--phg-color-accent-primary); /* Use accent on hover */
 }
 
-.phg-modal-title {
+.phg-modal-title-taj {
     font-family: var(--phg-font-primary);
     font-size: 1.25rem;
     font-weight: 700;
@@ -485,7 +485,7 @@ body { /* Apply base font to body if component is root */
     margin-top: 0;
 }
 
-.phg-node-details-box {
+.phg-node-details-box-taj {
     background-color: var(--phg-color-background-primary); /* Use darkest bg */
     padding: 1rem;
     border-radius: var(--phg-border-radius);
@@ -494,7 +494,7 @@ body { /* Apply base font to body if component is root */
     border: 1px solid var(--phg-color-border); /* Add border */
 }
 
-.phg-node-details-grid {
+.phg-node-details-grid-taj {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 0.25rem 1rem;
@@ -502,18 +502,18 @@ body { /* Apply base font to body if component is root */
     color: var(--phg-color-text-secondary); /* Use secondary light text */
 }
 
-.phg-node-details-grid p {
+.phg-node-details-grid-taj p {
     margin: 0;
     font-weight: 500;
 }
 
-.phg-text-highlight {
+.phg-text-highlight-taj {
     font-weight: 700;
     color: var(--phg-color-accent-primary); /* Use accent for labels */
     margin-right: 0.25rem;
 }
 
-.phg-iframe-container {
+.phg-iframe-container-taj {
     flex-grow: 1;
     position: relative;
     border: 1px solid var(--phg-color-border);
@@ -522,7 +522,7 @@ body { /* Apply base font to body if component is root */
     background-color: var(--phg-color-background-primary); /* Dark bg while loading */
 }
 
-.phg-skeleton-loader {
+.phg-skeleton-loader-taj {
     position: absolute;
     inset: 0;
     background-color: var(--phg-color-background-tertiary); /* Use tertiary bg */
@@ -532,7 +532,7 @@ body { /* Apply base font to body if component is root */
     animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
-.phg-skeleton-loader p {
+.phg-skeleton-loader-taj p {
     color: var(--phg-color-text-muted); /* Use muted text */
 }
 
@@ -542,7 +542,7 @@ body { /* Apply base font to body if component is root */
 }
 
 
-.phg-iframe {
+.phg-iframe{
     position: absolute;
     inset: 0;
     border: none;
@@ -551,25 +551,25 @@ body { /* Apply base font to body if component is root */
 
 /* --- Responsive Adjustments --- */
 @media (max-width: 768px) {
-    .phg-settings-panel {
+    .phg-settings-panel-taj {
         max-width: 90%;
         left: 5%;
         top: 0.5rem;
     }
-    .phg-legend-panel {
+    .phg-legend-panel-taj {
         right: 0.5rem;
         top: 0.5rem;
     }
-    .phg-card-title {
+    .phg-card-title-taj {
         font-size: 0.9rem;
     }
-    .phg-modal-content {
+    .phg-modal-content-taj {
         padding: 1rem;
     }
-    .phg-modal-title {
+    .phg-modal-title-taj {
         font-size: 1.1rem;
     }
-     .phg-reactflow-wrapper {
+     .phg-reactflow-wrapper-taj {
         height: 65vh;
     }
 }

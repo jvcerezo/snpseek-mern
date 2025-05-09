@@ -43,7 +43,7 @@ const PHGVisualization = () => {
     useEffect(() => {
         const fetchProjects = async () => {
             try {
-                const res = await api.get('/PHG/pipeline/get-directory-projects');
+                const res = await api.get('/api/PHG/pipeline/get-directory-projects');
                 if (!res.data) throw new Error('Error fetching available projects: No data received');
                 const response = res.data;
                 if (response.Files && Array.isArray(response.Files)) {
@@ -71,7 +71,7 @@ const PHGVisualization = () => {
             }
             setIsFetchingSampleRegions(true); regionsDataRef.current = null;
             try {
-                const res = await api.post(`/PHG/query/sample_regions`,
+                const res = await api.post(`/api/PHG/query/sample_regions`,
                     { Project_Name: selectedProject, Reference_Name: selectedProject },
                     { headers: { 'Content-Type': 'application/json' } }
                 );
@@ -140,7 +140,7 @@ const PHGVisualization = () => {
         const adjustedEnd = Math.min(start + effectiveSize, maxBoundary);
         const adjustedStart = Math.min(start, adjustedEnd);
         const cacheKey = `${selectedProject}:${contig}:${adjustedStart}-${adjustedEnd}`;
-
+    
         if (regionCacheRef.current[cacheKey]) {
             console.log("Using cached data for:", cacheKey);
             const cachedData = regionCacheRef.current[cacheKey];
@@ -149,11 +149,14 @@ const PHGVisualization = () => {
         console.log("Fetching data for:", cacheKey);
         try {
             const response = await api.post(
-                `/PHG/query/regions?chro=${contig}&position=${adjustedStart}-${adjustedEnd}`,
+                `/api/PHG/query/regions`,  // Remove the query parameters from URL
                 {
-                    Project_Name: selectedProject, Reference_Name: selectedProject,
+                    Project_Name: selectedProject, 
+                    Reference_Name: selectedProject,
                     samples: availableSamples,
-                    attrs: ['sample_name', 'id', 'contig', 'alleles', 'pos_start', 'pos_end', 'fmt_GT']
+                    attrs: ['sample_name', 'id', 'contig', 'alleles', 'pos_start', 'pos_end', 'fmt_GT'],
+                    chro: contig,  // Add chro to the request body
+                    position: `${adjustedStart}-${adjustedEnd}`  // Add position to the request body
                 },
                 { headers: { 'Content-Type': 'application/json' } }
             );
@@ -252,39 +255,41 @@ const PHGVisualization = () => {
     // --- Render ---
     return (
         // Main container - Added class for potential top-level styling
-        <div className='phg-visualization-container'>
+        <div className='phg-visualization-container-taj'>
+            <h1 className="page-title"> PHG Visualization </h1>
 
             {/* Node Details Modal */}
             {isNodeClicked && (
-                <div className="phg-modal-overlay">
+                <div className="phg-modal-overlay-taj">
                     <motion.div
                         initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}
                         transition={{ duration: 0.2, ease: "linear" }}
-                        className="phg-modal-content"
+                        className="phg-modal-content-taj"
                     >
-                        <button onClick={() => setIsNodeClicked(false)} className="phg-modal-close-button" aria-label="Close modal">
+                        <button onClick={() => setIsNodeClicked(false)} className="phg-modal-close-button-taj" aria-label="Close modal">
                             &times;
                         </button>
-                        <h2 className="phg-modal-title">Node Details</h2>
-                        <div className="phg-node-details-box">
-                             <div className="phg-node-details-grid">
+                        <h2 className="phg-modal-title-taj">Node Details</h2>
+                        <div className="phg-node-details-box-taj">
+                             <div className="phg-node-details-grid-taj">
                                 <p><strong className="phg-text-highlight">Sample:</strong> {selectedNode.allele}</p>
                                 <p><strong className="phg-text-highlight">Contig:</strong> {submittedContig}</p>
                                 <p><strong className="phg-text-highlight">Start:</strong> {selectedNode.start}</p>
                                 <p><strong className="phg-text-highlight">End:</strong> {selectedNode.end}</p>
                              </div>
                         </div>
-                        <div className="phg-iframe-container">
-                            <div id="skeleton" className="phg-skeleton-loader">
+                        <div className="phg-iframe-container-taj">
+                            <div id="skeleton" className="phg-skeleton-loader-taj">
                                 <p>Loading JBrowse...</p>
                             </div>
                             <iframe
                                 id="snpIframe"
-                                src={`https://snp-seek.irri.org/jbrowse/?loc=${encodeURIComponent(submittedContig)}%3A${encodeURIComponent(selectedNode.start)}..${encodeURIComponent(selectedNode.end)}`}
+                                src={`https://snp-seek.irri.org/jbrowse/?loc=${encodeURIComponent(submittedContig)}%3A${encodeURIComponent(selectedNode.start)}..${encodeURIComponent(selectedNode.end)}&theme=light`}
                                 width="100%" height="100%"
                                 className="phg-iframe" // Start hidden via CSS
                                 title={`JBrowse view for ${submittedContig}:${selectedNode.start}-${selectedNode.end}`}
                                 onLoad={handleIframeLoad}
+                                style={{backgroundColor: "#FFFFFF"}}
                             />
                         </div>
                     </motion.div>
@@ -292,7 +297,7 @@ const PHGVisualization = () => {
             )}
 
             {/* React Flow Container */}
-            <div className='phg-reactflow-wrapper'>
+            <div className='phg-reactflow-wrapper-taj'>
                 <ReactFlow
                     nodes={nodes} edges={edges} onNodeClick={handleNodeClick}
                     onNodesChange={(changes) => setNodes(nds => applyNodeChanges(changes, nds))}
@@ -301,24 +306,24 @@ const PHGVisualization = () => {
                     fitView
                     // onInit={(instance) => reactFlowInstanceRef.current = instance} // Store instance if using effect 4
                     proOptions={{ hideAttribution: true }}
-                    className="phg-reactflow-canvas" // Class for canvas specific styles if needed
+                    className="phg-reactflow-canvas-taj" // Class for canvas specific styles if needed
                 >
                     <Background variant="dots" gap={16} size={1} /> {/* Color set in CSS */}
                     <Controls />
                     <MiniMap nodeStrokeWidth={3} nodeColor={n => n.style?.backgroundColor || '#ccc'} />
 
                      {/* Settings Panel Overlay */}
-                     <div className='phg-settings-panel'>
+                     <div className='phg-settings-panel-taj'>
                         {/* Use standard div for Card */}
-                        <div className='phg-card'>
+                        <div className='phg-card-taj'>
                              {/* Use standard div for CardHeader */}
-                             <div className="phg-card-header">
+                             <div className="phg-card-header-taj">
                                  {/* Use standard h3 or div for CardTitle */}
-                                <h3 className="phg-card-title">Visualization Settings</h3>
+                                <h3 className="phg-card-title-taj">Visualization Settings</h3>
                                 {/* Use standard button */}
                                 <button
                                     onClick={() => setIsCardCollapsed(!isCardCollapsed)}
-                                    className='phg-button phg-button-ghost' // Base + variant class
+                                    className='phg-button phg-button-ghost-taj' // Base + variant class
                                     aria-expanded={!isCardCollapsed}
                                     aria-controls="settings-content"
                                 >
@@ -328,14 +333,14 @@ const PHGVisualization = () => {
 
                            {!isCardCollapsed && (
                                // Use standard div for CardContent
-                                <div id="settings-content" className='phg-card-content'>
+                                <div id="settings-content" className='phg-card-content-taj'>
                                     {/* Project Selection */}
-                                    <div className='phg-form-group'>
-                                        <label htmlFor="project-select" className="phg-label">Project</label>
+                                    <div className='phg-form-group-taj'>
+                                        <label htmlFor="project-select" className="phg-label-taj">Project</label>
                                         {/* Use standard select */}
                                         <select
                                             id="project-select"
-                                            className="phg-select"
+                                            className="phg-select-taj"
                                             value={selectedProject}
                                             onChange={(e) => {
                                                 setSelectedProject(e.target.value);
@@ -353,11 +358,11 @@ const PHGVisualization = () => {
                                     </div>
 
                                     {/* Sample Selection */}
-                                    <div className='phg-form-group'>
-                                        <label htmlFor="sample-select" className="phg-label">Reference Sample</label>
+                                    <div className='phg-form-group-taj'>
+                                        <label htmlFor="sample-select" className="phg-label-taj">Reference Sample</label>
                                         <select
                                             id="sample-select"
-                                            className="phg-select"
+                                            className="phg-select-taj"
                                             value={selectedSample}
                                             onChange={(e) => {
                                                 setSelectedSample(e.target.value);
@@ -375,11 +380,11 @@ const PHGVisualization = () => {
                                     </div>
 
                                     {/* Chromosome/Contig Selection */}
-                                    <div className='phg-form-group'>
-                                        <label htmlFor="contig-select" className="phg-label">Chromosome</label>
+                                    <div className='phg-form-group-taj'>
+                                        <label htmlFor="contig-select" className="phg-label-taj">Chromosome</label>
                                         <select
                                             id="contig-select"
-                                            className="phg-select"
+                                            className="phg-select-taj"
                                             value={contig}
                                             onChange={(e) => setContig(e.target.value)}
                                             disabled={!selectedSample || isFetchingSampleRegions || availableContigs.length === 0}
@@ -390,15 +395,15 @@ const PHGVisualization = () => {
                                             ))}
                                         </select>
                                         {selectedSample && minBoundary !== maxBoundary && (
-                                            <p className="phg-help-text">
+                                            <p className="phg-help-text-taj">
                                                 Available Range: {minBoundary.toLocaleString()} - {maxBoundary.toLocaleString()} bp
                                             </p>
                                         )}
                                     </div>
 
                                     {/* Starting Position Input */}
-                                    <div className='phg-form-group'>
-                                        <label htmlFor="start-pos" className="phg-label">Starting Position (bp)</label>
+                                    <div className='phg-form-group-taj'>
+                                        <label htmlFor="start-pos" className="phg-label-taj">Starting Position (bp)</label>
                                         {/* Use standard input */}
                                         <input
                                             id="start-pos"
@@ -408,14 +413,14 @@ const PHGVisualization = () => {
                                             min={minBoundary}
                                             max={maxBoundary}
                                             onChange={(e) => setStart(Math.max(minBoundary, Number(e.target.value)))}
-                                            className='phg-input'
+                                            className='phg-input-taj'
                                             disabled={!contig || isFetchingSampleRegions}
                                         />
                                     </div>
 
                                     {/* Region Size Slider */}
-                                    <div className='phg-form-group'>
-                                        <label htmlFor="region-size" className="phg-label">
+                                    <div className='phg-form-group-taj'>
+                                        <label htmlFor="region-size" className="phg-label-taj">
                                              Region Size: {regionSize.toLocaleString()} bp
                                              <span className="phg-label-detail">(Max: {MAX_WINDOW_SIZE.toLocaleString()})</span>
                                         </label>
@@ -428,17 +433,17 @@ const PHGVisualization = () => {
                                             max={effectiveSliderMax}
                                             step={100}
                                             onChange={(e) => setRegionSize(Number(e.target.value))}
-                                            className='phg-slider'
+                                            className='phg-slider-taj'
                                             disabled={!contig || isFetchingSampleRegions || effectiveSliderMax <= 100}
                                         />
-                                         <p className="phg-help-text">
+                                         <p className="phg-help-text-taj">
                                              Visualizing: {start.toLocaleString()} - {(start + regionSize).toLocaleString()} bp
                                          </p>
                                     </div>
 
                                     {/* Visualize Button */}
                                     <button
-                                        className="phg-button phg-button-primary phg-button-visualize" // Base + variant + specific class
+                                        className="phg-button-taj phg-button-primary-taj phg-button-visualize-taj" // Base + variant + specific class
                                         onClick={fetchData}
                                         disabled={!contig || !selectedSample || isFetchingSampleRegions || regionSize <= 0}
                                     >
@@ -450,35 +455,35 @@ const PHGVisualization = () => {
                     </div> {/* End phg-settings-panel */}
 
                      {/* Legend Overlay */}
-                     <div className='phg-legend-panel'>
+                     <div className='phg-legend-panel-taj'>
                          {/* Use standard div for Card */}
-                         <div className='phg-card'>
+                         <div className='phg-card-taj'>
                             {/* Use standard div for CardHeader */}
-                            <div className="phg-card-header">
+                            <div className="phg-card-header-taj">
                                 {/* Use standard h4 or div for CardTitle */}
-                                <h4 className='phg-card-title'>Legend</h4>
+                                <h4 className='phg-card-title-taj'>Legend</h4>
                             </div>
                             {/* Use standard div for CardContent */}
-                            <div className="phg-card-content phg-legend-content">
+                            <div className="phg-card-content-taj phg-legend-content-taj">
                                 {/* Legend Items */}
-                                <div className='phg-legend-item'>
-                                    <div className='phg-legend-color-box' style={{ backgroundColor: '#5096f2' }} />
-                                    <span className="phg-legend-text">Reference Allele ({selectedSample || 'N/A'})</span>
+                                <div className='phg-legend-item-taj'>
+                                    <div className='phg-legend-color-box-taj' style={{ backgroundColor: '#5096f2' }} />
+                                    <span className="phg-legend-text-taj">Reference Allele ({selectedSample || 'N/A'})</span>
                                 </div>
-                                <div className='phg-legend-item'>
-                                    <div className='phg-legend-color-box' style={{ backgroundColor: '#f25050' }} />
-                                    <span className="phg-legend-text">Alternate Allele 1</span>
+                                <div className='phg-legend-item-taj'>
+                                    <div className='phg-legend-color-box-taj' style={{ backgroundColor: '#f25050' }} />
+                                    <span className="phg-legend-text-taj">Alternate Allele 1</span>
                                 </div>
-                                <div className='phg-legend-item'>
-                                    <div className='phg-legend-color-box' style={{ backgroundColor: '#50f250' }} />
-                                    <span className="phg-legend-text">Alternate Allele 2</span>
+                                <div className='phg-legend-item-taj'>
+                                    <div className='phg-legend-color-box-taj' style={{ backgroundColor: '#50f250' }} />
+                                    <span className="phg-legend-text-taj">Alternate Allele 2</span>
                                 </div>
-                                 <div className='phg-legend-item'>
-                                    <div className='phg-legend-color-box' style={{ backgroundColor: '#cccccc' }} />
-                                    <span className="phg-legend-text">Other / Missing</span>
+                                 <div className='phg-legend-item-taj'>
+                                    <div className='phg-legend-color-box-taj' style={{ backgroundColor: '#cccccc' }} />
+                                    <span className="phg-legend-text-taj">Other / Missing</span>
                                 </div>
                                 {/* Explanation */}
-                                <div className='phg-legend-explanation'>
+                                <div className='phg-legend-explanation-taj'>
                                     Colors show allele similarity *at each position*. Same color = same allele sequence.
                                 </div>
                             </div> {/* End phg-card-content */}
