@@ -19,7 +19,6 @@ import {
 import { useAuth } from '../context/AuthContext'; // Import useAuth hook
 import { FaDownload } from 'react-icons/fa'; // Import FaDownload for download button
 import './GenotypeSearch.css'; // Ensure you link the updated CSS
-import { set } from 'mongoose';
 
 // Helper component for loading indicators inside dropdowns
 const LoadingOption = ({ text = "Loading..." }) => (
