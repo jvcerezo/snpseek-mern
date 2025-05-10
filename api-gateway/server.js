@@ -20,6 +20,14 @@ if (!process.env.JWT_SECRET) {
 // ✅ Enable CORS and JSON parsing
 app.use(cors()); // Consider configuring allowed origins for production
 app.use(express.json());
+app.use((req, res, next) => {
+    res.setHeader("Access-Control-Allow-Origin", "*"); // Or restrict to localhost:port
+    res.setHeader("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+    res.setHeader("X-Frame-Options", "ALLOWALL"); // ✅ This allows iframe embedding
+    next();
+});
 
 // --- Authentication Middleware ---
 const verifyToken = (req, res, next) => {
