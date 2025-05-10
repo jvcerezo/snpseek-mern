@@ -1,4 +1,4 @@
-import React from "react";
+import React, {useEffect} from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 
 // Import Components and Pages
@@ -17,6 +17,38 @@ import MyLists from "./pages/MyLists";
 import PHGVisualizationPage from "./pages/PHGVisualization";
 
 function App() {
+
+  useEffect(() => {
+    const handleMessage = (event) => {
+      const allowedOrigins = ["http://localhost:8080"]; // Replace or add production Drupal origin
+
+      if (!allowedOrigins.includes(event.origin)) return;
+      if (event.data?.type === "auth" && event.data.token) {
+        const jwt = event.data.token;
+
+        // Save token to localStorage or context
+        localStorage.setItem("token", jwt);
+
+        // Optional: call your backend to verify token
+        fetch("/api/auth/portal", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${jwt}`,
+          },
+        })
+          .then((res) => res.json())
+          .then((data) => {
+            console.log("Login via iframe JWT successful", data);
+            // You can update app state here if needed
+          })
+          .catch((err) => console.error("JWT auth failed", err));
+      }
+    };
+
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, []);
 
   return (
     <Router>
