@@ -69,7 +69,7 @@ const Dashboard = () => {
               <FaSeedling className="btn-icon" /><span>PHG Visualization</span>
             </button>
             <button className="action-btn" onClick={() => handleNavigate("/pipeline")}>
-              <FaProjectDiagram className="btn-icon" /><span>Analysis Pipeline</span>
+              <FaProjectDiagram className="btn-icon" /><span>PHG Pipeline</span>
             </button>
             <button className="action-btn" onClick={() => handleNavigate("/my-lists")}>
               <FaList className="btn-icon" /><span>My Lists</span>

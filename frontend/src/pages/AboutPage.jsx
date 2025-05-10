@@ -22,7 +22,7 @@ const AboutPage = () => {
                 </h2>
                 <p>
                     SNP-MERN represents a significant modernization of the International Rice Research Institute's (IRRI) SNP-seek platform.
-                    Leveraging the power and flexibility of the MERN stack (MongoDB, Express.js, React.js, Node.js), SNP-App provides a faster,
+                    Leveraging the power and flexibility of the MERN stack (MongoDB, Express.js, React.js, Node.js), SNP-MERN provides a faster,
                     more intuitive, and feature-rich environment for genomic researchers studying rice varieties.
                 </p>
                 <p>
@@ -47,9 +47,9 @@ const AboutPage = () => {
                                 {/* <img src="/path/to/jet-photo.jpg" alt="Jet Timothy V. Cerezo" /> */}
                             </div>
                             <h4 className="profile-name">Jet Timothy V. Cerezo</h4>
-                            <p className="profile-role">Lead Developer | BS Computer Science Student</p>
+                            <p className="profile-role">SNP-MERN Developer | BS Computer Science Student</p>
                             <p className="profile-bio">
-                                Responsible for the full-stack development, design, and implementation of the SNP-App platform as part of university coursework/thesis.
+                                Responsible for the full-stack development, design, and implementation of the SNP-MERN platform as part of my Special Problem.
                                 Passionate about leveraging technology for scientific advancement.
                                 {/* Add more placeholder bio info */}
                             </p>
@@ -72,9 +72,9 @@ const AboutPage = () => {
                                 {/* <img src="/path/to/arian-photo.jpg" alt="Arian J. Jacildo" /> */}
                             </div>
                             <h4 className="profile-name">Arian J. Jacildo</h4>
-                            <p className="profile-role">[Adviser's Title/Affiliation - e.g., Assistant Professor, UPLB]</p>
+                            <p className="profile-role">Adviser - UPLB ICS Professor</p>
                              <p className="profile-bio">
-                                 Providing guidance and expertise throughout the development lifecycle of the SNP-App project. Specializes in [Area of Expertise].
+                                 Providing guidance and expertise throughout the development lifecycle of the SNP-MERN project.
                                  {/* Add more placeholder info */}
                              </p>
                              <div className="profile-links">
@@ -95,10 +95,10 @@ const AboutPage = () => {
                                 <ProfilePlaceholder />
                                 {/* <img src="/path/to/raffy-photo.jpg" alt="Raffy" /> */}
                             </div>
-                             <h4 className="profile-name">Raffy [Last Name]</h4>
-                             <p className="profile-role">[Role - e.g., Frontend Support, Testing]</p>
+                             <h4 className="profile-name">Raffy</h4>
+                             <p className="profile-role">PHG Pipeline Developer | BS Computer Science Student</p>
                              <p className="profile-bio">
-                                 [Placeholder: Raffy contributed to...] Focuses on creating intuitive user interfaces and ensuring application usability.
+                                 Developer of the PHG pipeline, focusing on backend logic and data processing.
                              </p>
                              <div className="profile-links">
                                  <a href="#" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn"><FaLinkedin /></a>
@@ -111,10 +111,10 @@ const AboutPage = () => {
                                 <ProfilePlaceholder />
                                 {/* <img src="/path/to/jr-photo.jpg" alt="JR" /> */}
                             </div>
-                            <h4 className="profile-name">JR [Last Name]</h4>
-                             <p className="profile-role">[Role - e.g., Backend Support, Data Management]</p>
+                            <h4 className="profile-name">JR Despi</h4>
+                             <p className="profile-role">PHG Visualization Developer | BS Computer Science Student</p>
                              <p className="profile-bio">
-                                [Placeholder: JR was instrumental in...] Specializes in backend logic and database interactions, ensuring data integrity.
+                                Developer of the PHG visualization tool, enhancing user experience and data representation.
                              </p>
                              <div className="profile-links">
                                  <a href="#" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn"><FaLinkedin /></a>
@@ -127,10 +127,10 @@ const AboutPage = () => {
                                 <ProfilePlaceholder />
                                 {/* <img src="/path/to/jp-photo.jpg" alt="JP" /> */}
                             </div>
-                            <h4 className="profile-name">JP [Last Name]</h4>
-                             <p className="profile-role">[Role - e.g., DevOps, Deployment]</p>
+                            <h4 className="profile-name">JP Deloso</h4>
+                             <p className="profile-role">SNP-Spring Developer | BS Computer Science Student</p>
                              <p className="profile-bio">
-                                [Placeholder: JP focused on...] Manages deployment processes and server infrastructure for reliable application performance.
+                                Developer of SNP-Spring, a java-based counterpart of the SNP-MERN platform, focusing on backend logic and data processing.
                              </p>
                             <div className="profile-links">
                                  <a href="#" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn"><FaLinkedin /></a>

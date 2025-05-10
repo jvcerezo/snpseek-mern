@@ -67,7 +67,7 @@ const Landing = () => {
                           <div>
                              <h3>Why Use SNP-MERN?</h3>
                              <p>
-                                 Gain access to powerful search capabilities across vast genomic datasets. Utilize integrated analysis tools (coming soon!) and benefit from a user-friendly interface designed to accelerate your research discovery process. SNP-App aims to streamline data exploration and analysis for the modern genomics era.
+                                 Gain access to powerful search capabilities across vast genomic datasets. Utilize integrated analysis tools (coming soon!) and benefit from a user-friendly interface designed to accelerate your research discovery process. SNP-MERN aims to streamline data exploration and analysis for the modern genomics era.
                              </p>
                          </div>
                      </div>
@@ -86,7 +86,7 @@ const Landing = () => {
                          </div>
                          <div className="feature-item">
                               <FaProjectDiagram className="feature-icon" />
-                              <h4>Analysis Pipelines</h4>
+                              <h4>PHG Pipelines and Visualization</h4>
                               <p>Execute pre-defined or custom bioinformatics workflows directly within the platform (under development).</p>
                          </div>
                          <div className="feature-item">
@@ -124,7 +124,7 @@ const Landing = () => {
                                 <FaChartLine />
                              </div>
                             <div>
-                                <h4>Access to Pipeline & QC Metrics</h4>
+                                <h4>Access to PHG Pipeline & Visualization</h4>
                                 <p>Run analysis workflows and view detailed Quality Control metrics (requires login).</p>
                             </div>
                         </li>
