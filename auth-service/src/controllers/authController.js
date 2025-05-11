@@ -272,3 +272,90 @@ export const updateProfile = async (req, res) => {
         res.status(500).json({ message: "Server Error", error: error.message });
     }
 };
+
+const constructUserFromClaims = (drupalClaims) => {
+    if (!drupalClaims) return null;
+    return {
+        email: drupalClaims.email,
+    };
+};
+
+
+// --- Login/SSO with Drupal Token (No Local DB User Storage for Auth) ---
+export const loginWithDrupalSso = async (req, res) => {
+    console.log("Drupal SSO login attempt received (stateless user model). Payload:", req.body);
+    const { drupalToken } = req.body;
+
+    if (!drupalToken) {
+        return res.status(400).json({ message: "Drupal authentication token is required." });
+    }
+
+    try {
+        // --- Step 1: Verify the Drupal Token ---
+        let drupalPayload;
+        const DRUPAL_JWT_VERIFICATION_KEY = process.env.DRUPAL_JWT_PUBLIC_KEY;
+        const DRUPAL_ISSUER = process.env.DRUPAL_TOKEN_ISSUER;
+        const EXPECTED_AUDIENCE = process.env.YOUR_APP_ID_OR_URL;
+
+        if (!DRUPAL_JWT_VERIFICATION_KEY) {
+            console.error("FATAL: DRUPAL_JWT_PUBLIC_KEY or DRUPAL_JWT_SECRET is not configured.");
+            return res.status(500).json({ message: "SSO configuration error on server (missing verification key)." });
+        }
+
+        try {
+            const verificationOptions = {
+                issuer: DRUPAL_ISSUER,
+                audience: EXPECTED_AUDIENCE,
+                // algorithms: ['RS256'] // Specify algorithm if not default
+            };
+            if (!DRUPAL_ISSUER) delete verificationOptions.issuer;
+            if (!EXPECTED_AUDIENCE) delete verificationOptions.audience;
+
+            drupalPayload = jwt.verify(drupalToken, DRUPAL_JWT_VERIFICATION_KEY, verificationOptions);
+            console.log("Drupal token successfully verified. Payload:", drupalPayload);
+        } catch (error) {
+            console.error("❌ Invalid or expired Drupal token:", error.message);
+            return res.status(401).json({ message: "Drupal token is invalid or expired. Please try logging in via Drupal again." });
+        }
+
+        // --- Step 2: Extract Necessary Identity Info (Primarily Email) ---
+        const userEmail = drupalPayload.email;
+        const drupalUserId = drupalPayload.sub; // Drupal's subject ID, often a good unique identifier
+
+        if (!userEmail || typeof userEmail !== 'string') {
+            console.error("❌ Email not found or invalid format in Drupal token payload.");
+            return res.status(400).json({ message: "Valid user email missing from Drupal token." });
+        }
+
+        // --- Step 3: Issue Your Application's "Thin" Local JWT ---
+        const appTokenPayload = {
+            id: drupalUserId || userEmail, // Use Drupal's user ID or email as the identifier
+            email: userEmail
+        };
+        const appJwtSecret = process.env.JWT_SECRET;
+        const appJwtOptions = { expiresIn: process.env.JWT_EXPIRES_IN || "1h" };
+
+        if (!appJwtSecret) {
+            console.error("FATAL: JWT_SECRET for local application is not defined.");
+            return res.status(500).json({ message: "Server configuration error (missing local JWT secret)." });
+        }
+        const appToken = jwt.sign(appTokenPayload, appJwtSecret, appJwtOptions);
+
+        console.log(`✅ Local application JWT issued for Drupal user: ${userEmail}`);
+
+        const frontendUserObject = constructUserFromClaims(drupalPayload);
+
+        res.status(200).json({
+            message: "Login via Drupal SSO successful (stateless user model).",
+            token: appToken,      // Your application's session token
+            user: frontendUserObject, // User object derived from Drupal claims
+        });
+
+    } catch (error) {
+        console.error("❌ Unexpected server error during Drupal SSO login process:", error);
+        if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
+            return res.status(401).json({ message: error.message || "Drupal token issue." });
+        }
+        res.status(500).json({ message: "Server Error during SSO processing." });
+    }
+};
