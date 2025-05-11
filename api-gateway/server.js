@@ -3,6 +3,7 @@ import proxy from "express-http-proxy";
 import cors from "cors";
 import dotenv from "dotenv";
 import jwt from 'jsonwebtoken'; // <-- Import jsonwebtoken: npm install jsonwebtoken
+import axios from "axios"; // <-- Import axios: npm install axios
 
 dotenv.config();
 
@@ -106,6 +107,24 @@ app.use(
         }
     })
 );
+
+app.get(`${API_BASE_URL}/genetic-features/reference-genomes`, async (req, res) => {
+    try {
+        const primaryResponse = await axios.get(`${process.env.GENETIC_FEATURE_SERVICE_URL}/features/reference-genomes`);
+        return res.status(200).json(primaryResponse.data);
+    } catch (primaryErr) {
+        console.error("❌ Primary service failed:", primaryErr.message);
+        // Try fallback
+        try {
+            const fallbackResponse = await axios.get(`${process.env.GENOMIC_SERVICE_URL}/genotype/reference-genomes`);
+            console.warn("⚠️ Using fallback: Genomic service instead of Genetic Feature service.");
+            return res.status(200).json(fallbackResponse.data);
+        } catch (fallbackErr) {
+            console.error("❌ Fallback service also failed:", fallbackErr.message);
+            return res.status(503).json({ message: "Both Genetic Feature and Genomic services are unavailable." });
+        }
+    }
+});
 
 app.use(
     `${API_BASE_URL}/genetic-features`, // Path: /api/genetic-features/...

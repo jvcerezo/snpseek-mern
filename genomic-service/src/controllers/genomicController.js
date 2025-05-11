@@ -110,6 +110,8 @@ export const getChromosomes = async (req, res) => {
     }
 };
 
+
+
 // --- Helper: getReferencePositionsAndAlleles (Modified for optional range) ---
 // const getReferencePositionsAndAlleles = async (referenceIdStr, contig, startPos, endPos) => {
 //     const refPosFilter = { referenceId: referenceIdStr };
@@ -370,20 +372,22 @@ export const getChromosomeRange = async (req, res) => {
 
 // Add other controllers like getReferenceGenomes if they belong in this file
 export const getReferenceGenomes = async (req, res) => {
-     try {
-         console.log("CONTROLLER: Attempting ReferenceGenome.find()");
-         // Fetch name and maybe description or other identifiers?
-         const genomes = await ReferenceGenome.find({}, "name description").sort({ name: 1 });
-         console.log(`CONTROLLER: Found ${genomes.length} reference genomes.`);
-         // Return just the names, or the full objects if needed for display
-         const genomeNames = genomes.map(g => g.name);
-         res.status(200).json(genomeNames);
-         // Or: res.status(200).json(genomes);
-     } catch (error) {
-         console.error("❌ Error fetching reference genomes:", error);
-         res.status(500).json({ message: "Server Error fetching reference genomes." });
-     }
- };
+    try {
+      const referenceGenomes = await ReferenceGenome.distinct("name");
+  
+      // Ensure uniqueness (MongoDB's `.distinct()` should already do this)
+      const uniqueGenomes = [...new Set(referenceGenomes.map(genome => genome.trim()))];
+  
+      if (!uniqueGenomes.length) {
+        return res.status(404).json({ error: "No reference genomes found" });
+      }
+  
+      res.status(200).json(uniqueGenomes);
+    } catch (error) {
+      console.error("❌ Error fetching reference genomes:", error);
+      res.status(500).json({ error: "Internal Server Error" });
+    }
+  };
 
 /**
  * @desc    Get the CONSOLIDATED min start and max end position across ALL chromosomes/contigs for a reference genome
@@ -894,9 +898,51 @@ export const searchGenotypesPublic = async (req, res) => {
                 formattedAlleles[pos] = varAllele ?? '-'; // Default to '-' if variety has no data for this pos
 
                 // Calculate Mismatch
-                if (varAllele && varAllele !== '-' && refAllele && refAllele !== '?' && varAllele !== refAllele) {
-                    mismatchCount++;
-                }
+                const genotypeFormatRegex = /^[A-Za-z0-9?_-]\/[A-Za-z0-9?_-]$/;
+
+
+if (varAllele && varAllele !== '-' && refAllele && refAllele !== '?' && varAllele !== refAllele) {
+    // The alleles are different according to the original condition
+
+    // Now, check if the variant allele is in the "X/X" genotype format
+    if (genotypeFormatRegex.test(varAllele)) {
+        // If it's in X/X format (like A/T, C/G, A/A, T/T, etc.)
+
+        // Split the genotype string into its two alleles
+        const alleles = varAllele.split('/');
+        const allele1 = alleles[0];
+        const allele2 = alleles[1];
+
+        // Count how many of these alleles match the reference allele
+        let matchingAlleles = 0;
+        if (allele1 === refAllele) {
+            matchingAlleles++;
+        }
+        if (allele2 === refAllele) {
+            matchingAlleles++;
+        }
+
+        // Determine the contribution to mismatchCount based on how many alleles match the reference
+        if (matchingAlleles === 0) {
+            // Neither allele matches the reference (e.g., Ref=A, Var=C/G or Ref=A, Var=T/T)
+            mismatchCount++; // Count as a full mismatch
+        } else if (matchingAlleles === 1) {
+            // Exactly one allele matches the reference (e.g., Ref=A, Var=A/T or Ref=T, Var=A/T)
+            mismatchCount += 0.5; // Count as half a mismatch
+        }
+        // If matchingAlleles === 2 (e.g., Ref=A, Var=A/A), this block is skipped
+        // because the outer `varAllele !== refAllele` condition would be false
+        // if your comparison logic for `varAllele !== refAllele` correctly handles 'A' vs 'A/A'.
+        // If 'A' !== 'A/A' is true even when both alleles match the ref,
+        // having a check for matchingAlleles === 2 here would also add 0 to mismatchCount, which is correct.
+
+
+    } else {
+        // If the variant allele is different but NOT in X/X format
+        // This handles single nucleotide variants (e.g., Ref=A, Var=T)
+        mismatchCount++; // Count as a full mismatch
+    }
+}
             }
 
             finalResults.varieties.push({
@@ -1191,9 +1237,51 @@ export const searchGenotypesPrivate = async (req, res) => {
                  const varAllele = varietyAllelesData?.get(pos);
                  const refAllele = referenceAllelesMap.get(pos);
                  formattedAlleles[pos] = varAllele ?? '-';
-                 if (varAllele && varAllele !== '-' && refAllele && refAllele !== '?' && varAllele !== refAllele) {
-                     mismatchCount++;
-                 }
+                 const genotypeFormatRegex = /^[A-Za-z0-9?_-]\/[A-Za-z0-9?_-]$/;
+
+
+if (varAllele && varAllele !== '-' && refAllele && refAllele !== '?' && varAllele !== refAllele) {
+    // The alleles are different according to the original condition
+
+    // Now, check if the variant allele is in the "X/X" genotype format
+    if (genotypeFormatRegex.test(varAllele)) {
+        // If it's in X/X format (like A/T, C/G, A/A, T/T, etc.)
+
+        // Split the genotype string into its two alleles
+        const alleles = varAllele.split('/');
+        const allele1 = alleles[0];
+        const allele2 = alleles[1];
+
+        // Count how many of these alleles match the reference allele
+        let matchingAlleles = 0;
+        if (allele1 === refAllele) {
+            matchingAlleles++;
+        }
+        if (allele2 === refAllele) {
+            matchingAlleles++;
+        }
+
+        // Determine the contribution to mismatchCount based on how many alleles match the reference
+        if (matchingAlleles === 0) {
+            // Neither allele matches the reference (e.g., Ref=A, Var=C/G or Ref=A, Var=T/T)
+            mismatchCount++; // Count as a full mismatch
+        } else if (matchingAlleles === 1) {
+            // Exactly one allele matches the reference (e.g., Ref=A, Var=A/T or Ref=T, Var=A/T)
+            mismatchCount += 0.5; // Count as half a mismatch
+        }
+        // If matchingAlleles === 2 (e.g., Ref=A, Var=A/A), this block is skipped
+        // because the outer `varAllele !== refAllele` condition would be false
+        // if your comparison logic for `varAllele !== refAllele` correctly handles 'A' vs 'A/A'.
+        // If 'A' !== 'A/A' is true even when both alleles match the ref,
+        // having a check for matchingAlleles === 2 here would also add 0 to mismatchCount, which is correct.
+
+
+    } else {
+        // If the variant allele is different but NOT in X/X format
+        // This handles single nucleotide variants (e.g., Ref=A, Var=T)
+        mismatchCount++; // Count as a full mismatch
+    }
+}
              }
              finalResults.varieties.push({
                  name: variety.name, accession: variety.accession, assay: variety.irisId ?? 'N/A',

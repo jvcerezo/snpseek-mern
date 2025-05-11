@@ -130,11 +130,20 @@ export const fetchTraits = async () => {
 // ✅ Fetch Reference Genomes
 export const fetchReferenceGenomes = async () => {
     try {
-        // Gateway path: /api/genetic-features/reference-genomes
         const response = await API.get("/api/genetic-features/reference-genomes");
+        // Check if the response is a disguised failure
+        if (response?.data?.message === "Genetic Feature service unavailable") {
+            throw new Error("Primary service returned failure message");
+        }
         return response.data;
     } catch (error) {
-        throw formatErrorForThrowing(error);
+        console.warn("Primary endpoint failed, trying fallback...");
+        try {
+            const fallbackResponse = await API.get("/api/genomic/reference-genomes");
+            return fallbackResponse.data;
+        } catch (fallbackError) {
+            throw formatErrorForThrowing(fallbackError);
+        }
     }
 };
 

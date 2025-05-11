@@ -11,7 +11,8 @@ import {
     getConsolidatedChromosomeRange,
     searchContigs,
     searchVarietiesByName,
-    lookupVarietiesByIds
+    lookupVarietiesByIds,
+    getReferenceGenomes
     // Import other controllers like searchGenotypesController when ready
 } from "../controllers/genomicController.js"; // Adjust path if needed
 import {protect} from "../middleware/authMiddleware.js"; // Import the auth middleware
@@ -30,6 +31,7 @@ router.get("/consolidated-range", getConsolidatedChromosomeRange);
 router.get("/contigs/search", searchContigs);
 router.get("/varieties/search", searchVarietiesByName);
 router.get("/varieties/lookup", lookupVarietiesByIds);
+router.get("/reference-genomes", getReferenceGenomes);
 
 // router.post("/search", searchGenotypesController); // Example using POST if complex criteria
 
