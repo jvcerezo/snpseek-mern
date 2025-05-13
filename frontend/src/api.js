@@ -640,33 +640,29 @@ export const searchGenotypesPrivate = async (searchCriteria) => {
 
 /**
  * Exchanges a Drupal SSO token for an application-specific JWT and user profile.
- * @param {string} drupalToken - The token received from Drupal.
+ * @param {string} drupalToken - The token string received from Drupal.
  * @returns {Promise<object>} - A promise that resolves to { token, user } from the backend.
  */
 export const exchangeDrupalToken = async (drupalToken) => {
-    console.log("API: Attempting to exchange Drupal token with backend.");
+    const endpoint = "/api/auth/portal"; // Define the endpoint path
+    console.log(`API: Attempting to exchange Drupal token with backend via POST to ${endpoint}`);
+
     try {
-        const response = await fetch(`${API_BASE_URL}/api/auth/portal`, { // Ensure this path matches your backend route
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ drupalToken }), // Backend expects { drupalToken: "..." }
-        });
+        const requestBody = { drupalToken };
+        const response = await API.post(endpoint, requestBody);
+        console.log(`API: Drupal token exchange successful from ${endpoint}. Data:`, response.data);
+        return response.data; // This should be the { token, user } object
 
-        const data = await response.json();
-
-        if (!response.ok) {
-            console.error("API: Drupal token exchange failed.", data);
-            throw new Error(data.message || `HTTP error! status: ${response.status}`);
-        }
-
-        console.log("API: Drupal token exchange successful.", data);
-        // Backend should return { token: appToken, user: userObject }
-        return data;
     } catch (error) {
-        console.error("API: Error in exchangeDrupalToken:", error);
-        throw error; // Re-throw to be caught by the calling function in AuthContext
+        console.error(`API: Error during Drupal token exchange (${endpoint}):`, error);
+        if (error.response && error.response.data && error.response.data.message) {
+            throw new Error(error.response.data.message);
+        } else if (error.message) {
+            throw new Error(error.message);
+        } else {
+            throw new Error(`An unknown error occurred during Drupal token exchange at ${endpoint}.`);
+        }
+        // Or simply: throw error; if the calling function will handle it more specifically.
     }
 };
 
