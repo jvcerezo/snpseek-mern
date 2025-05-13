@@ -638,4 +638,36 @@ export const searchGenotypesPrivate = async (searchCriteria) => {
     }
 };
 
+/**
+ * Exchanges a Drupal SSO token for an application-specific JWT and user profile.
+ * @param {string} drupalToken - The token received from Drupal.
+ * @returns {Promise<object>} - A promise that resolves to { token, user } from the backend.
+ */
+export const exchangeDrupalToken = async (drupalToken) => {
+    console.log("API: Attempting to exchange Drupal token with backend.");
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/auth/portal`, { // Ensure this path matches your backend route
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ drupalToken }), // Backend expects { drupalToken: "..." }
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            console.error("API: Drupal token exchange failed.", data);
+            throw new Error(data.message || `HTTP error! status: ${response.status}`);
+        }
+
+        console.log("API: Drupal token exchange successful.", data);
+        // Backend should return { token: appToken, user: userObject }
+        return data;
+    } catch (error) {
+        console.error("API: Error in exchangeDrupalToken:", error);
+        throw error; // Re-throw to be caught by the calling function in AuthContext
+    }
+};
+
 export default API;
