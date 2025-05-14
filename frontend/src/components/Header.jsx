@@ -12,9 +12,19 @@ const Header = () => {
     const location = useLocation();
     const headerRef = useRef(null);
     const navigate = useNavigate();
+    const [isVisible, setIsVisible] = useState(true);
 
     // Use the authentication context
     const { isAuthenticated, user, logout } = useAuth(); // Get isAuthenticated status
+
+    // Effect to check the origin and hide the header
+    useEffect(() => {
+        if (window.location.origin === 'http://localhost:8080') {
+            setIsVisible(false);
+        } else {
+            setIsVisible(true);
+        }
+    }, []);
 
     // Scroll detection effect
     useEffect(() => {
@@ -32,12 +42,12 @@ const Header = () => {
 
     // Toggle mobile menu
     const toggleMobileMenu = () => {
-         setMobileMenuOpen(prev => {
-             const isOpen = !prev;
-             document.body.classList.toggle('no-scroll', isOpen);
-             return isOpen;
-         });
-     };
+        setMobileMenuOpen(prev => {
+            const isOpen = !prev;
+            document.body.classList.toggle('no-scroll', isOpen);
+            return isOpen;
+        });
+    };
 
     // Handle Logout Click
     const handleLogout = () => {
@@ -52,74 +62,76 @@ const Header = () => {
     const disabledLinkMessage = "You have to be logged in to continue";
 
     return (
-        <header ref={headerRef} className={`header ${isScrolled ? "scrolled" : ""} ${mobileMenuOpen ? "mobile-menu-active" : ""}`}>
-            <div className="header-container">
-                {/* Logo */}
-                <div className="logo-container">
-                    <Link to="/" className="logo" aria-label="Homepage">
-                        <FaDna className="logo-icon" />
-                        <span className="logo-text">SNP-MERN</span>
-                    </Link>
-                </div>
-
-                {/* Navigation */}
-                <nav className={`nav-menu ${mobileMenuOpen ? "mobile-open" : ""}`} id="navigation-menu" aria-label="Main navigation">
-                    {/* Main Links */}
-                    <ul className="nav-links">
-                        <li>
-                            <Link to="/" className={location.pathname === "/" ? "active" : ""}>
-                                <FaHome /><span>Home</span>
-                            </Link>
-                        </li>
-                        <li>
-                            <Link to="/about" className={location.pathname === "/about" ? "active" : ""}>
-                                <FaInfoCircle /><span>About</span>
-                            </Link>
-                        </li>
-                        <li>
-                            {/* Dashboard might also need protection? Assuming public for now */}
-                            <Link to="/dashboard" className={location.pathname === "/dashboard" ? "active" : ""}>
-                                <FaSearch /><span>Dashboard</span>
-                            </Link>
-                        </li>
-                    </ul>
-
-                    {/* Authentication Links/Buttons */}
-                    <div className="nav-auth-links">
-                        {isAuthenticated ? (
-                            <>
-                                <span className="user-greeting">
-                                    <FaUserCircle className="user-icon"/> Hello, {user?.firstName + " " + user?.lastName || 'User'}!
-                                </span>
-                                <button onClick={handleLogout} className="nav-button logout-btn">
-                                    <FaSignOutAlt /><span>Logout</span>
-                                </button>
-                            </>
-                        ) : (
-                            <>
-                                <Link to="/login" className={`nav-button login-btn ${location.pathname === "/login" ? "active" : ""}`}>
-                                    <FaSignInAlt /><span>Login</span>
-                                </Link>
-                                <Link to="/register" className={`nav-button register-btn ${location.pathname === "/register" ? "active" : ""}`}>
-                                    <FaUserPlus /><span>Register</span>
-                                </Link>
-                            </>
-                        )}
+        isVisible && (
+            <header ref={headerRef} className={`header ${isScrolled ? "scrolled" : ""} ${mobileMenuOpen ? "mobile-menu-active" : ""}`}>
+                <div className="header-container">
+                    {/* Logo */}
+                    <div className="logo-container">
+                        <Link to="/" className="logo" aria-label="Homepage">
+                            <FaDna className="logo-icon" />
+                            <span className="logo-text">SNP-MERN</span>
+                        </Link>
                     </div>
-                </nav>
 
-                {/* Mobile Menu Toggle Button */}
-                <button
-                    className="mobile-menu-toggle"
-                    onClick={toggleMobileMenu}
-                    aria-label={mobileMenuOpen ? "Close navigation menu" : "Open navigation menu"}
-                    aria-expanded={mobileMenuOpen}
-                    aria-controls="navigation-menu"
-                >
-                    {mobileMenuOpen ? <FaTimes /> : <FaBars />}
-                </button>
-            </div>
-        </header>
+                    {/* Navigation */}
+                    <nav className={`nav-menu ${mobileMenuOpen ? "mobile-open" : ""}`} id="navigation-menu" aria-label="Main navigation">
+                        {/* Main Links */}
+                        <ul className="nav-links">
+                            <li>
+                                <Link to="/" className={location.pathname === "/" ? "active" : ""}>
+                                    <FaHome /><span>Home</span>
+                                </Link>
+                            </li>
+                            <li>
+                                <Link to="/about" className={location.pathname === "/about" ? "active" : ""}>
+                                    <FaInfoCircle /><span>About</span>
+                                </Link>
+                            </li>
+                            <li>
+                                {/* Dashboard might also need protection? Assuming public for now */}
+                                <Link to="/dashboard" className={location.pathname === "/dashboard" ? "active" : ""}>
+                                    <FaSearch /><span>Dashboard</span>
+                                </Link>
+                            </li>
+                        </ul>
+
+                        {/* Authentication Links/Buttons */}
+                        <div className="nav-auth-links">
+                            {isAuthenticated ? (
+                                <>
+                                    <span className="user-greeting">
+                                        <FaUserCircle className="user-icon"/> Hello, {user?.firstName + " " + user?.lastName || 'User'}!
+                                    </span>
+                                    <button onClick={handleLogout} className="nav-button logout-btn">
+                                        <FaSignOutAlt /><span>Logout</span>
+                                    </button>
+                                </>
+                            ) : (
+                                <>
+                                    <Link to="/login" className={`nav-button login-btn ${location.pathname === "/login" ? "active" : ""}`}>
+                                        <FaSignInAlt /><span>Login</span>
+                                    </Link>
+                                    <Link to="/register" className={`nav-button register-btn ${location.pathname === "/register" ? "active" : ""}`}>
+                                        <FaUserPlus /><span>Register</span>
+                                    </Link>
+                                </>
+                            )}
+                        </div>
+                    </nav>
+
+                    {/* Mobile Menu Toggle Button */}
+                    <button
+                        className="mobile-menu-toggle"
+                        onClick={toggleMobileMenu}
+                        aria-label={mobileMenuOpen ? "Close navigation menu" : "Open navigation menu"}
+                        aria-expanded={mobileMenuOpen}
+                        aria-controls="navigation-menu"
+                    >
+                        {mobileMenuOpen ? <FaTimes /> : <FaBars />}
+                    </button>
+                </div>
+            </header>
+        )
     );
 };
 
