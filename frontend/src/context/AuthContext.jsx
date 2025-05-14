@@ -11,7 +11,8 @@ export const AuthProvider = ({ children }) => {
     const [token, setToken] = useState(localStorage.getItem('authToken'));
     const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('authToken'));
     const [isLoading, setIsLoading] = useState(true);
-    const [drupalToken, setDrupalToken] = useState(null); // New state to track Drupal token
+    const [drupalToken, setDrupalToken] = useState(null);
+    const [isInitialDrupalLoad, setIsInitialDrupalLoad] = useState(false); // New state
 
     const logout = useCallback(() => {
         console.log("AuthContext: Running logout function");
@@ -21,7 +22,8 @@ export const AuthProvider = ({ children }) => {
         setToken(null);
         setIsAuthenticated(false);
         setIsLoading(false);
-        setDrupalToken(null); // Clear Drupal token on logout
+        setDrupalToken(null);
+        setIsInitialDrupalLoad(false); // Reset on logout? Consider the desired behavior
     }, []);
 
     const authenticateWithToken = useCallback(async (appToken, source = 'storage', preloadedUser = null) => {
@@ -56,13 +58,27 @@ export const AuthProvider = ({ children }) => {
         } finally {
             setIsLoading(false);
         }
-    }, [logout]); // Removed setToken, setUser, setIsAuthenticated from dependencies as they are part of this function's closure
+    }, [logout]);
 
 
-    // --- Effect for initial load (storage check) and setting up message listener ---
     useEffect(() => {
-        console.log("AuthContext Mount Effect: Initializing auth checks and message listener...");
+        console.log("AuthContext Mount Effect: Initializing auth checks and iframe detection...");
         setIsLoading(true);
+
+        let initialDrupal = false;
+        try {
+            if (window.self !== window.top && document.referrer.startsWith('http://localhost:8080')) {
+                initialDrupal = true;
+                setIsInitialDrupalLoad(true); // Set the initial state
+                console.log("AuthContext: Detected initial load within an iframe from localhost:8080.");
+            } else {
+                setIsInitialDrupalLoad(false);
+                console.log("AuthContext: Not initial Drupal iframe load.");
+            }
+        } catch (e) {
+            console.warn("AuthContext: Error detecting initial iframe environment.", e);
+            setIsInitialDrupalLoad(false); // Default to false in case of error
+        }
 
         const handleMessage = async (event) => {
             console.log("AuthContext Message Listener: Message received.", event);
@@ -91,39 +107,40 @@ export const AuthProvider = ({ children }) => {
             if (messageData && messageData.token) {
                 const receivedDrupalToken = messageData.token;
                 console.log("AuthContext Message Listener: Received Drupal token. Attempting exchange...");
-                setDrupalToken(receivedDrupalToken); // Set the Drupal token in the state
-                setIsLoading(true); // Set loading before async operation
+                setDrupalToken(receivedDrupalToken);
+                setIsLoading(true);
 
                 try {
-                    // NEW: Call the API to exchange Drupal token for your app's token and user data
                     const { token: appToken, user: ssoUser } = await exchangeDrupalToken(receivedDrupalToken);
 
                     if (appToken && ssoUser) {
                         console.log("AuthContext Message Listener: Drupal token exchange successful. Received app token and user data.");
-                        // Now use the received appToken and ssoUser to authenticate the user in this app
-                        // We can directly set the state here as we have both token and user
                         localStorage.setItem('authToken', appToken);
                         setToken(appToken);
                         setUser(ssoUser);
                         setIsAuthenticated(true);
                         console.log("AuthContext: User authenticated via Drupal SSO. User:", ssoUser);
-                        setDrupalToken(null); // Clear Drupal token after successful exchange
+                        setDrupalToken(null);
+                        setIsInitialDrupalLoad(false); // Clear the initial flag after successful exchange
                     } else {
                         console.warn("AuthContext Message Listener: Drupal token exchange did not return app token or user data.");
-                        logout(); // Or handle more gracefully
-                        setDrupalToken(null); // Clear Drupal token on failure
+                        logout();
+                        setDrupalToken(null);
+                        setIsInitialDrupalLoad(false); // Clear the initial flag on failure
                     }
                 } catch (error) {
                     console.error("AuthContext Message Listener: Error during Drupal token exchange:", error);
-                    logout(); // Logout if exchange fails
-                    setDrupalToken(null); // Clear Drupal token on error
+                    logout();
+                    setDrupalToken(null);
+                    setIsInitialDrupalLoad(false); // Clear the initial flag on error
                 } finally {
-                    setIsLoading(false); // Ensure loading is set to false
+                    setIsLoading(false);
                 }
 
             } else {
                 console.log("AuthContext Message Listener: Message does not contain expected 'token' key.");
-                setDrupalToken(null); // Ensure Drupal token is cleared if no token in message
+                setDrupalToken(null);
+                setIsInitialDrupalLoad(false); // Clear the initial flag if no token
             }
         };
 
@@ -133,10 +150,9 @@ export const AuthProvider = ({ children }) => {
         const storedToken = localStorage.getItem('authToken');
         if (storedToken) {
             console.log("AuthContext Mount Effect: App token found in storage, attempting auth...");
-            // This will use the stored appToken to fetch the user profile
             authenticateWithToken(storedToken, 'storage_init');
-        } else {
-            console.log("AuthContext Mount Effect: No app token found in storage. Waiting for potential iframe message...");
+        } else if (!initialDrupal) {
+            // Only set loading to false if it's not an initial Drupal load
             setIsLoading(false);
         }
 
@@ -144,34 +160,12 @@ export const AuthProvider = ({ children }) => {
             console.log("AuthContext Cleanup: Removing message listener.");
             window.removeEventListener('message', handleMessage);
         };
-    }, [authenticateWithToken, logout]); // Added logout to dependency array
+    }, [authenticateWithToken, logout]);
 
-    const login = async (credentials) => {
-        console.log("AuthContext: Attempting login (internal)...");
-        setIsLoading(true);
-        try {
-            const data = await apiLoginUser(credentials); // data should be { token: appToken, user: userObject }
-            if (data.token && data.user) {
-                // Pass the user object directly to authenticateWithToken if API returns it
-                await authenticateWithToken(data.token, 'internal_login', data.user);
-            } else if (data.token) { // Fallback if only token is returned
-                await authenticateWithToken(data.token, 'internal_login');
-            } else {
-                throw new Error("Login response did not include a token.");
-            }
-            return data;
-        } catch (error) {
-            console.error("AuthContext: Internal login failed.", error);
-            logout();
-            throw error;
-        }
-        // setIsLoading(false) is handled by authenticateWithToken
-    };
-
-    console.log("AuthProvider rendering with value:", { isAuthenticated, isLoading, user, token: token ? '***' : null, drupalToken });
+    console.log("AuthProvider rendering with value:", { isAuthenticated, isLoading, user, token: token ? '***' : null, drupalToken, isInitialDrupalLoad });
 
     return (
-        <AuthContext.Provider value={{ isAuthenticated, isLoading, user, token, login, logout, drupalToken }}>
+        <AuthContext.Provider value={{ isAuthenticated, isLoading, user, token, login, logout, drupalToken, isInitialDrupalLoad }}>
             {children}
         </AuthContext.Provider>
     );

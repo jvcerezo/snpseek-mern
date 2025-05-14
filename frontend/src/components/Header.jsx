@@ -13,8 +13,8 @@ const Header = () => {
     const headerRef = useRef(null);
     const navigate = useNavigate();
 
-    // Use the authentication context, including the drupalToken value
-    const { isAuthenticated, user, logout, drupalToken } = useAuth();
+    // Use the authentication context, including isInitialDrupalLoad
+    const { isAuthenticated, user, logout, isInitialDrupalLoad } = useAuth();
 
     // Scroll detection effect
     useEffect(() => {
@@ -52,7 +52,7 @@ const Header = () => {
     const disabledLinkMessage = "You have to be logged in to continue";
 
     return (
-        !drupalToken && ( // Conditionally render based on the presence of the drupalToken
+        !isInitialDrupalLoad && ( // Prevent rendering on initial Drupal iframe load
             <header ref={headerRef} className={`header ${isScrolled ? "scrolled" : ""} ${mobileMenuOpen ? "mobile-menu-active" : ""}`}>
                 <div className="header-container">
                     {/* Logo */}
