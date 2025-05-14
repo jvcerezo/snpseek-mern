@@ -12,19 +12,9 @@ const Header = () => {
     const location = useLocation();
     const headerRef = useRef(null);
     const navigate = useNavigate();
-    const [isVisible, setIsVisible] = useState(true);
 
-    // Use the authentication context
-    const { isAuthenticated, user, logout } = useAuth(); // Get isAuthenticated status
-
-    // Effect to check the origin and hide the header
-    useEffect(() => {
-        if (window.location.origin === 'http://localhost:8080') {
-            setIsVisible(false);
-        } else {
-            setIsVisible(true);
-        }
-    }, []);
+    // Use the authentication context, including the isIframe value
+    const { isAuthenticated, user, logout, isIframe } = useAuth();
 
     // Scroll detection effect
     useEffect(() => {
@@ -62,7 +52,7 @@ const Header = () => {
     const disabledLinkMessage = "You have to be logged in to continue";
 
     return (
-        isVisible && (
+        !isIframe && ( // Conditionally render based on the isIframe context value
             <header ref={headerRef} className={`header ${isScrolled ? "scrolled" : ""} ${mobileMenuOpen ? "mobile-menu-active" : ""}`}>
                 <div className="header-container">
                     {/* Logo */}

@@ -4,13 +4,14 @@ import { loginUser as apiLoginUser, logoutUser as apiLogoutUser, fetchUserProfil
 
 const AuthContext = createContext(null);
 
-const DRUPAL_ORIGIN = 'http://localhost:8080';
+const DRUPAL_ORIGIN = 'http://localhost:8080'; // Keep this for origin checks
 
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [token, setToken] = useState(localStorage.getItem('authToken'));
     const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('authToken'));
     const [isLoading, setIsLoading] = useState(true);
+    const [isIframe, setIsIframe] = useState(false); // New state for iframe context
 
     const logout = useCallback(() => {
         console.log("AuthContext: Running logout function");
@@ -20,9 +21,9 @@ export const AuthProvider = ({ children }) => {
         setToken(null);
         setIsAuthenticated(false);
         setIsLoading(false);
+        setIsIframe(false); // Reset iframe state on logout? Consider if this is the desired behavior
     }, []);
 
-    // This function now primarily handles setting auth state AFTER a token (app token) is validated or acquired
     const authenticateWithToken = useCallback(async (appToken, source = 'storage', preloadedUser = null) => {
         console.log(`Attempting authentication with APP token from ${source}...`);
         setIsLoading(true);
@@ -60,8 +61,23 @@ export const AuthProvider = ({ children }) => {
 
     // --- Effect for initial load (storage check) and setting up message listener ---
     useEffect(() => {
-        console.log("AuthContext Mount Effect: Initializing auth checks...");
+        console.log("AuthContext Mount Effect: Initializing auth checks and iframe detection...");
         setIsLoading(true);
+
+        // Detect if running in an iframe from localhost:8080 on initial load
+        try {
+            if (window.self !== window.top && document.referrer.startsWith('http://localhost:8080')) {
+                setIsIframe(true);
+                console.log("AuthContext: Detected running within an iframe from localhost:8080.");
+            } else {
+                setIsIframe(false);
+                console.log("AuthContext: Not running within the target iframe.");
+            }
+        } catch (e) {
+            // Accessing window.top might be blocked by cross-origin policies, handle gracefully
+            console.warn("AuthContext: Error detecting iframe environment.", e);
+            setIsIframe(false); // Default to false in case of error
+        }
 
         const handleMessage = async (event) => {
             console.log("AuthContext Message Listener: Message received.", event);
@@ -162,10 +178,15 @@ export const AuthProvider = ({ children }) => {
         // setIsLoading(false) is handled by authenticateWithToken
     };
 
-    console.log("AuthProvider rendering with value:", { isAuthenticated, isLoading, user, token: token ? '***' : null });
+    // Function to manually set the iframe context (if needed elsewhere)
+    const setIsIframeContext = (value) => {
+        setIsIframe(value);
+    };
+
+    console.log("AuthProvider rendering with value:", { isAuthenticated, isLoading, user, token: token ? '***' : null, isIframe, setIsIframeContext });
 
     return (
-        <AuthContext.Provider value={{ isAuthenticated, isLoading, user, token, login, logout }}>
+        <AuthContext.Provider value={{ isAuthenticated, isLoading, user, token, login, logout, isIframe, setIsIframeContext }}>
             {children}
         </AuthContext.Provider>
     );
