@@ -11,7 +11,7 @@ export const AuthProvider = ({ children }) => {
     const [token, setToken] = useState(localStorage.getItem('authToken'));
     const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('authToken'));
     const [isLoading, setIsLoading] = useState(true);
-    const [isIframe, setIsIframe] = useState(false); // New state for iframe context
+    const [drupalToken, setDrupalToken] = useState(null); // New state to track Drupal token
 
     const logout = useCallback(() => {
         console.log("AuthContext: Running logout function");
@@ -21,7 +21,7 @@ export const AuthProvider = ({ children }) => {
         setToken(null);
         setIsAuthenticated(false);
         setIsLoading(false);
-        setIsIframe(false); // Reset iframe state on logout? Consider if this is the desired behavior
+        setDrupalToken(null); // Clear Drupal token on logout
     }, []);
 
     const authenticateWithToken = useCallback(async (appToken, source = 'storage', preloadedUser = null) => {
@@ -61,23 +61,8 @@ export const AuthProvider = ({ children }) => {
 
     // --- Effect for initial load (storage check) and setting up message listener ---
     useEffect(() => {
-        console.log("AuthContext Mount Effect: Initializing auth checks and iframe detection...");
+        console.log("AuthContext Mount Effect: Initializing auth checks and message listener...");
         setIsLoading(true);
-
-        // Detect if running in an iframe from localhost:8080 on initial load
-        try {
-            if (window.self !== window.top && document.referrer.startsWith('http://localhost:8080')) {
-                setIsIframe(true);
-                console.log("AuthContext: Detected running within an iframe from localhost:8080.");
-            } else {
-                setIsIframe(false);
-                console.log("AuthContext: Not running within the target iframe.");
-            }
-        } catch (e) {
-            // Accessing window.top might be blocked by cross-origin policies, handle gracefully
-            console.warn("AuthContext: Error detecting iframe environment.", e);
-            setIsIframe(false); // Default to false in case of error
-        }
 
         const handleMessage = async (event) => {
             console.log("AuthContext Message Listener: Message received.", event);
@@ -104,13 +89,14 @@ export const AuthProvider = ({ children }) => {
             }
 
             if (messageData && messageData.token) {
-                const drupalToken = messageData.token;
+                const receivedDrupalToken = messageData.token;
                 console.log("AuthContext Message Listener: Received Drupal token. Attempting exchange...");
+                setDrupalToken(receivedDrupalToken); // Set the Drupal token in the state
                 setIsLoading(true); // Set loading before async operation
 
                 try {
                     // NEW: Call the API to exchange Drupal token for your app's token and user data
-                    const { token: appToken, user: ssoUser } = await exchangeDrupalToken(drupalToken);
+                    const { token: appToken, user: ssoUser } = await exchangeDrupalToken(receivedDrupalToken);
 
                     if (appToken && ssoUser) {
                         console.log("AuthContext Message Listener: Drupal token exchange successful. Received app token and user data.");
@@ -121,19 +107,23 @@ export const AuthProvider = ({ children }) => {
                         setUser(ssoUser);
                         setIsAuthenticated(true);
                         console.log("AuthContext: User authenticated via Drupal SSO. User:", ssoUser);
+                        setDrupalToken(null); // Clear Drupal token after successful exchange
                     } else {
                         console.warn("AuthContext Message Listener: Drupal token exchange did not return app token or user data.");
                         logout(); // Or handle more gracefully
+                        setDrupalToken(null); // Clear Drupal token on failure
                     }
                 } catch (error) {
                     console.error("AuthContext Message Listener: Error during Drupal token exchange:", error);
                     logout(); // Logout if exchange fails
+                    setDrupalToken(null); // Clear Drupal token on error
                 } finally {
                     setIsLoading(false); // Ensure loading is set to false
                 }
 
             } else {
                 console.log("AuthContext Message Listener: Message does not contain expected 'token' key.");
+                setDrupalToken(null); // Ensure Drupal token is cleared if no token in message
             }
         };
 
@@ -178,15 +168,10 @@ export const AuthProvider = ({ children }) => {
         // setIsLoading(false) is handled by authenticateWithToken
     };
 
-    // Function to manually set the iframe context (if needed elsewhere)
-    const setIsIframeContext = (value) => {
-        setIsIframe(value);
-    };
-
-    console.log("AuthProvider rendering with value:", { isAuthenticated, isLoading, user, token: token ? '***' : null, isIframe, setIsIframeContext });
+    console.log("AuthProvider rendering with value:", { isAuthenticated, isLoading, user, token: token ? '***' : null, drupalToken });
 
     return (
-        <AuthContext.Provider value={{ isAuthenticated, isLoading, user, token, login, logout, isIframe, setIsIframeContext }}>
+        <AuthContext.Provider value={{ isAuthenticated, isLoading, user, token, login, logout, drupalToken }}>
             {children}
         </AuthContext.Provider>
     );
